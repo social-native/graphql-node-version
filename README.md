@@ -1,3 +1,13 @@
+# SNPKG-SNAPI-graphql-node-version :twisted_rightwards_arrows:
+
+## Install
+
+Install by referencing the github location and the release number:
+
+```
+npm install --save social-native/snpkg-snapi-graphql-node-version#v1.0.0
+```
+
 # RFC:
 
 The core idea:
