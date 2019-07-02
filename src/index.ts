@@ -51,10 +51,11 @@ interface IConfig extends INamesConfig {
     roles: string[];
 }
 
-const createRevisionMigrations = ({config}: {config?: IConfig}) => {
+const createRevisionMigrations = (config?: IConfig) => {
     const {tableNames, columnNames} = setNames(config || {});
 
     const up = (knex: Knex) => {
+        console.log('hereeee', knex);
         return knex.schema.createTable(tableNames.main, t => {
             t.increments('id')
                 .unsigned()

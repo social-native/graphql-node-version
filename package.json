@@ -1,10 +1,13 @@
 {
     "name": "snpkg-snapi-graphql-node-version",
     "version": "0.0.0",
-    "description": "Handle versioning of gaphql nodes",
+    "description": "Handle versioning of graphql nodes",
     "main": "dist/index.cjs.js",
     "module": "dist/index.es.js",
     "types": "dist/index.d.ts",
+    "bin": {
+        "snpkg-snapi-graphql-node-version": "./dist/bin.js"
+    },
     "files": [
         "dist"
     ],
@@ -55,7 +58,8 @@
     },
     "homepage": "https://github.com/social-native/snpkg-snapi-graphql-node-version#readme",
     "dependencies": {
-        "knex": "^0.18.1"
+        "knex": "^0.18.1",
+        "yargs": "^13.2.4"
     },
     "devDependencies": {
         "@types/dotenv": "^6.1.1",
@@ -76,7 +80,10 @@
         "nodemon": "^1.18.10",
         "prettier": "^1.16.4",
         "rollup": "^1.2.2",
+        "rollup-plugin-executable": "^1.5.0",
+        "rollup-plugin-hashbang": "^2.2.2",
         "rollup-plugin-typescript2": "^0.21.1",
+        "snpkg-snapi-connections": "git+https://ce9b5172cb47aa229dce3f64fe0fa5577bcb8a90:x-oauth-basic@github.com/social-native/snpkg-snapi-connections#v4.0.2",
         "sqlite3": "^4.0.6",
         "supertest": "^4.0.2",
         "ts-jest": "^24.0.0",
@@ -84,7 +91,6 @@
         "tsconfig-paths": "^3.8.0",
         "tslint": "^5.13.1",
         "tslint-eslint-rules": "^5.4.0",
-        "typescript": "^3.3.3333",
-        "snpkg-snapi-connections": "git+https://ce9b5172cb47aa229dce3f64fe0fa5577bcb8a90:x-oauth-basic@github.com/social-native/snpkg-snapi-connections#v4.0.2"
+        "typescript": "^3.3.3333"
     }
 }
