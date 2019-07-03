@@ -41,8 +41,8 @@ const createRevisionMigrations = (config) => {
             t.integer(columnNames.nodeVersion);
         });
     };
-    const down = (knex) => {
-        return knex.schema.dropTable(tableNames.main);
+    const down = async (knex) => {
+        return await knex.schema.dropTable(tableNames.main);
     };
     return { up, down };
 };
@@ -347,7 +347,7 @@ var initKnex_1 = {
 };
 var initKnex_2 = initKnex_1.initKnex;
 
-var _initKnex = /*#__PURE__*/Object.freeze({
+var _kenxBin = /*#__PURE__*/Object.freeze({
     'default': initKnex_1,
     __moduleExports: initKnex_1,
     initKnex: initKnex_2
@@ -359,8 +359,9 @@ var _initKnex = /*#__PURE__*/Object.freeze({
  * migrate:latest
  * migrate:rollback
  */
-const { up } = createRevisionMigrations();
-const initKnex$1 = initKnex_1 || _initKnex;
+const { up, down } = createRevisionMigrations();
+const kenxBin = initKnex_1 || _kenxBin;
+yargs.scriptName('graphql-node-version');
 yargs.command({
     command: 'migrate:revision-table',
     describe: 'Migrates the database to add the revision table',
@@ -370,17 +371,28 @@ yargs.command({
         env.modulePath = path.join(process.cwd(), 'node_modules', 'knex');
         const opts = {};
         opts.client = opts.client || 'sqlite3'; // We don't really care about client when creating migrations
-        const knex = initKnex$1.initKnex(Object.assign({}, env), opts);
-        console.log('Created revision table');
+        const knex = kenxBin.initKnex(Object.assign({}, env), opts);
         await up(knex);
+        console.log('Created revision table');
+        return;
     }
 });
 yargs.command({
     command: 'rollback:revision-table',
     describe: 'Rollbacks migration of the revision table',
-    handler: () => {
-        console.log('Rolling back revision table migration');
+    handler: async () => {
+        const env = process.env;
+        env.cwd = process.cwd();
+        env.modulePath = path.join(process.cwd(), 'node_modules', 'knex');
+        const opts = {};
+        opts.client = opts.client || 'sqlite3'; // We don't really care about client when creating migrations
+        const knex = kenxBin.initKnex(Object.assign({}, env), opts);
+        await down(knex);
+        console.log('Rollback revision table');
+        return;
     }
 });
-console.log(yargs.argv);
-// console.log('hi', 'helllllo');
+// run!
+// tslint:disable-next-line
+yargs.help().argv;
+//# sourceMappingURL=bin.js.map

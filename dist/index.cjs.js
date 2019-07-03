@@ -32,8 +32,8 @@ const createRevisionMigrations = (config) => {
             t.integer(columnNames.nodeVersion);
         });
     };
-    const down = (knex) => {
-        return knex.schema.dropTable(tableNames.main);
+    const down = async (knex) => {
+        return await knex.schema.dropTable(tableNames.main);
     };
     return { up, down };
 };
@@ -49,7 +49,6 @@ const createRevisionTransaction = (config) => async (knex, input) => {
         .insert(input);
     return { transaction };
 };
-//# sourceMappingURL=index.js.map
 
 exports.createRevisionMigrations = createRevisionMigrations;
 exports.createRevisionTransaction = createRevisionTransaction;

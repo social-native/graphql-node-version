@@ -11,12 +11,13 @@ import {createRevisionMigrations} from './index';
 import yargs from 'yargs';
 import path from 'path';
 
-// import Knex from 'knex';
-import * as _initKnex from './lib/knex/init-knex'; // tslint:disable-line
+import * as _kenxBin from './lib/knex/init-knex'; // tslint:disable-line
 
-const {up} = createRevisionMigrations();
+const {up, down} = createRevisionMigrations();
 
-const initKnex = (_initKnex as any).default || _initKnex;
+const kenxBin = (_kenxBin as any).default || _kenxBin;
+
+yargs.scriptName('graphql-node-version');
 
 yargs.command({
     command: 'migrate:revision-table',
@@ -28,20 +29,32 @@ yargs.command({
         const opts = {} as any;
         opts.client = opts.client || 'sqlite3'; // We don't really care about client when creating migrations
 
-        const knex = (initKnex as any).initKnex(Object.assign({}, env), opts);
+        const knex = (kenxBin as any).initKnex(Object.assign({}, env), opts);
 
-        console.log('Created revision table');
         await up(knex);
+        console.log('Created revision table');
+        return;
     }
 });
 
 yargs.command({
     command: 'rollback:revision-table',
     describe: 'Rollbacks migration of the revision table',
-    handler: () => {
-        console.log('Rolling back revision table migration');
+    handler: async () => {
+        const env = process.env;
+        env.cwd = process.cwd();
+        env.modulePath = path.join(process.cwd(), 'node_modules', 'knex');
+        const opts = {} as any;
+        opts.client = opts.client || 'sqlite3'; // We don't really care about client when creating migrations
+
+        const knex = (kenxBin as any).initKnex(Object.assign({}, env), opts);
+
+        await down(knex);
+        console.log('Rollback revision table');
+        return;
     }
 });
 
-console.log(yargs.argv);
-// console.log('hi', 'helllllo');
+// run!
+// tslint:disable-next-line
+yargs.help().argv;

@@ -68,8 +68,8 @@ const createRevisionMigrations = (config?: IConfig) => {
         });
     };
 
-    const down = (knex: Knex) => {
-        return knex.schema.dropTable(tableNames.main);
+    const down = async (knex: Knex) => {
+        return await knex.schema.dropTable(tableNames.main);
     };
 
     return {up, down};
