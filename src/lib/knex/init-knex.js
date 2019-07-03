@@ -1,12 +1,7 @@
-/* eslint no-console:0, no-var:0 */
-// const Bluebird = require('bluebird');
-// // const interpret = require('interpret');
 const path = require('path');
 const tildify = require('tildify');
-// // const commander = require('commander');
 const color = require('colorette');
 const argv = require('getopts')(process.argv.slice(2));
-// // const fs = Bluebird.promisifyAll(require('fs'));
 
 const {mkConfigObj, resolveKnexFilePath} = require('./cli-config-utils');
 const {DEFAULT_EXT} = require('./constants');
@@ -26,7 +21,6 @@ function success(text) {
 }
 
 function checkLocalModule(env) {
-    console.log('here', typeof env.modulePath, !env.modulePath)
     if (!env.modulePath) {
         console.log(color.red('No local knex install found in:'), color.magenta(tildify(env.cwd)));
         exit('Try running: npm install knex');

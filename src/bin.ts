@@ -1,12 +1,5 @@
 #! /usr/bin/env node
 
-/**
- * API
- *
- * migrate:latest
- * migrate:rollback
- */
-
 import {createRevisionMigrations} from './index';
 import yargs from 'yargs';
 import path from 'path';
@@ -33,7 +26,7 @@ yargs.command({
 
         await up(knex);
         console.log('Created revision table');
-        return;
+        process.exit(0);
     }
 });
 
@@ -50,8 +43,8 @@ yargs.command({
         const knex = (kenxBin as any).initKnex(Object.assign({}, env), opts);
 
         await down(knex);
-        console.log('Rollback revision table');
-        return;
+        console.log('Rolled back revision table');
+        process.exit(0);
     }
 });
 

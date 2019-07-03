@@ -254,15 +254,7 @@ var cliConfigUtils = {
   resolveKnexFilePath,
 };
 
-/* eslint no-console:0, no-var:0 */
-// const Bluebird = require('bluebird');
-// // const interpret = require('interpret');
-
-
-// // const commander = require('commander');
-
 const argv = getopts(process.argv.slice(2));
-// // const fs = Bluebird.promisifyAll(require('fs'));
 
 const {mkConfigObj: mkConfigObj$1, resolveKnexFilePath: resolveKnexFilePath$1} = cliConfigUtils;
 
@@ -276,7 +268,6 @@ function exit(text) {
 }
 
 function checkLocalModule(env) {
-    console.log('here', typeof env.modulePath, !env.modulePath);
     if (!env.modulePath) {
         console.log(colorette.red('No local knex install found in:'), colorette.magenta(tildify(env.cwd)));
         exit('Try running: npm install knex');
@@ -353,12 +344,6 @@ var _kenxBin = /*#__PURE__*/Object.freeze({
     initKnex: initKnex_2
 });
 
-/**
- * API
- *
- * migrate:latest
- * migrate:rollback
- */
 const { up, down } = createRevisionMigrations();
 const kenxBin = initKnex_1 || _kenxBin;
 yargs.scriptName('graphql-node-version');
@@ -374,7 +359,7 @@ yargs.command({
         const knex = kenxBin.initKnex(Object.assign({}, env), opts);
         await up(knex);
         console.log('Created revision table');
-        return;
+        process.exit(0);
     }
 });
 yargs.command({
@@ -388,11 +373,10 @@ yargs.command({
         opts.client = opts.client || 'sqlite3'; // We don't really care about client when creating migrations
         const knex = kenxBin.initKnex(Object.assign({}, env), opts);
         await down(knex);
-        console.log('Rollback revision table');
-        return;
+        console.log('Rolled back revision table');
+        process.exit(0);
     }
 });
 // run!
 // tslint:disable-next-line
 yargs.help().argv;
-//# sourceMappingURL=bin.js.map
