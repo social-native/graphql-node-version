@@ -350,13 +350,21 @@ yargs.scriptName('graphql-node-version');
 yargs.command({
     command: 'migrate:revision-table',
     describe: 'Migrates the database to add the revision table',
-    handler: async () => {
+    handler: async (args) => {
         const env = process.env;
         env.cwd = process.cwd();
         env.modulePath = path.join(process.cwd(), 'node_modules', 'knex');
-        const opts = {};
+        const opts = {
+            client: args.client || 'sqlite3',
+            cwd: args.cwd,
+            knexfile: args.knexfile,
+            knexpath: args.knexpath,
+            require: args.require,
+            completion: args.completion
+        };
         opts.client = opts.client || 'sqlite3'; // We don't really care about client when creating migrations
         const knex = kenxBin.initKnex(Object.assign({}, env), opts);
+        // console.log(knex);
         await up(knex);
         console.log('Created revision table');
         process.exit(0);
@@ -365,12 +373,18 @@ yargs.command({
 yargs.command({
     command: 'rollback:revision-table',
     describe: 'Rollbacks migration of the revision table',
-    handler: async () => {
+    handler: async (args) => {
         const env = process.env;
         env.cwd = process.cwd();
         env.modulePath = path.join(process.cwd(), 'node_modules', 'knex');
-        const opts = {};
-        opts.client = opts.client || 'sqlite3'; // We don't really care about client when creating migrations
+        const opts = {
+            client: args.client || 'sqlite3',
+            cwd: args.cwd,
+            knexfile: args.knexfile,
+            knexpath: args.knexpath,
+            require: args.require,
+            completion: args.completion
+        };
         const knex = kenxBin.initKnex(Object.assign({}, env), opts);
         await down(knex);
         console.log('Rolled back revision table');
@@ -380,3 +394,4 @@ yargs.command({
 // run!
 // tslint:disable-next-line
 yargs.help().argv;
+//# sourceMappingURL=bin.js.map

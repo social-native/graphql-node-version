@@ -37,7 +37,9 @@
         "seed:mysql:run": "npm run knex:mysql seed:run",
         "migrate:mysql:make": "npm run knex:mysql migrate:make",
         "migrate:mysql:latest": "npm run knex:mysql migrate:latest",
-        "migrate:mysql:rollback": "npm run knex:mysql migrate:rollback"
+        "migrate:mysql:rollback": "npm run knex:mysql migrate:rollback",
+        "migrate:mysql:revision-table": "node ./node_modules/.bin/ts-node --project tsconfig.dev.json ./dist/bin.js migrate:revision-table --knexfile knexfile.mysql.ts",
+        "rollback:mysql:revision-table": "node ./node_modules/.bin/ts-node --project tsconfig.dev.json ./dist/bin.js rollback:revision-table --knexfile knexfile.mysql.ts"
     },
     "repository": {
         "type": "git",
@@ -88,7 +90,6 @@
         "rollup-plugin-commonjs": "^10.0.1",
         "rollup-plugin-executable": "^1.5.0",
         "rollup-plugin-hashbang": "^2.2.2",
-        "rollup-plugin-node-resolve": "^5.2.0",
         "rollup-plugin-typescript2": "^0.21.1",
         "snpkg-snapi-connections": "git+https://ce9b5172cb47aa229dce3f64fe0fa5577bcb8a90:x-oauth-basic@github.com/social-native/snpkg-snapi-connections#v4.0.2",
         "sqlite3": "^4.0.6",
