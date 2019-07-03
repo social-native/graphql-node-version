@@ -1,6 +1,8 @@
 import typescript from 'rollup-plugin-typescript2'
 import hashbang from 'rollup-plugin-hashbang';
 import executable from "rollup-plugin-executable";
+import commonjs from "rollup-plugin-commonjs";
+// import resolve from 'rollup-plugin-node-resolve';
 
 import pkg from './package.json'
 
@@ -40,6 +42,14 @@ export default [{
     format: 'cjs',
   },
   plugins: [
+    // resolve({ 
+    //   preferBuiltins: true
+    // }),
+    commonjs({     
+      ignore: ["conditional-runtime-dependency"],
+      namedExports: {
+      'node_modules/yargs/yargs.js': ['Yargs'],
+    }}),
     hashbang(),
     executable(),
     ...commonPlugins

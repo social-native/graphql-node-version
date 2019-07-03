@@ -20,9 +20,8 @@ const setNames = ({ tableNames, columnNames }) => ({
 });
 const createRevisionMigrations = (config) => {
     const { tableNames, columnNames } = setNames(config || {});
-    const up = (knex) => {
-        console.log('hereeee', knex);
-        return knex.schema.createTable(tableNames.main, t => {
+    const up = async (knex) => {
+        return await knex.schema.createTable(tableNames.main, t => {
             t.increments('id')
                 .unsigned()
                 .primary();

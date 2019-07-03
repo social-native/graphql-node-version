@@ -54,9 +54,8 @@ interface IConfig extends INamesConfig {
 const createRevisionMigrations = (config?: IConfig) => {
     const {tableNames, columnNames} = setNames(config || {});
 
-    const up = (knex: Knex) => {
-        console.log('hereeee', knex);
-        return knex.schema.createTable(tableNames.main, t => {
+    const up = async (knex: Knex) => {
+        return await knex.schema.createTable(tableNames.main, t => {
             t.increments('id')
                 .unsigned()
                 .primary();
