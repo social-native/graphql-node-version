@@ -66,20 +66,24 @@ type KnexQueryResult = Array<{[attributeName: string]: any}>;
 function hi() {
     console.log('f(): evaluated');
     return function(_target: any, _propertyKey: string, _descriptor: PropertyDescriptor) {
+        console.log('hiiiiiiii', _target, _propertyKey, _descriptor);
+        // _target();
         console.log('f(): called');
     };
 }
 // Provide resolver functions for your schema fields
 // tslint:disable
 const mutation = {
-    user(_: any, {firstname, username}: IUserNode) {
+    user: (_: any, {firstname, username}: IUserNode) => {
         console.log('HERE', firstname, username);
     }
 };
 
 const decoratedMutation = decorate(mutation, {
-    user: hi
+    user: [hi]
 });
+
+console.log(decoratedMutation.user);
 // tslint:enable
 
 const resolvers = {

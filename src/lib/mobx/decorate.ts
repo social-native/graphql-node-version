@@ -30,46 +30,68 @@ export function isPlainObject(value: any) {
  * https://github.com/mobxjs/mobx/blob/master/src/api/decorate.ts
  * **************************************************************
  */
-export function decorate<T>(
-    clazz: new (...args: any[]) => T,
+// export function decorate<T>(
+//     clazz: new (...args: any[]) => T,
+//     decorators: {
+//         [P in keyof T]?:
+//             | MethodDecorator
+//             | PropertyDecorator
+//             | Array<MethodDecorator>
+//             | Array<PropertyDecorator>;
+//     }
+// ): void;
+// export function decorate<T>(
+//     object: T,
+//     decorators: {
+//         [P in keyof T]?:
+//             | MethodDecorator
+//             | PropertyDecorator
+//             | Array<MethodDecorator>
+//             | Array<PropertyDecorator>;
+//     }
+// ): T;
+function decorate<T>(
+    thing: T,
     decorators: {
-        [P in keyof T]?:
-            | MethodDecorator
-            | PropertyDecorator
-            | Array<MethodDecorator>
-            | Array<PropertyDecorator>;
+        [P in keyof T]?: Array<any>;
+        // | Array<PropertyDecorator>; // | PropertyDecorator // | MethodDecorator
     }
-): void;
-export function decorate<T>(
-    object: T,
-    decorators: {
-        [P in keyof T]?:
-            | MethodDecorator
-            | PropertyDecorator
-            | Array<MethodDecorator>
-            | Array<PropertyDecorator>;
-    }
-): T;
-export function decorate(thing: any, decorators: any) {
+): T {
     process.env.NODE_ENV !== 'production' &&
         invariant(isPlainObject(decorators), 'Decorators should be a key value map');
     const target = typeof thing === 'function' ? thing.prototype : thing;
+
     for (let prop in decorators) {
+        console.log('inside');
+
         let propertyDecorators = decorators[prop];
-        if (!Array.isArray(propertyDecorators)) {
-            propertyDecorators = [propertyDecorators];
+        if (!propertyDecorators) {
+            console.log('breaking');
+            break;
         }
-        process.env.NODE_ENV !== 'production' &&
-            invariant(
-                propertyDecorators.every((decorator: any) => typeof decorator === 'function'),
-                `Decorate: expected a decorator function or array of decorator functions for '${prop}'`
-            );
+        // if (!Array.isArray(propertyDecorators)) {
+        //     propertyDecorators = [propertyDecorators];
+        // }
+        // process.env.NODE_ENV !== 'production' &&
+        //     invariant(
+        //         propertyDecorators.every((decorator: any) => typeof decorator === 'function'),
+        //         `Decorate: expected a decorator function or array of decorator functions for '${prop}'`
+        //     );
         const descriptor = Object.getOwnPropertyDescriptor(target, prop);
         const newDescriptor = propertyDecorators.reduce(
-            (accDescriptor: any, decorator: any) => decorator(target, prop, accDescriptor),
+            (accDescriptor, decorator) => decorator(target, prop, accDescriptor),
             descriptor
         );
-        if (newDescriptor) Object.defineProperty(target, prop, newDescriptor);
+        console.log('New Descriptor', prop, newDescriptor);
+        // if (newDescriptor)
+        Object.defineProperty(target, prop, {value: newDescriptor});
+    }
+
+    var propValue;
+    for (var propName in thing) {
+        propValue = thing[propName];
+
+        console.log('New Descriptor Property', propName, propValue);
     }
     return thing;
 }

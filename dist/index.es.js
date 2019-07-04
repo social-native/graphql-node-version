@@ -17,25 +17,63 @@ function isPlainObject(value) {
     const proto = Object.getPrototypeOf(value);
     return proto === Object.prototype || proto === null;
 }
+/**
+ * **************************************************************
+ * https://github.com/mobxjs/mobx/blob/master/src/api/decorate.ts
+ * **************************************************************
+ */
+// export function decorate<T>(
+//     clazz: new (...args: any[]) => T,
+//     decorators: {
+//         [P in keyof T]?:
+//             | MethodDecorator
+//             | PropertyDecorator
+//             | Array<MethodDecorator>
+//             | Array<PropertyDecorator>;
+//     }
+// ): void;
+// export function decorate<T>(
+//     object: T,
+//     decorators: {
+//         [P in keyof T]?:
+//             | MethodDecorator
+//             | PropertyDecorator
+//             | Array<MethodDecorator>
+//             | Array<PropertyDecorator>;
+//     }
+// ): T;
 function decorate(thing, decorators) {
     process.env.NODE_ENV !== 'production' &&
         invariant(isPlainObject(decorators), 'Decorators should be a key value map');
     const target = typeof thing === 'function' ? thing.prototype : thing;
     for (let prop in decorators) {
+        console.log('inside');
         let propertyDecorators = decorators[prop];
-        if (!Array.isArray(propertyDecorators)) {
-            propertyDecorators = [propertyDecorators];
+        if (!propertyDecorators) {
+            console.log('breaking');
+            break;
         }
-        process.env.NODE_ENV !== 'production' &&
-            invariant(propertyDecorators.every((decorator) => typeof decorator === 'function'), `Decorate: expected a decorator function or array of decorator functions for '${prop}'`);
+        // if (!Array.isArray(propertyDecorators)) {
+        //     propertyDecorators = [propertyDecorators];
+        // }
+        // process.env.NODE_ENV !== 'production' &&
+        //     invariant(
+        //         propertyDecorators.every((decorator: any) => typeof decorator === 'function'),
+        //         `Decorate: expected a decorator function or array of decorator functions for '${prop}'`
+        //     );
         const descriptor = Object.getOwnPropertyDescriptor(target, prop);
         const newDescriptor = propertyDecorators.reduce((accDescriptor, decorator) => decorator(target, prop, accDescriptor), descriptor);
-        if (newDescriptor)
-            Object.defineProperty(target, prop, newDescriptor);
+        console.log('New Descriptor', prop, newDescriptor);
+        // if (newDescriptor)
+        Object.defineProperty(target, prop, { value: newDescriptor });
+    }
+    var propValue;
+    for (var propName in thing) {
+        propValue = thing[propName];
+        console.log('New Descriptor Property', propName, propValue);
     }
     return thing;
 }
-//# sourceMappingURL=decorate.js.map
 
 const setNames = ({ tableNames, columnNames }) => ({
     tableNames: {
