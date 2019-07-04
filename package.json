@@ -38,8 +38,8 @@
         "migrate:mysql:make": "npm run knex:mysql migrate:make",
         "migrate:mysql:latest": "npm run knex:mysql migrate:latest",
         "migrate:mysql:rollback": "npm run knex:mysql migrate:rollback",
-        "migrate:mysql:revision-table": "node ./node_modules/.bin/ts-node --project tsconfig.dev.json ./dist/bin.js migrate:revision-table --knexfile knexfile.mysql.ts",
-        "rollback:mysql:revision-table": "node ./node_modules/.bin/ts-node --project tsconfig.dev.json ./dist/bin.js rollback:revision-table --knexfile knexfile.mysql.ts"
+        "migrate:mysql:revision-table": "ts-node --project tsconfig.dev.json ./dist/bin.js migrate:revision-table --knexfile knexfile.mysql.ts",
+        "rollback:mysql:revision-table": "ts-node --project tsconfig.dev.json ./dist/bin.js rollback:revision-table --knexfile knexfile.mysql.ts"
     },
     "repository": {
         "type": "git",

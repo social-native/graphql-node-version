@@ -2,6 +2,45 @@
 
 Object.defineProperty(exports, '__esModule', { value: true });
 
+// tslint:disable
+/**
+ * **************************************************************
+ * https://github.com/mobxjs/mobx/blob/master/src/utils/utils.ts
+ * **************************************************************
+ */
+const OBFUSCATED_ERROR = 'An invariant failed, however the error is obfuscated because this is an production build.';
+function invariant(check, message) {
+    if (!check) {
+        throw new Error('[decorate] ' + (message || OBFUSCATED_ERROR));
+    }
+}
+function isPlainObject(value) {
+    if (value === null || typeof value !== 'object') {
+        return false;
+    }
+    const proto = Object.getPrototypeOf(value);
+    return proto === Object.prototype || proto === null;
+}
+function decorate(thing, decorators) {
+    process.env.NODE_ENV !== 'production' &&
+        invariant(isPlainObject(decorators), 'Decorators should be a key value map');
+    const target = typeof thing === 'function' ? thing.prototype : thing;
+    for (let prop in decorators) {
+        let propertyDecorators = decorators[prop];
+        if (!Array.isArray(propertyDecorators)) {
+            propertyDecorators = [propertyDecorators];
+        }
+        process.env.NODE_ENV !== 'production' &&
+            invariant(propertyDecorators.every((decorator) => typeof decorator === 'function'), `Decorate: expected a decorator function or array of decorator functions for '${prop}'`);
+        const descriptor = Object.getOwnPropertyDescriptor(target, prop);
+        const newDescriptor = propertyDecorators.reduce((accDescriptor, decorator) => decorator(target, prop, accDescriptor), descriptor);
+        if (newDescriptor)
+            Object.defineProperty(target, prop, newDescriptor);
+    }
+    return thing;
+}
+//# sourceMappingURL=decorate.js.map
+
 const setNames = ({ tableNames, columnNames }) => ({
     tableNames: {
         main: 'revisions',
@@ -52,3 +91,4 @@ const createRevisionTransaction = (config) => async (knex, input) => {
 
 exports.createRevisionMigrations = createRevisionMigrations;
 exports.createRevisionTransaction = createRevisionTransaction;
+exports.decorate = decorate;

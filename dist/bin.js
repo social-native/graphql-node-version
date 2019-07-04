@@ -46,7 +46,6 @@ const createRevisionMigrations = (config) => {
     };
     return { up, down };
 };
-//# sourceMappingURL=index.js.map
 
 const { keys } = lodash;
 

@@ -9,6 +9,7 @@ import {
 } from 'snpkg-snapi-connections';
 
 import {development as developmentConfig} from '../knexfile.mysql';
+import {decorate} from '../src/index';
 const knexClient = knex(developmentConfig);
 
 // Construct a schema, using GraphQL schema language
@@ -45,6 +46,9 @@ const typeDefs = gql`
             search: Search
         ): QueryUserConnection
     }
+    type Mutation {
+        user(username: String, firstname: String): User
+    }
 `;
 
 interface IUserNode {
@@ -59,8 +63,27 @@ interface IUserNode {
 
 type KnexQueryResult = Array<{[attributeName: string]: any}>;
 
+function hi() {
+    console.log('f(): evaluated');
+    return function(_target: any, _propertyKey: string, _descriptor: PropertyDescriptor) {
+        console.log('f(): called');
+    };
+}
 // Provide resolver functions for your schema fields
+// tslint:disable
+const mutation = {
+    user(_: any, {firstname, username}: IUserNode) {
+        console.log('HERE', firstname, username);
+    }
+};
+
+const decoratedMutation = decorate(mutation, {
+    user: hi
+});
+// tslint:enable
+
 const resolvers = {
+    Mutation: decoratedMutation,
     Query: {
         async users(_: any, inputArgs: IInputArgs) {
             const queryBuilder = knexClient.from('mock');

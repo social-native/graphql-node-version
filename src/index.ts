@@ -111,3 +111,4 @@ const createRevisionTransaction = (config?: ICreateRevisionTransactionConfig) =>
 };
 
 export {createRevisionMigrations, createRevisionTransaction};
+export {default as decorate} from './lib/mobx/decorate';
