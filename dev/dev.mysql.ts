@@ -63,14 +63,21 @@ interface IUserNode {
 
 type KnexQueryResult = Array<{[attributeName: string]: any}>;
 
-function hi() {
-    console.log('f(): evaluated');
-    return function(_target: any, _propertyKey: string, _descriptor: PropertyDescriptor) {
-        console.log('hiiiiiiii', _target, _propertyKey, _descriptor);
-        // _target();
-        console.log('f(): called');
+const hi = (): MethodDecorator => {
+    return (_target, _property, descriptor: TypedPropertyDescriptor<any>) => {
+        const {value} = descriptor;
+        if (typeof value !== 'function') {
+            throw new TypeError('Only functions can be decorated.');
+        }
+
+        descriptor.value = (...args: any[]) => {
+            const result = value(...args);
+            return result;
+        };
+
+        return descriptor;
     };
-}
+};
 // Provide resolver functions for your schema fields
 // tslint:disable
 const mutation = {
@@ -79,15 +86,14 @@ const mutation = {
     }
 };
 
-const decoratedMutation = decorate(mutation, {
-    user: [hi]
+decorate(mutation, {
+    user: hi()
 });
 
-console.log(decoratedMutation.user);
 // tslint:enable
 
 const resolvers = {
-    Mutation: decoratedMutation,
+    Mutation: mutation,
     Query: {
         async users(_: any, inputArgs: IInputArgs) {
             const queryBuilder = knexClient.from('mock');

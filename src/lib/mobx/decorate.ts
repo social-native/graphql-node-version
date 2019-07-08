@@ -30,72 +30,58 @@ export function isPlainObject(value: any) {
  * https://github.com/mobxjs/mobx/blob/master/src/api/decorate.ts
  * **************************************************************
  */
-// export function decorate<T>(
-//     clazz: new (...args: any[]) => T,
-//     decorators: {
-//         [P in keyof T]?:
-//             | MethodDecorator
-//             | PropertyDecorator
-//             | Array<MethodDecorator>
-//             | Array<PropertyDecorator>;
-//     }
-// ): void;
-// export function decorate<T>(
-//     object: T,
-//     decorators: {
-//         [P in keyof T]?:
-//             | MethodDecorator
-//             | PropertyDecorator
-//             | Array<MethodDecorator>
-//             | Array<PropertyDecorator>;
-//     }
-// ): T;
+
+type Decorator = MethodDecorator | PropertyDecorator | DecoratorArray | undefined;
+type DecoratorArray = MethodDecorator[] | PropertyDecorator[];
+
 function decorate<T>(
     thing: T,
     decorators: {
-        [P in keyof T]?: Array<any>;
-        // | Array<PropertyDecorator>; // | PropertyDecorator // | MethodDecorator
+        [P in keyof T]?: Decorator;
     }
 ): T {
     process.env.NODE_ENV !== 'production' &&
         invariant(isPlainObject(decorators), 'Decorators should be a key value map');
-    const target = typeof thing === 'function' ? thing.prototype : thing;
+    const target = (typeof thing === 'function' ? thing.prototype : thing) as Object;
 
     for (let prop in decorators) {
-        console.log('inside');
+        let propertyDecorators: DecoratorArray;
+        const extractedDecorators = decorators[prop];
+        if (!isDecoratorArray(extractedDecorators)) {
+            propertyDecorators = [extractedDecorators] as DecoratorArray;
+        } else {
+            propertyDecorators = extractedDecorators;
+        }
 
-        let propertyDecorators = decorators[prop];
-        if (!propertyDecorators) {
-            console.log('breaking');
+        process.env.NODE_ENV !== 'production' &&
+            invariant(
+                propertyDecorators.every(decorator => typeof decorator === 'function'),
+                `Decorate: expected a decorator function or array of decorator functions for '${prop}'`
+            );
+
+        const descriptor = Object.getOwnPropertyDescriptor(target, prop);
+        if (!descriptor) {
+            invariant(descriptor, 'Could not find descriptor on object');
             break;
         }
-        // if (!Array.isArray(propertyDecorators)) {
-        //     propertyDecorators = [propertyDecorators];
-        // }
-        // process.env.NODE_ENV !== 'production' &&
-        //     invariant(
-        //         propertyDecorators.every((decorator: any) => typeof decorator === 'function'),
-        //         `Decorate: expected a decorator function or array of decorator functions for '${prop}'`
-        //     );
-        const descriptor = Object.getOwnPropertyDescriptor(target, prop);
-        const newDescriptor = propertyDecorators.reduce(
-            (accDescriptor, decorator) => decorator(target, prop, accDescriptor),
+
+        const newDescriptor = [...propertyDecorators].reduce(
+            (accDescriptor, decorator) =>
+                decorator(target, prop, accDescriptor) as TypedPropertyDescriptor<any>,
             descriptor
         );
-        console.log('New Descriptor', prop, newDescriptor);
-        // if (newDescriptor)
-        Object.defineProperty(target, prop, {value: newDescriptor});
-    }
 
-    var propValue;
-    for (var propName in thing) {
-        propValue = thing[propName];
-
-        console.log('New Descriptor Property', propName, propValue);
+        if (newDescriptor) {
+            Object.defineProperty(target, prop, newDescriptor);
+        }
     }
     return thing;
 }
 
 // tslint:enable
+
+function isDecoratorArray(decorator: Decorator): decorator is DecoratorArray {
+    return decorator !== undefined && Array.isArray(decorator);
+}
 
 export default decorate;
