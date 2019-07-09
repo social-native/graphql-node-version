@@ -4,7 +4,7 @@ import * as Knex from 'knex';
  * Sets the names for tables and columns that revisions will be stored in
  */
 interface INamesConfig {
-    tableNames?: {main?: string; roles?: string};
+    tableNames?: {revision?: string; role?: string; revisionRole?: string};
     columnNames?: {
         userId?: string;
         userRoles?: string;
@@ -12,11 +12,12 @@ interface INamesConfig {
         revisionTime?: string;
         nodeVersion?: string;
         nodeName?: string;
+        roleName?: string;
     };
 }
 
 interface INamesForTablesAndColumns {
-    tableNames: {main: string; roles: string};
+    tableNames: {revision: string; role: string; revisionRole: string};
     columnNames: {
         userId: string;
         userRoles: string;
@@ -24,12 +25,14 @@ interface INamesForTablesAndColumns {
         revisionTime: string;
         nodeVersion: string;
         nodeName: string;
+        roleName: string;
     };
 }
 
 const DEFAULT_TABLE_NAMES = {
-    main: 'revisions',
-    roles: 'roles'
+    revision: 'revision',
+    role: 'role',
+    revisionRole: 'revision_roles'
 };
 
 const DEFAULT_COLUMN_NAMES = {
@@ -38,7 +41,8 @@ const DEFAULT_COLUMN_NAMES = {
     revisionData: 'revision',
     revisionTime: 'created_at',
     nodeVersion: 'node_version',
-    nodeName: 'node_name'
+    nodeName: 'node_name',
+    roleName: 'role_name'
 };
 
 const setNames = ({tableNames, columnNames}: INamesConfig): INamesForTablesAndColumns => ({
@@ -54,8 +58,8 @@ const setNames = ({tableNames, columnNames}: INamesConfig): INamesForTablesAndCo
 
 interface IWriteableData {
     tableData?: {
-        main?: string;
-        roles?: string;
+        revision?: string;
+        role?: string;
     };
     columnData?: {
         userId?: string;
@@ -86,17 +90,17 @@ const transformInput = ({columnNames, columnData}: ITransformInput) => {
 };
 
 /**
- * Crates a table for storing revisions
+ * Crates a table for storing revision
  */
 interface IConfig extends INamesConfig {
-    roles: string[];
+    role: string[];
 }
 
 const createRevisionMigrations = (config?: IConfig) => {
     const {tableNames, columnNames} = setNames(config || {});
 
     const up = async (knex: Knex) => {
-        return await knex.schema.createTable(tableNames.main, t => {
+        const revision = await knex.schema.createTable(tableNames.revision, t => {
             t.increments('id')
                 .unsigned()
                 .primary();
@@ -107,10 +111,40 @@ const createRevisionMigrations = (config?: IConfig) => {
             t.string(columnNames.nodeName);
             t.integer(columnNames.nodeVersion);
         });
+
+        if (tableNames.role && tableNames.revisionRole) {
+            await knex.schema.createTable(tableNames.role, t => {
+                t.string(columnNames.roleName)
+                    .unsigned()
+                    .notNullable()
+                    .unique();
+            });
+
+            return await knex.schema.createTable(tableNames.revisionRole, t => {
+                t.integer(`${tableNames.revision}_id`)
+                    .unsigned()
+                    .notNullable()
+                    .references('id')
+                    .inTable(tableNames.revision);
+                t.integer(`${tableNames.role}_id`)
+                    .unsigned()
+                    .notNullable()
+                    .references('id')
+                    .inTable(tableNames.role);
+            });
+        } else {
+            return revision;
+        }
     };
 
     const down = async (knex: Knex) => {
-        return await knex.schema.dropTable(tableNames.main);
+        const revision = await knex.schema.dropTable(tableNames.revision);
+        if (tableNames.role && tableNames.revisionRole) {
+            await knex.schema.dropTable(tableNames.role);
+            return await knex.schema.dropTable(tableNames.revisionRole);
+        } else {
+            return revision;
+        }
     };
 
     return {up, down};
@@ -150,7 +184,7 @@ const createRevisionTransaction = (
     const transformedMainTableInput = transformInput({columnNames, columnData: mainTableInput});
 
     const transaction = await knex.transaction();
-    await transaction.table(tableNames.main).insert(transformedMainTableInput);
+    await transaction.table(tableNames.revision).insert(transformedMainTableInput);
     setTimeout(async () => {
         await transaction.rollback();
         // throw new Error('Detected an orphaned transaction');
