@@ -80,7 +80,7 @@ const versioned = <ResolverT extends (...args: any[]) => any>(
         }
 
         // tslint:disable-next-line
-        descriptor.value = ((...args) => {
+        descriptor.value = (async (...args) => {
             const localKnexClient =
                 extractors.knex && extractors.knex(...(args as Parameters<ResolverT>));
             const userId =
@@ -109,12 +109,14 @@ const versioned = <ResolverT extends (...args: any[]) => any>(
             };
 
             const revTxFn = revisionTx ? revisionTx : createRevisionTransaction();
-            const transaction = revTxFn(localKnexClient, revisionInput);
+            const {transaction} = await revTxFn(localKnexClient, revisionInput);
+            // await transaction.commit();
+            // console.log(transaction);
             const [parent, ar, ctx, info] = args;
             const newArgs = {...ar, transaction};
-            console.log(revisionInput);
-            const result = value(parent, newArgs, ctx, info) as ReturnType<ResolverT>;
-            return result;
+            // console.log(revisionInput);
+            return (await value(parent, newArgs, ctx, info)) as ReturnType<ResolverT>;
+            // return result;
         }) as ResolverT;
 
         return descriptor;
@@ -126,7 +128,7 @@ const versioned = <ResolverT extends (...args: any[]) => any>(
 type UserResolver = Resolver<
     IUserNode,
     undefined,
-    IUserMutationInput & {transaction?: Promise<knex.Transaction<any, any>>}
+    IUserMutationInput & {transaction?: knex.Transaction<any, any>}
 >;
 
 const mutation: {user: UserResolver} = {
@@ -135,17 +137,17 @@ const mutation: {user: UserResolver} = {
         // const queryBuilder = knexClient.from('mock');
         if (transaction) {
             console.log('inside transaction block');
-            const t = (await transaction) as any;
-            try {
-                await t.transaction
-                    .transacting(t.transaction)
-                    .from('mock')
-                    .insert({firstname, username});
-                await t.transaction.commit;
-            } catch (e) {
-                await t.transaction.rollback();
-                throw e;
-            }
+            // const t = transaction as any;
+            // try {
+            //     await queryBuilder
+            //         .transacting(transaction)
+            //         .from('mock')
+            //         .insert({firstname, username});
+            //     await transaction.commit();
+            // } catch (e) {
+            //     // await transaction.rollback();
+            //     throw e;
+            // }
         }
         return {firstname: 'hi', username: 'okay'} as IUserNode;
         // return (await queryBuilder.first()) as IUserNode;
@@ -157,8 +159,11 @@ decorate(mutation, {
         knex: () => knexClient,
         userId: () => '1',
         userRoles: () => '123',
-        // revisionData: () => '',
-        revisionTime: () => new Date().toDateString(),
+        revisionTime: () =>
+            new Date()
+                .toISOString()
+                .split('Z')
+                .join(''),
         nodeName: () => 'user',
         nodeVersion: () => 1,
         revisionData: (_parent, args) => JSON.stringify(args)

@@ -11,19 +11,25 @@ var getopts = _interopDefault(require('getopts'));
 var lodash = _interopDefault(require('lodash'));
 var fs = _interopDefault(require('fs'));
 
+const DEFAULT_TABLE_NAMES = {
+    main: 'revisions',
+    roles: 'roles'
+};
+const DEFAULT_COLUMN_NAMES = {
+    userId: 'user_id',
+    userRoles: 'user_roles',
+    revisionData: 'revision',
+    revisionTime: 'created_at',
+    nodeVersion: 'node_version',
+    nodeName: 'node_name'
+};
 const setNames = ({ tableNames, columnNames }) => ({
     tableNames: {
-        main: 'revisions',
-        roles: 'roles',
+        ...DEFAULT_TABLE_NAMES,
         ...tableNames
     },
     columnNames: {
-        userId: 'user_id',
-        userRoles: 'user_roles',
-        revisionData: 'revision',
-        revisionTime: 'created_at',
-        nodeVersion: 'node_version',
-        nodeName: 'node_name',
+        ...DEFAULT_COLUMN_NAMES,
         ...columnNames
     }
 });
@@ -46,7 +52,6 @@ const createRevisionMigrations = (config) => {
     };
     return { up, down };
 };
-//# sourceMappingURL=index.js.map
 
 const { keys } = lodash;
 

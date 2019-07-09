@@ -27,22 +27,63 @@ interface INamesForTablesAndColumns {
     };
 }
 
+const DEFAULT_TABLE_NAMES = {
+    main: 'revisions',
+    roles: 'roles'
+};
+
+const DEFAULT_COLUMN_NAMES = {
+    userId: 'user_id',
+    userRoles: 'user_roles',
+    revisionData: 'revision',
+    revisionTime: 'created_at',
+    nodeVersion: 'node_version',
+    nodeName: 'node_name'
+};
+
 const setNames = ({tableNames, columnNames}: INamesConfig): INamesForTablesAndColumns => ({
     tableNames: {
-        main: 'revisions',
-        roles: 'roles',
+        ...DEFAULT_TABLE_NAMES,
         ...tableNames
     },
     columnNames: {
-        userId: 'user_id',
-        userRoles: 'user_roles',
-        revisionData: 'revision',
-        revisionTime: 'created_at',
-        nodeVersion: 'node_version',
-        nodeName: 'node_name',
+        ...DEFAULT_COLUMN_NAMES,
         ...columnNames
     }
 });
+
+interface IWriteableData {
+    tableData?: {
+        main?: string;
+        roles?: string;
+    };
+    columnData?: {
+        userId?: string;
+        userRoles?: string;
+        revisionData?: string;
+        revisionTime?: string;
+        nodeVersion?: number;
+        nodeName?: string;
+    };
+}
+
+interface ITransformInput {
+    columnNames: NonNullable<INamesForTablesAndColumns['columnNames']> & {[column: string]: any};
+    columnData: NonNullable<IWriteableData['columnData']> & {[column: string]: any};
+}
+const transformInput = ({columnNames, columnData}: ITransformInput) => {
+    return Object.keys(columnNames || {}).reduce(
+        (newColumnDataObj, columnName) => {
+            const newColumnName = columnNames[columnName];
+            const data = columnData[columnName];
+            if (data) {
+                newColumnDataObj[newColumnName] = data;
+            }
+            return newColumnDataObj;
+        },
+        {} as IWriteableData['columnData'] & {[column: string]: any}
+    );
+};
 
 /**
  * Crates a table for storing revisions
@@ -101,21 +142,27 @@ interface ICreateRevisionTransactionConfig extends INamesConfig {
     transactionTimeoutSeconds: number;
 }
 
-const createRevisionTransaction = (config?: ICreateRevisionTransactionConfig) => async (
-    knex: Knex,
-    input: IRevisionInput
-): Promise<{transaction: Knex.Transaction}> => {
+const createRevisionTransaction = (
+    config?: ICreateRevisionTransactionConfig & INamesConfig
+) => async (knex: Knex, input: IRevisionInput): Promise<{transaction: Knex.Transaction}> => {
     const transaction = await knex.transaction();
-    const {tableNames} = setNames(config || {});
+    const {tableNames, columnNames} = setNames(config || {});
+    const {userRoles, ...mainTableInput} = input;
+    const transformedMainTableInput = transformInput({columnNames, columnData: mainTableInput});
+    console.log('transformed input', transformedMainTableInput);
     setTimeout(async () => {
         await transaction.rollback();
 
         throw new Error('Detected an orphaned transaction');
     }, ((config && config.transactionTimeoutSeconds) || 10) * 1000);
 
-    knex(tableNames.main)
-        .transacting(transaction)
-        .insert(input);
+    console.log('inside', input);
+    await knex(tableNames.main)
+        // .transacting(transaction)
+        .insert(transformedMainTableInput);
+
+    await transaction.commit();
+    // console.log(transaction.toString());
 
     return {transaction};
 };
