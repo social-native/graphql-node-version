@@ -59,7 +59,7 @@ interface IWriteableData {
     };
     columnData?: {
         userId?: string;
-        userRoles?: string;
+        userRoles?: string[];
         revisionData?: string;
         revisionTime?: string;
         nodeVersion?: number;
@@ -121,7 +121,7 @@ const createRevisionMigrations = (config?: IConfig) => {
  */
 export interface IRevisionInput {
     userId?: string;
-    userRoles?: string;
+    userRoles?: string[];
     revisionData?: string;
     revisionTime?: string;
     nodeVersion?: number;
@@ -130,11 +130,11 @@ export interface IRevisionInput {
 
 export interface IVersionSetupExtractors<Resolver extends (...args: any[]) => any> {
     userId: (...args: Parameters<Resolver>) => string;
-    userRoles: (...args: Parameters<Resolver>) => string;
+    userRoles: (...args: Parameters<Resolver>) => string[];
     revisionData: (...args: Parameters<Resolver>) => string;
-    revisionTime: (...args: Parameters<Resolver>) => string;
+    revisionTime?: (...args: Parameters<Resolver>) => string;
     nodeVersion: (...args: Parameters<Resolver>) => number;
-    nodeName: (...args: Parameters<Resolver>) => string;
+    nodeName?: (...args: Parameters<Resolver>) => string;
     knex: (...args: Parameters<Resolver>) => Knex;
 }
 
@@ -145,28 +145,77 @@ interface ICreateRevisionTransactionConfig extends INamesConfig {
 const createRevisionTransaction = (
     config?: ICreateRevisionTransactionConfig & INamesConfig
 ) => async (knex: Knex, input: IRevisionInput): Promise<{transaction: Knex.Transaction}> => {
-    const transaction = await knex.transaction();
     const {tableNames, columnNames} = setNames(config || {});
     const {userRoles, ...mainTableInput} = input;
     const transformedMainTableInput = transformInput({columnNames, columnData: mainTableInput});
-    console.log('transformed input', transformedMainTableInput);
+
+    const transaction = await knex.transaction();
+    await transaction.table(tableNames.main).insert(transformedMainTableInput);
     setTimeout(async () => {
         await transaction.rollback();
-
-        throw new Error('Detected an orphaned transaction');
+        // throw new Error('Detected an orphaned transaction');
     }, ((config && config.transactionTimeoutSeconds) || 10) * 1000);
-
-    console.log('inside', input);
-    await knex(tableNames.main)
-        // .transacting(transaction)
-        .insert(transformedMainTableInput);
-
-    await transaction.commit();
-    // console.log(transaction.toString());
 
     return {transaction};
 };
 
-export {createRevisionMigrations, createRevisionTransaction};
+const versionedTransactionDecorator = <ResolverT extends (...args: any[]) => any>(
+    extractors: IVersionSetupExtractors<ResolverT>,
+    revisionTx?: ReturnType<typeof createRevisionTransaction>
+): MethodDecorator => {
+    return (_target, property, descriptor: TypedPropertyDescriptor<any>) => {
+        const {value} = descriptor;
+        if (typeof value !== 'function') {
+            throw new TypeError('Only functions can be decorated.');
+        }
+
+        // tslint:disable-next-line
+        descriptor.value = (async (...args) => {
+            const localKnexClient =
+                extractors.knex && extractors.knex(...(args as Parameters<ResolverT>));
+            const userId =
+                extractors.userId && extractors.userId(...(args as Parameters<ResolverT>));
+            const userRoles = extractors.userRoles
+                ? extractors.userRoles(...(args as Parameters<ResolverT>))
+                : [];
+            const revisionData =
+                extractors.revisionData &&
+                extractors.revisionData(...(args as Parameters<ResolverT>));
+            const revisionTime = extractors.revisionTime
+                ? extractors.revisionTime(...(args as Parameters<ResolverT>))
+                : new Date()
+                      .toISOString()
+                      .split('Z')
+                      .join('');
+            const nodeVersion =
+                extractors.nodeVersion &&
+                extractors.nodeVersion(...(args as Parameters<ResolverT>));
+            const nodeName = extractors.nodeName
+                ? extractors.nodeName(...(args as Parameters<ResolverT>))
+                : property;
+
+            const revisionInput = {
+                userId,
+                userRoles,
+                revisionData,
+                revisionTime,
+                nodeVersion,
+                nodeName: typeof nodeName === 'symbol' ? nodeName.toString() : nodeName
+            };
+
+            const revTxFn = revisionTx ? revisionTx : createRevisionTransaction();
+            const {transaction} = await revTxFn(localKnexClient, revisionInput);
+
+            const [parent, ar, ctx, info] = args;
+            const newArgs = {...ar, transaction};
+            return (await value(parent, newArgs, ctx, info)) as ReturnType<ResolverT>;
+        }) as ResolverT;
+
+        return descriptor;
+    };
+};
+// tslint:disable
+
+export {createRevisionMigrations, createRevisionTransaction, versionedTransactionDecorator};
 export {default as decorate} from './lib/mobx/decorate';
 export * from './types';

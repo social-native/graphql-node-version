@@ -10,7 +10,7 @@ import {
 
 import {development as developmentConfig} from '../knexfile.mysql';
 import {Resolver} from './types';
-import {decorate, IVersionSetupExtractors, createRevisionTransaction} from '../src/index';
+import {decorate, versionedTransactionDecorator as versioned} from '../src/index';
 const knexClient = knex(developmentConfig);
 
 // Construct a schema, using GraphQL schema language
@@ -69,62 +69,6 @@ interface IUserMutationInput {
 
 type KnexQueryResult = Array<{[attributeName: string]: any}>;
 
-const versioned = <ResolverT extends (...args: any[]) => any>(
-    extractors: IVersionSetupExtractors<ResolverT>,
-    revisionTx?: ReturnType<typeof createRevisionTransaction>
-): MethodDecorator => {
-    return (_target, _property, descriptor: TypedPropertyDescriptor<any>) => {
-        const {value} = descriptor;
-        if (typeof value !== 'function') {
-            throw new TypeError('Only functions can be decorated.');
-        }
-
-        // tslint:disable-next-line
-        descriptor.value = (async (...args) => {
-            const localKnexClient =
-                extractors.knex && extractors.knex(...(args as Parameters<ResolverT>));
-            const userId =
-                extractors.userId && extractors.userId(...(args as Parameters<ResolverT>));
-            const userRoles =
-                extractors.userRoles && extractors.userRoles(...(args as Parameters<ResolverT>));
-            const revisionData =
-                extractors.revisionData &&
-                extractors.revisionData(...(args as Parameters<ResolverT>));
-            const revisionTime =
-                extractors.revisionTime &&
-                extractors.revisionTime(...(args as Parameters<ResolverT>));
-            const nodeVersion =
-                extractors.nodeVersion &&
-                extractors.nodeVersion(...(args as Parameters<ResolverT>));
-            const nodeName =
-                extractors.nodeName && extractors.nodeName(...(args as Parameters<ResolverT>));
-
-            const revisionInput = {
-                userId,
-                userRoles,
-                revisionData,
-                revisionTime,
-                nodeVersion,
-                nodeName
-            };
-
-            const revTxFn = revisionTx ? revisionTx : createRevisionTransaction();
-            const {transaction} = await revTxFn(localKnexClient, revisionInput);
-            // await transaction.commit();
-            // console.log(transaction);
-            const [parent, ar, ctx, info] = args;
-            const newArgs = {...ar, transaction};
-            // console.log(revisionInput);
-            return (await value(parent, newArgs, ctx, info)) as ReturnType<ResolverT>;
-            // return result;
-        }) as ResolverT;
-
-        return descriptor;
-    };
-};
-// Provide resolver functions for your schema fields
-// tslint:disable
-
 type UserResolver = Resolver<
     IUserNode,
     undefined,
@@ -133,24 +77,26 @@ type UserResolver = Resolver<
 
 const mutation: {user: UserResolver} = {
     user: async (_, {firstname, username, transaction}) => {
-        console.log('HERE', firstname, username);
-        // const queryBuilder = knexClient.from('mock');
         if (transaction) {
-            console.log('inside transaction block');
-            // const t = transaction as any;
-            // try {
-            //     await queryBuilder
-            //         .transacting(transaction)
-            //         .from('mock')
-            //         .insert({firstname, username});
-            //     await transaction.commit();
-            // } catch (e) {
-            //     // await transaction.rollback();
-            //     throw e;
-            // }
+            try {
+                await transaction.table('mock').insert({firstname, username});
+                const user = await transaction
+                    .table('mock')
+                    .orderBy('id', 'desc')
+                    .first();
+                await transaction.commit();
+                return user as IUserNode;
+            } catch (e) {
+                await transaction.rollback();
+                throw e;
+            }
+        } else {
+            const user = await knexClient
+                .table('mock')
+                .orderBy('id', 'desc')
+                .first();
+            return user as IUserNode;
         }
-        return {firstname: 'hi', username: 'okay'} as IUserNode;
-        // return (await queryBuilder.first()) as IUserNode;
     }
 };
 
@@ -158,13 +104,13 @@ decorate(mutation, {
     user: versioned<UserResolver>({
         knex: () => knexClient,
         userId: () => '1',
-        userRoles: () => '123',
-        revisionTime: () =>
-            new Date()
-                .toISOString()
-                .split('Z')
-                .join(''),
-        nodeName: () => 'user',
+        userRoles: () => ['operations', 'user', 'billing'],
+        // revisionTime: () =>
+        //     new Date()
+        //         .toISOString()
+        //         .split('Z')
+        //         .join(''),
+        // nodeName: () => 'user',
         nodeVersion: () => 1,
         revisionData: (_parent, args) => JSON.stringify(args)
     })

@@ -52,6 +52,7 @@ function decorate(thing, decorators) {
 function isDecoratorArray(decorator) {
     return decorator !== undefined && Array.isArray(decorator);
 }
+//# sourceMappingURL=decorate.js.map
 
 const DEFAULT_TABLE_NAMES = {
     main: 'revisions',
@@ -105,24 +106,63 @@ const createRevisionMigrations = (config) => {
     return { up, down };
 };
 const createRevisionTransaction = (config) => async (knex, input) => {
-    const transaction = await knex.transaction();
     const { tableNames, columnNames } = setNames(config || {});
     const { userRoles, ...mainTableInput } = input;
     const transformedMainTableInput = transformInput({ columnNames, columnData: mainTableInput });
-    console.log('transformed input', transformedMainTableInput);
+    const transaction = await knex.transaction();
+    await transaction.table(tableNames.main).insert(transformedMainTableInput);
     setTimeout(async () => {
         await transaction.rollback();
-        throw new Error('Detected an orphaned transaction');
+        // throw new Error('Detected an orphaned transaction');
     }, ((config && config.transactionTimeoutSeconds) || 10) * 1000);
-    console.log('inside', input);
-    await knex(tableNames.main)
-        // .transacting(transaction)
-        .insert(transformedMainTableInput);
-    await transaction.commit();
-    // console.log(transaction.toString());
     return { transaction };
 };
+const versionedTransactionDecorator = (extractors, revisionTx) => {
+    return (_target, property, descriptor) => {
+        const { value } = descriptor;
+        if (typeof value !== 'function') {
+            throw new TypeError('Only functions can be decorated.');
+        }
+        // tslint:disable-next-line
+        descriptor.value = (async (...args) => {
+            const localKnexClient = extractors.knex && extractors.knex(...args);
+            const userId = extractors.userId && extractors.userId(...args);
+            const userRoles = extractors.userRoles
+                ? extractors.userRoles(...args)
+                : [];
+            const revisionData = extractors.revisionData &&
+                extractors.revisionData(...args);
+            const revisionTime = extractors.revisionTime
+                ? extractors.revisionTime(...args)
+                : new Date()
+                    .toISOString()
+                    .split('Z')
+                    .join('');
+            const nodeVersion = extractors.nodeVersion &&
+                extractors.nodeVersion(...args);
+            const nodeName = extractors.nodeName
+                ? extractors.nodeName(...args)
+                : property;
+            const revisionInput = {
+                userId,
+                userRoles,
+                revisionData,
+                revisionTime,
+                nodeVersion,
+                nodeName: typeof nodeName === 'symbol' ? nodeName.toString() : nodeName
+            };
+            const revTxFn = revisionTx ? revisionTx : createRevisionTransaction();
+            const { transaction } = await revTxFn(localKnexClient, revisionInput);
+            const [parent, ar, ctx, info] = args;
+            const newArgs = { ...ar, transaction };
+            return (await value(parent, newArgs, ctx, info));
+        });
+        return descriptor;
+    };
+};
+//# sourceMappingURL=index.js.map
 
 exports.createRevisionMigrations = createRevisionMigrations;
 exports.createRevisionTransaction = createRevisionTransaction;
 exports.decorate = decorate;
+exports.versionedTransactionDecorator = versionedTransactionDecorator;
