@@ -97,5 +97,6 @@ const createRevisionTransaction = (config) => async (knex, input) => {
         .insert(input);
     return { transaction };
 };
+//# sourceMappingURL=index.js.map
 
 export { createRevisionMigrations, createRevisionTransaction, decorate };

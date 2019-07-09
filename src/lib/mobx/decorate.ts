@@ -67,7 +67,11 @@ function decorate<T>(
 
         const newDescriptor = [...propertyDecorators].reduce(
             (accDescriptor, decorator) =>
-                decorator(target, prop, accDescriptor) as TypedPropertyDescriptor<any>,
+                decorator<typeof descriptor.value>(
+                    target,
+                    prop,
+                    accDescriptor
+                ) as TypedPropertyDescriptor<any>,
             descriptor
         );
 

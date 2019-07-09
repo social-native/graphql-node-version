@@ -46,6 +46,7 @@ const createRevisionMigrations = (config) => {
     };
     return { up, down };
 };
+//# sourceMappingURL=index.js.map
 
 const { keys } = lodash;
 
@@ -393,4 +394,3 @@ yargs.command({
 // run!
 // tslint:disable-next-line
 yargs.help().argv;
-//# sourceMappingURL=bin.js.map

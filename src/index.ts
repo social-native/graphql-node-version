@@ -78,13 +78,23 @@ const createRevisionMigrations = (config?: IConfig) => {
 /**
  * Writes a transaction for storing revision to the revision table
  */
-interface IRevisionInput {
+export interface IRevisionInput {
     userId?: string;
     userRoles?: string;
     revisionData?: string;
     revisionTime?: string;
     nodeVersion?: number;
     nodeName?: string;
+}
+
+export interface IVersionSetupExtractors<Resolver extends (...args: any[]) => any> {
+    userId: (...args: Parameters<Resolver>) => string;
+    userRoles: (...args: Parameters<Resolver>) => string;
+    revisionData: (...args: Parameters<Resolver>) => string;
+    revisionTime: (...args: Parameters<Resolver>) => string;
+    nodeVersion: (...args: Parameters<Resolver>) => number;
+    nodeName: (...args: Parameters<Resolver>) => string;
+    knex: (...args: Parameters<Resolver>) => Knex;
 }
 
 interface ICreateRevisionTransactionConfig extends INamesConfig {
@@ -112,3 +122,4 @@ const createRevisionTransaction = (config?: ICreateRevisionTransactionConfig) =>
 
 export {createRevisionMigrations, createRevisionTransaction};
 export {default as decorate} from './lib/mobx/decorate';
+export * from './types';

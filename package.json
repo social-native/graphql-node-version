@@ -92,6 +92,7 @@
         "rollup-plugin-hashbang": "^2.2.2",
         "rollup-plugin-typescript2": "^0.21.1",
         "snpkg-snapi-connections": "git+https://ce9b5172cb47aa229dce3f64fe0fa5577bcb8a90:x-oauth-basic@github.com/social-native/snpkg-snapi-connections#v4.0.2",
+        "snpkg-snapi-authorization": "git+https://ce9b5172cb47aa229dce3f64fe0fa5577bcb8a90:x-oauth-basic@github.com/social-native/snpkg-snapi-authorization#v1.0.0",
         "sqlite3": "^4.0.6",
         "supertest": "^4.0.2",
         "ts-jest": "^24.0.0",
@@ -99,6 +100,6 @@
         "tsconfig-paths": "^3.8.0",
         "tslint": "^5.13.1",
         "tslint-eslint-rules": "^5.4.0",
-        "typescript": "^3.3.3333"
+        "typescript": "^3.5.3"
     }
 }
