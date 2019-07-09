@@ -4,7 +4,7 @@ import * as Knex from 'knex';
  * Sets the names for tables and columns that revisions will be stored in
  */
 interface INamesConfig {
-    tableNames?: {revision?: string; role?: string; revisionRole?: string};
+    tableNames?: {revision?: string; revisionRole?: string; revisionUserRole?: string};
     columnNames?: {
         userId?: string;
         userRoles?: string;
@@ -17,7 +17,7 @@ interface INamesConfig {
 }
 
 interface INamesForTablesAndColumns {
-    tableNames: {revision: string; role: string; revisionRole: string};
+    tableNames: {revision: string; revisionRole: string; revisionUserRole: string};
     columnNames: {
         userId: string;
         userRoles: string;
@@ -31,8 +31,8 @@ interface INamesForTablesAndColumns {
 
 const DEFAULT_TABLE_NAMES = {
     revision: 'revision',
-    role: 'role',
-    revisionRole: 'revision_roles'
+    revisionRole: 'revision_role',
+    revisionUserRole: 'revision_user_roles'
 };
 
 const DEFAULT_COLUMN_NAMES = {
@@ -59,7 +59,7 @@ const setNames = ({tableNames, columnNames}: INamesConfig): INamesForTablesAndCo
 interface IWriteableData {
     tableData?: {
         revision?: string;
-        role?: string;
+        revisionRole?: string;
     };
     columnData?: {
         userId?: string;
@@ -93,7 +93,7 @@ const transformInput = ({columnNames, columnData}: ITransformInput) => {
  * Crates a table for storing revision
  */
 interface IConfig extends INamesConfig {
-    role: string[];
+    revisionRole: string[];
 }
 
 const createRevisionMigrations = (config?: IConfig) => {
@@ -112,25 +112,30 @@ const createRevisionMigrations = (config?: IConfig) => {
             t.integer(columnNames.nodeVersion);
         });
 
-        if (tableNames.role && tableNames.revisionRole) {
-            await knex.schema.createTable(tableNames.role, t => {
-                t.string(columnNames.roleName)
+        if (tableNames.revisionRole && tableNames.revisionUserRole) {
+            await knex.schema.createTable(tableNames.revisionRole, t => {
+                t.increments('id')
                     .unsigned()
+                    .primary();
+                t.string(columnNames.roleName)
                     .notNullable()
                     .unique();
             });
 
-            return await knex.schema.createTable(tableNames.revisionRole, t => {
+            return await knex.schema.createTable(tableNames.revisionUserRole, t => {
+                t.increments('id')
+                    .unsigned()
+                    .primary();
                 t.integer(`${tableNames.revision}_id`)
                     .unsigned()
                     .notNullable()
                     .references('id')
                     .inTable(tableNames.revision);
-                t.integer(`${tableNames.role}_id`)
+                t.integer(`${tableNames.revisionRole}_id`)
                     .unsigned()
                     .notNullable()
                     .references('id')
-                    .inTable(tableNames.role);
+                    .inTable(tableNames.revisionRole);
             });
         } else {
             return revision;
@@ -138,13 +143,11 @@ const createRevisionMigrations = (config?: IConfig) => {
     };
 
     const down = async (knex: Knex) => {
-        const revision = await knex.schema.dropTable(tableNames.revision);
-        if (tableNames.role && tableNames.revisionRole) {
-            await knex.schema.dropTable(tableNames.role);
-            return await knex.schema.dropTable(tableNames.revisionRole);
-        } else {
-            return revision;
+        if (tableNames.revisionRole && tableNames.revisionUserRole) {
+            await knex.schema.dropTable(tableNames.revisionUserRole);
+            await knex.schema.dropTable(tableNames.revisionRole);
         }
+        return await knex.schema.dropTable(tableNames.revision);
     };
 
     return {up, down};
@@ -185,6 +188,33 @@ const createRevisionTransaction = (
 
     const transaction = await knex.transaction();
     await transaction.table(tableNames.revision).insert(transformedMainTableInput);
+    const roles = userRoles || [];
+
+    // calculate which role are missing in the db
+    const foundRoleNames = await transaction
+        .table(tableNames.revisionRole)
+        .whereIn(columnNames.roleName, roles);
+    const foundRoles = foundRoleNames.map((n: any) => n[columnNames.roleName]);
+    const missingRoles = roles.filter(i => foundRoles.indexOf(i) < 0);
+
+    // insert the missing roles
+    await transaction
+        .table(tableNames.revisionRole)
+        .insert(missingRoles.map((role: string) => ({[columnNames.roleName]: role})));
+
+    // select the role ids
+    const ids = (await transaction
+        .table(tableNames.revisionRole)
+        .whereIn(columnNames.roleName, roles)) as Array<{id: number}>;
+
+    // insert roles ids associated with the revision id
+    await transaction.table(tableNames.revisionUserRole).insert(
+        ids.map(({id}) => ({
+            [`${tableNames.revisionRole}_id`]: id,
+            [`${tableNames.revision}_id`]: 1
+        }))
+    );
+
     setTimeout(async () => {
         await transaction.rollback();
         // throw new Error('Detected an orphaned transaction');

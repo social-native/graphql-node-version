@@ -13,8 +13,8 @@ var fs = _interopDefault(require('fs'));
 
 const DEFAULT_TABLE_NAMES = {
     revision: 'revision',
-    role: 'role',
-    revisionRole: 'revision_roles'
+    revisionRole: 'revision_role',
+    revisionUserRole: 'revision_user_roles'
 };
 const DEFAULT_COLUMN_NAMES = {
     userId: 'user_id',
@@ -48,24 +48,29 @@ const createRevisionMigrations = (config) => {
             t.string(columnNames.nodeName);
             t.integer(columnNames.nodeVersion);
         });
-        if (tableNames.role && tableNames.revisionRole) {
-            await knex.schema.createTable(tableNames.role, t => {
-                t.string(columnNames.roleName)
+        if (tableNames.revisionRole && tableNames.revisionUserRole) {
+            await knex.schema.createTable(tableNames.revisionRole, t => {
+                t.increments('id')
                     .unsigned()
+                    .primary();
+                t.string(columnNames.roleName)
                     .notNullable()
                     .unique();
             });
-            return await knex.schema.createTable(tableNames.revisionRole, t => {
+            return await knex.schema.createTable(tableNames.revisionUserRole, t => {
+                t.increments('id')
+                    .unsigned()
+                    .primary();
                 t.integer(`${tableNames.revision}_id`)
                     .unsigned()
                     .notNullable()
                     .references('id')
                     .inTable(tableNames.revision);
-                t.integer(`${tableNames.role}_id`)
+                t.integer(`${tableNames.revisionRole}_id`)
                     .unsigned()
                     .notNullable()
                     .references('id')
-                    .inTable(tableNames.role);
+                    .inTable(tableNames.revisionRole);
             });
         }
         else {
@@ -73,14 +78,11 @@ const createRevisionMigrations = (config) => {
         }
     };
     const down = async (knex) => {
-        const revision = await knex.schema.dropTable(tableNames.revision);
-        if (tableNames.role && tableNames.revisionRole) {
-            await knex.schema.dropTable(tableNames.role);
-            return await knex.schema.dropTable(tableNames.revisionRole);
+        if (tableNames.revisionRole && tableNames.revisionUserRole) {
+            await knex.schema.dropTable(tableNames.revisionUserRole);
+            await knex.schema.dropTable(tableNames.revisionRole);
         }
-        else {
-            return revision;
-        }
+        return await knex.schema.dropTable(tableNames.revision);
     };
     return { up, down };
 };

@@ -77,25 +77,18 @@ type UserResolver = Resolver<
 
 const mutation: {user: UserResolver} = {
     user: async (_, {firstname, username, transaction}) => {
-        if (transaction) {
-            try {
-                await transaction.table('mock').insert({firstname, username});
-                const user = await transaction
-                    .table('mock')
-                    .orderBy('id', 'desc')
-                    .first();
-                await transaction.commit();
-                return user as IUserNode;
-            } catch (e) {
-                await transaction.rollback();
-                throw e;
-            }
-        } else {
-            const user = await knexClient
+        const tx = transaction || (await knexClient.transaction());
+        try {
+            await tx.table('mock').insert({firstname, username});
+            const user = await tx
                 .table('mock')
                 .orderBy('id', 'desc')
                 .first();
+            await tx.commit();
             return user as IUserNode;
+        } catch (e) {
+            await tx.rollback();
+            throw e;
         }
     }
 };
