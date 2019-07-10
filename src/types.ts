@@ -28,3 +28,24 @@ export interface IRevisionConnection<Node> {
         endCursor: string;
     };
 }
+
+export interface INamesConfig {
+    tableNames?: {revision?: string; revisionRole?: string; revisionUserRole?: string};
+    columnNames?: {
+        userId?: string;
+        userRoles?: string;
+        revisionData?: string;
+        revisionTime?: string;
+        nodeVersion?: string;
+        nodeName?: string;
+        nodeId?: string;
+        roleName?: string;
+    };
+}
+
+export interface INamesForTablesAndColumns {
+    tableNames: Required<INamesConfig['tableNames']>;
+    columnNames: Required<INamesConfig['columnNames']>;
+}
+
+export type UnPromisify<T> = T extends Promise<infer U> ? U : T;

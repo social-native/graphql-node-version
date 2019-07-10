@@ -11,21 +11,28 @@ var getopts = _interopDefault(require('getopts'));
 var lodash = _interopDefault(require('lodash'));
 var fs = _interopDefault(require('fs'));
 
-const DEFAULT_TABLE_NAMES = {
-    revision: 'revision',
-    revisionRole: 'revision_role',
-    revisionUserRole: 'revision_user_roles'
-};
-const DEFAULT_COLUMN_NAMES = {
-    userId: 'user_id',
-    userRoles: 'user_roles',
-    revisionData: 'revision',
-    revisionTime: 'created_at',
-    nodeVersion: 'node_version',
-    nodeName: 'node_name',
-    nodeId: 'node_id',
-    roleName: 'role_name'
-};
+/**
+ * Sets the names for tables and columns that revisions will be stored in
+ *
+ * Allows users to specify their own column and table names. If none are specified, the defaults will be used.
+ */
+var DEFAULT_TABLE_NAMES;
+(function (DEFAULT_TABLE_NAMES) {
+    DEFAULT_TABLE_NAMES["revision"] = "revision";
+    DEFAULT_TABLE_NAMES["revisionRole"] = "revision_role";
+    DEFAULT_TABLE_NAMES["revisionUserRole"] = "revision_user_roles";
+})(DEFAULT_TABLE_NAMES || (DEFAULT_TABLE_NAMES = {}));
+var DEFAULT_COLUMN_NAMES;
+(function (DEFAULT_COLUMN_NAMES) {
+    DEFAULT_COLUMN_NAMES["userId"] = "user_id";
+    DEFAULT_COLUMN_NAMES["userRoles"] = "user_roles";
+    DEFAULT_COLUMN_NAMES["revisionData"] = "revision";
+    DEFAULT_COLUMN_NAMES["revisionTime"] = "created_at";
+    DEFAULT_COLUMN_NAMES["nodeVersion"] = "node_version";
+    DEFAULT_COLUMN_NAMES["nodeName"] = "node_name";
+    DEFAULT_COLUMN_NAMES["nodeId"] = "node_id";
+    DEFAULT_COLUMN_NAMES["roleName"] = "role_name";
+})(DEFAULT_COLUMN_NAMES || (DEFAULT_COLUMN_NAMES = {}));
 const setNames = ({ tableNames, columnNames }) => ({
     tableNames: {
         ...DEFAULT_TABLE_NAMES,
@@ -36,7 +43,8 @@ const setNames = ({ tableNames, columnNames }) => ({
         ...columnNames
     }
 });
-const createRevisionMigrations = (config) => {
+
+var createRevisionMigrations = (config) => {
     const { tableNames, columnNames } = setNames(config || {});
     const up = async (knex) => {
         const revision = await knex.schema.createTable(tableNames.revision, t => {
