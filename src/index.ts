@@ -168,7 +168,7 @@ export interface IRevisionInput {
 // type UnPromisifiedObject<T> = {[k in keyof T]: UnPromisify<T[k]>};
 type UnPromisify<T> = T extends Promise<infer U> ? U : T;
 
-export interface IVersionSetupExtractors<Resolver extends (...args: any[]) => any> {
+export interface IVersionRecorderExtractors<Resolver extends (...args: any[]) => any> {
     userId: (...args: Parameters<Resolver>) => string;
     userRoles: (...args: Parameters<Resolver>) => string[];
     revisionData: (...args: Parameters<Resolver>) => string;
@@ -178,6 +178,10 @@ export interface IVersionSetupExtractors<Resolver extends (...args: any[]) => an
     knex: (...args: Parameters<Resolver>) => Knex;
     nodeIdUpdate?: (...args: Parameters<Resolver>) => string | number;
     nodeIdCreate?: (node: UnPromisify<ReturnType<Resolver>>) => string | number; // tslint:disable-line
+}
+
+export interface IVersionConnectionExtractors<Resolver extends (...args: any[]) => any> {
+    knex: (...args: Parameters<Resolver>) => Knex;
 }
 
 interface ICreateRevisionTransactionConfig extends INamesConfig {
@@ -259,11 +263,12 @@ const createRevisionTransaction = (
 //     }
 // };
 
-const versionedTransactionDecorator = <ResolverT extends (...args: any[]) => any>(
-    extractors: IVersionSetupExtractors<ResolverT>,
-    revisionTx?: ReturnType<typeof createRevisionTransaction>
+const versionRecorderDecorator = <ResolverT extends (...args: any[]) => any>(
+    extractors: IVersionRecorderExtractors<ResolverT>,
+    config?: ICreateRevisionTransactionConfig & INamesConfig
 ): MethodDecorator => {
     return (_target, property, descriptor: TypedPropertyDescriptor<any>) => {
+        const {tableNames, columnNames} = setNames(config || {});
         const {value} = descriptor;
         if (typeof value !== 'function') {
             throw new TypeError('Only functions can be decorated.');
@@ -314,7 +319,7 @@ const versionedTransactionDecorator = <ResolverT extends (...args: any[]) => any
                 nodeId
             };
 
-            const revTxFn = revisionTx ? revisionTx : createRevisionTransaction();
+            const revTxFn = createRevisionTransaction(config);
             const {transaction, revisionId} = await revTxFn(localKnexClient, revisionInput);
 
             const [parent, ar, ctx, info] = args;
@@ -326,8 +331,8 @@ const versionedTransactionDecorator = <ResolverT extends (...args: any[]) => any
             if (!nodeId) {
                 nodeId = extractors.nodeIdCreate ? extractors.nodeIdCreate(node) : undefined;
                 await localKnexClient
-                    .table('revision')
-                    .update({node_id: nodeId})
+                    .table(tableNames.revision)
+                    .update({[columnNames.nodeId]: nodeId})
                     .where({id: revisionId});
             }
 
@@ -339,6 +344,89 @@ const versionedTransactionDecorator = <ResolverT extends (...args: any[]) => any
 };
 // tslint:disable
 
-export {createRevisionMigrations, createRevisionTransaction, versionedTransactionDecorator};
+const versionConnectionDecorator = <ResolverT extends (...args: any[]) => any>(
+    extractors: IVersionConnectionExtractors<ResolverT>
+    // config?: ICreateRevisionTransactionConfig & INamesConfig
+): MethodDecorator => {
+    return (_target, _property, descriptor: TypedPropertyDescriptor<any>) => {
+        // const {tableNames, columnNames} = setNames(config || {});
+        const {value} = descriptor;
+        if (typeof value !== 'function') {
+            throw new TypeError('Only functions can be decorated.');
+        }
+
+        // if (!extractors.nodeIdCreate && !extractors.nodeIdUpdate) {
+        //     throw new Error(
+        //         // tslint:disable-next-line
+        //         'No node id extractor specified in the config. You need to specify either a `nodeIdUpdate` or `nodeIdCreate` extractor'
+        //     );
+        // }
+
+        // tslint:disable-next-line
+        descriptor.value = (async (...args) => {
+            const localKnexClient =
+                extractors.knex && extractors.knex(...(args as Parameters<ResolverT>));
+            // const userId =
+            //     extractors.userId && extractors.userId(...(args as Parameters<ResolverT>));
+            // const userRoles = extractors.userRoles
+            //     ? extractors.userRoles(...(args as Parameters<ResolverT>))
+            //     : [];
+            // const revisionData =
+            //     extractors.revisionData &&
+            //     extractors.revisionData(...(args as Parameters<ResolverT>));
+            // const revisionTime = extractors.revisionTime
+            //     ? extractors.revisionTime(...(args as Parameters<ResolverT>))
+            //     : new Date()
+            //           .toISOString()
+            //           .split('Z')
+            //           .join('');
+            // const nodeVersion =
+            //     extractors.nodeVersion &&
+            //     extractors.nodeVersion(...(args as Parameters<ResolverT>));
+            // const nodeName = extractors.nodeName
+            //     ? extractors.nodeName(...(args as Parameters<ResolverT>))
+            //     : property;
+            // let nodeId = extractors.nodeIdUpdate
+            //     ? extractors.nodeIdUpdate(...(args as Parameters<ResolverT>))
+            //     : undefined;
+
+            // const revisionInput = {
+            //     userId,
+            //     userRoles,
+            //     revisionData,
+            //     revisionTime,
+            //     nodeVersion,
+            //     nodeName: typeof nodeName === 'symbol' ? nodeName.toString() : nodeName,
+            //     nodeId
+            // };
+
+            // const revTxFn = createRevisionTransaction(config);
+            // const {transaction, revisionId} = await revTxFn(localKnexClient, revisionInput);
+
+            const [parent, ar, ctx, info] = args;
+            // const newArgs = {...ar, transaction};
+            const node = (await value(parent, ar, ctx, info)) as UnPromisify<ReturnType<ResolverT>>;
+
+            // if (!nodeId) {
+            //     nodeId = extractors.nodeIdCreate ? extractors.nodeIdCreate(node) : undefined;
+            //     await localKnexClient
+            //         .table(tableNames.revision)
+            //         .update({[columnNames.nodeId]: nodeId})
+            //         .where({id: revisionId});
+            // }
+
+            return node;
+        }) as ResolverT;
+
+        return descriptor;
+    };
+};
+
+export {
+    createRevisionMigrations,
+    createRevisionTransaction,
+    versionRecorderDecorator,
+    versionConnectionDecorator
+};
 export {default as decorate} from './lib/mobx/decorate';
 export * from './types';

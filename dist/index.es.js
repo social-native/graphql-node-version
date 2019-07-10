@@ -194,8 +194,9 @@ const createRevisionTransaction = (config) => async (knex, input) => {
 //         return knex.s
 //     }
 // };
-const versionedTransactionDecorator = (extractors, revisionTx) => {
+const versionedTransactionDecorator = (extractors, config) => {
     return (_target, property, descriptor) => {
+        const { tableNames, columnNames } = setNames(config || {});
         const { value } = descriptor;
         if (typeof value !== 'function') {
             throw new TypeError('Only functions can be decorated.');
@@ -237,7 +238,7 @@ const versionedTransactionDecorator = (extractors, revisionTx) => {
                 nodeName: typeof nodeName === 'symbol' ? nodeName.toString() : nodeName,
                 nodeId
             };
-            const revTxFn = revisionTx ? revisionTx : createRevisionTransaction();
+            const revTxFn = createRevisionTransaction(config);
             const { transaction, revisionId } = await revTxFn(localKnexClient, revisionInput);
             const [parent, ar, ctx, info] = args;
             const newArgs = { ...ar, transaction };
@@ -245,8 +246,8 @@ const versionedTransactionDecorator = (extractors, revisionTx) => {
             if (!nodeId) {
                 nodeId = extractors.nodeIdCreate ? extractors.nodeIdCreate(node) : undefined;
                 await localKnexClient
-                    .table('revision')
-                    .update({ node_id: nodeId })
+                    .table(tableNames.revision)
+                    .update({ [columnNames.nodeId]: nodeId })
                     .where({ id: revisionId });
             }
             return node;
@@ -254,6 +255,5 @@ const versionedTransactionDecorator = (extractors, revisionTx) => {
         return descriptor;
     };
 };
-//# sourceMappingURL=index.js.map
 
 export { createRevisionMigrations, createRevisionTransaction, decorate, versionedTransactionDecorator };

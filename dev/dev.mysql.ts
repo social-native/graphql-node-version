@@ -5,12 +5,17 @@ import {
     ConnectionManager,
     IInputArgs,
     typeDefs as connectionTypeDefs,
-    resolvers as connectionResolvers
+    resolvers as connectionResolvers,
+    IQueryResult
 } from 'snpkg-snapi-connections';
 
 import {development as developmentConfig} from '../knexfile.mysql';
 import {Resolver} from './types';
-import {decorate, versionedTransactionDecorator as versioned} from '../src/index';
+import {
+    decorate,
+    versionRecorderDecorator as versionRecorder,
+    versionConnectionDecorator as versionConnection
+} from '../src/index';
 const knexClient = knex(developmentConfig);
 
 // Construct a schema, using GraphQL schema language
@@ -75,6 +80,9 @@ type UserResolver = Resolver<
     IUserMutationInput & {transaction?: knex.Transaction<any, any>}
 >;
 
+type QueryUsersResolver = Resolver<IQueryResult<IUserNode | null>, undefined, IInputArgs>;
+type QueryUserResolver = Resolver<IUserNode, undefined, {id: string}>;
+
 const mutation: {user: UserResolver} = {
     user: async (_, {firstname, username, transaction}) => {
         const tx = transaction || (await knexClient.transaction());
@@ -93,20 +101,62 @@ const mutation: {user: UserResolver} = {
     }
 };
 
+const query: {user: QueryUserResolver; users: QueryUsersResolver} = {
+    async user(_, {id}) {
+        const queryBuilder = knexClient.from('mock');
+        return await queryBuilder
+            .table('mock')
+            .where({id})
+            .first();
+    },
+    async users(_, inputArgs) {
+        const queryBuilder = knexClient.from('mock');
+        // maps node types to sql column names
+        const attributeMap = {
+            id: 'id',
+            username: 'username',
+            firstname: 'firstname',
+            age: 'age',
+            haircolor: 'haircolor',
+            lastname: 'lastname',
+            bio: 'bio'
+        };
+
+        const builderOptions = {
+            searchColumns: ['username', 'firstname', 'lastname', 'bio', 'haircolor'],
+            searchModifier: 'IN NATURAL LANGUAGE MODE'
+        };
+        const nodeConnection = new ConnectionManager<IUserNode>(inputArgs, attributeMap, {
+            builderOptions
+        });
+
+        const query = nodeConnection.createQuery(queryBuilder.clone()).select();
+        const result = (await query) as KnexQueryResult;
+
+        nodeConnection.addResult(result);
+
+        return {
+            pageInfo: nodeConnection.pageInfo,
+            edges: nodeConnection.edges
+        };
+    }
+};
+
 decorate(mutation, {
-    user: versioned<UserResolver>({
+    // TODO add ability to differentiate between additions and deletions in revision data
+    user: versionRecorder<UserResolver>({
         knex: () => knexClient,
         userId: () => '1',
         userRoles: () => ['operations', 'user', 'billing'],
-        // revisionTime: () =>
-        //     new Date()
-        //         .toISOString()
-        //         .split('Z')
-        //         .join(''),
-        // nodeName: () => 'user',
         nodeIdCreate: ({id}) => id,
         nodeVersion: () => 1,
         revisionData: (_parent, args) => JSON.stringify(args)
+    })
+});
+
+decorate(query, {
+    user: versionConnection<QueryUserResolver>({
+        knex: () => knexClient
     })
 });
 
@@ -114,39 +164,7 @@ decorate(mutation, {
 
 const resolvers = {
     Mutation: mutation,
-    Query: {
-        async users(_: any, inputArgs: IInputArgs) {
-            const queryBuilder = knexClient.from('mock');
-            // maps node types to sql column names
-            const attributeMap = {
-                id: 'id',
-                username: 'username',
-                firstname: 'firstname',
-                age: 'age',
-                haircolor: 'haircolor',
-                lastname: 'lastname',
-                bio: 'bio'
-            };
-
-            const builderOptions = {
-                searchColumns: ['username', 'firstname', 'lastname', 'bio', 'haircolor'],
-                searchModifier: 'IN NATURAL LANGUAGE MODE'
-            };
-            const nodeConnection = new ConnectionManager<IUserNode>(inputArgs, attributeMap, {
-                builderOptions
-            });
-
-            const query = nodeConnection.createQuery(queryBuilder.clone()).select();
-            const result = (await query) as KnexQueryResult;
-
-            nodeConnection.addResult(result);
-
-            return {
-                pageInfo: nodeConnection.pageInfo,
-                edges: nodeConnection.edges
-            };
-        }
-    },
+    Query: query,
     ...connectionResolvers
 } as IResolvers;
 
