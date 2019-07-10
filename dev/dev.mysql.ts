@@ -104,6 +104,7 @@ decorate(mutation, {
         //         .split('Z')
         //         .join(''),
         // nodeName: () => 'user',
+        nodeIdCreate: ({id}) => id,
         nodeVersion: () => 1,
         revisionData: (_parent, args) => JSON.stringify(args)
     })

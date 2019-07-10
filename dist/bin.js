@@ -23,6 +23,7 @@ const DEFAULT_COLUMN_NAMES = {
     revisionTime: 'created_at',
     nodeVersion: 'node_version',
     nodeName: 'node_name',
+    nodeId: 'node_id',
     roleName: 'role_name'
 };
 const setNames = ({ tableNames, columnNames }) => ({
@@ -47,6 +48,7 @@ const createRevisionMigrations = (config) => {
             t.json(columnNames.revisionData);
             t.string(columnNames.nodeName);
             t.integer(columnNames.nodeVersion);
+            t.integer(columnNames.nodeId);
         });
         if (tableNames.revisionRole && tableNames.revisionUserRole) {
             await knex.schema.createTable(tableNames.revisionRole, t => {

@@ -66,6 +66,7 @@ const DEFAULT_COLUMN_NAMES = {
     revisionTime: 'created_at',
     nodeVersion: 'node_version',
     nodeName: 'node_name',
+    nodeId: 'node_id',
     roleName: 'role_name'
 };
 const setNames = ({ tableNames, columnNames }) => ({
@@ -100,6 +101,7 @@ const createRevisionMigrations = (config) => {
             t.json(columnNames.revisionData);
             t.string(columnNames.nodeName);
             t.integer(columnNames.nodeVersion);
+            t.integer(columnNames.nodeId);
         });
         if (tableNames.revisionRole && tableNames.revisionUserRole) {
             await knex.schema.createTable(tableNames.revisionRole, t => {
@@ -144,7 +146,10 @@ const createRevisionTransaction = (config) => async (knex, input) => {
     const { userRoles, ...mainTableInput } = input;
     const transformedMainTableInput = transformInput({ columnNames, columnData: mainTableInput });
     const transaction = await knex.transaction();
-    await transaction.table(tableNames.revision).insert(transformedMainTableInput);
+    const revisionId = (await transaction
+        .table(tableNames.revision)
+        .insert(transformedMainTableInput)
+        .returning('id'))[0];
     const roles = userRoles || [];
     // calculate which role are missing in the db
     const foundRoleNames = await transaction
@@ -163,19 +168,46 @@ const createRevisionTransaction = (config) => async (knex, input) => {
     // insert roles ids associated with the revision id
     await transaction.table(tableNames.revisionUserRole).insert(ids.map(({ id }) => ({
         [`${tableNames.revisionRole}_id`]: id,
-        [`${tableNames.revision}_id`]: 1
+        [`${tableNames.revision}_id`]: revisionId
     })));
     setTimeout(async () => {
         await transaction.rollback();
         // throw new Error('Detected an orphaned transaction');
     }, ((config && config.transactionTimeoutSeconds) || 10) * 1000);
-    return { transaction };
+    return { transaction, revisionId };
 };
+// enum KNEX_SQL_TYPES {
+//     'MYSQL',
+//     'SQLITE'
+// }
+// const knexSqlType = (knex: Knex) => {
+//     const MYSQL_CLIENTS = ['mysql', 'mysql2'];
+//     const SQLITE_CLIENTS = ['sqlite3'];
+//     const {client: clientName} = (knex as any).client.config;
+//     if (MYSQL_CLIENTS.includes(clientName)) {
+//         return KNEX_SQL_TYPES.MYSQL;
+//     } else if (SQLITE_CLIENTS.includes(clientName)) {
+//         return KNEX_SQL_TYPES.SQLITE;
+//     } else {
+//         throw new Error('Unknown SQL client');
+//     }
+// };
+// const selectLastInsertId = (knex: Knex) => {
+//     const sqlType = knexSqlType(knex);
+//     if (sqlType === KNEX_SQL_TYPES.MYSQL) {
+//         return knex.s
+//     }
+// };
 const versionedTransactionDecorator = (extractors, revisionTx) => {
     return (_target, property, descriptor) => {
         const { value } = descriptor;
         if (typeof value !== 'function') {
             throw new TypeError('Only functions can be decorated.');
+        }
+        if (!extractors.nodeIdCreate && !extractors.nodeIdUpdate) {
+            throw new Error(
+            // tslint:disable-next-line
+            'No node id extractor specified in the config. You need to specify either a `nodeIdUpdate` or `nodeIdCreate` extractor');
         }
         // tslint:disable-next-line
         descriptor.value = (async (...args) => {
@@ -197,19 +229,31 @@ const versionedTransactionDecorator = (extractors, revisionTx) => {
             const nodeName = extractors.nodeName
                 ? extractors.nodeName(...args)
                 : property;
+            let nodeId = extractors.nodeIdUpdate
+                ? extractors.nodeIdUpdate(...args)
+                : undefined;
             const revisionInput = {
                 userId,
                 userRoles,
                 revisionData,
                 revisionTime,
                 nodeVersion,
-                nodeName: typeof nodeName === 'symbol' ? nodeName.toString() : nodeName
+                nodeName: typeof nodeName === 'symbol' ? nodeName.toString() : nodeName,
+                nodeId
             };
             const revTxFn = revisionTx ? revisionTx : createRevisionTransaction();
-            const { transaction } = await revTxFn(localKnexClient, revisionInput);
+            const { transaction, revisionId } = await revTxFn(localKnexClient, revisionInput);
             const [parent, ar, ctx, info] = args;
             const newArgs = { ...ar, transaction };
-            return (await value(parent, newArgs, ctx, info));
+            const node = (await value(parent, newArgs, ctx, info));
+            if (!nodeId) {
+                nodeId = extractors.nodeIdCreate ? extractors.nodeIdCreate(node) : undefined;
+                await localKnexClient
+                    .table('revision')
+                    .update({ node_id: nodeId })
+                    .where({ id: revisionId });
+            }
+            return node;
         });
         return descriptor;
     };

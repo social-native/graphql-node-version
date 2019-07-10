@@ -12,6 +12,7 @@ interface INamesConfig {
         revisionTime?: string;
         nodeVersion?: string;
         nodeName?: string;
+        nodeId?: string;
         roleName?: string;
     };
 }
@@ -25,6 +26,7 @@ interface INamesForTablesAndColumns {
         revisionTime: string;
         nodeVersion: string;
         nodeName: string;
+        nodeId: string;
         roleName: string;
     };
 }
@@ -42,6 +44,7 @@ const DEFAULT_COLUMN_NAMES = {
     revisionTime: 'created_at',
     nodeVersion: 'node_version',
     nodeName: 'node_name',
+    nodeId: 'node_id',
     roleName: 'role_name'
 };
 
@@ -57,23 +60,18 @@ const setNames = ({tableNames, columnNames}: INamesConfig): INamesForTablesAndCo
 });
 
 interface IWriteableData {
-    tableData?: {
-        revision?: string;
-        revisionRole?: string;
-    };
-    columnData?: {
-        userId?: string;
-        userRoles?: string[];
-        revisionData?: string;
-        revisionTime?: string;
-        nodeVersion?: number;
-        nodeName?: string;
-    };
+    userId?: string;
+    userRoles?: string[];
+    revisionData?: string;
+    revisionTime?: string;
+    nodeVersion?: number;
+    nodeName?: string;
+    nodeId?: string | number;
 }
 
 interface ITransformInput {
     columnNames: NonNullable<INamesForTablesAndColumns['columnNames']> & {[column: string]: any};
-    columnData: NonNullable<IWriteableData['columnData']> & {[column: string]: any};
+    columnData: NonNullable<IWriteableData> & {[column: string]: any};
 }
 const transformInput = ({columnNames, columnData}: ITransformInput) => {
     return Object.keys(columnNames || {}).reduce(
@@ -85,7 +83,7 @@ const transformInput = ({columnNames, columnData}: ITransformInput) => {
             }
             return newColumnDataObj;
         },
-        {} as IWriteableData['columnData'] & {[column: string]: any}
+        {} as IWriteableData & {[column: string]: any}
     );
 };
 
@@ -110,6 +108,7 @@ const createRevisionMigrations = (config?: IConfig) => {
             t.json(columnNames.revisionData);
             t.string(columnNames.nodeName);
             t.integer(columnNames.nodeVersion);
+            t.integer(columnNames.nodeId);
         });
 
         if (tableNames.revisionRole && tableNames.revisionUserRole) {
@@ -163,7 +162,11 @@ export interface IRevisionInput {
     revisionTime?: string;
     nodeVersion?: number;
     nodeName?: string;
+    nodeId?: string | number;
 }
+
+// type UnPromisifiedObject<T> = {[k in keyof T]: UnPromisify<T[k]>};
+type UnPromisify<T> = T extends Promise<infer U> ? U : T;
 
 export interface IVersionSetupExtractors<Resolver extends (...args: any[]) => any> {
     userId: (...args: Parameters<Resolver>) => string;
@@ -173,6 +176,8 @@ export interface IVersionSetupExtractors<Resolver extends (...args: any[]) => an
     nodeVersion: (...args: Parameters<Resolver>) => number;
     nodeName?: (...args: Parameters<Resolver>) => string;
     knex: (...args: Parameters<Resolver>) => Knex;
+    nodeIdUpdate?: (...args: Parameters<Resolver>) => string | number;
+    nodeIdCreate?: (node: UnPromisify<ReturnType<Resolver>>) => string | number; // tslint:disable-line
 }
 
 interface ICreateRevisionTransactionConfig extends INamesConfig {
@@ -181,13 +186,20 @@ interface ICreateRevisionTransactionConfig extends INamesConfig {
 
 const createRevisionTransaction = (
     config?: ICreateRevisionTransactionConfig & INamesConfig
-) => async (knex: Knex, input: IRevisionInput): Promise<{transaction: Knex.Transaction}> => {
+) => async (
+    knex: Knex,
+    input: IRevisionInput
+): Promise<{transaction: Knex.Transaction; revisionId: number}> => {
     const {tableNames, columnNames} = setNames(config || {});
     const {userRoles, ...mainTableInput} = input;
     const transformedMainTableInput = transformInput({columnNames, columnData: mainTableInput});
 
     const transaction = await knex.transaction();
-    await transaction.table(tableNames.revision).insert(transformedMainTableInput);
+    const revisionId = ((await transaction
+        .table(tableNames.revision)
+        .insert(transformedMainTableInput)
+        .returning('id')) as number[])[0];
+
     const roles = userRoles || [];
 
     // calculate which role are missing in the db
@@ -211,7 +223,7 @@ const createRevisionTransaction = (
     await transaction.table(tableNames.revisionUserRole).insert(
         ids.map(({id}) => ({
             [`${tableNames.revisionRole}_id`]: id,
-            [`${tableNames.revision}_id`]: 1
+            [`${tableNames.revision}_id`]: revisionId
         }))
     );
 
@@ -220,8 +232,32 @@ const createRevisionTransaction = (
         // throw new Error('Detected an orphaned transaction');
     }, ((config && config.transactionTimeoutSeconds) || 10) * 1000);
 
-    return {transaction};
+    return {transaction, revisionId};
 };
+
+// enum KNEX_SQL_TYPES {
+//     'MYSQL',
+//     'SQLITE'
+// }
+// const knexSqlType = (knex: Knex) => {
+//     const MYSQL_CLIENTS = ['mysql', 'mysql2'];
+//     const SQLITE_CLIENTS = ['sqlite3'];
+//     const {client: clientName} = (knex as any).client.config;
+//     if (MYSQL_CLIENTS.includes(clientName)) {
+//         return KNEX_SQL_TYPES.MYSQL;
+//     } else if (SQLITE_CLIENTS.includes(clientName)) {
+//         return KNEX_SQL_TYPES.SQLITE;
+//     } else {
+//         throw new Error('Unknown SQL client');
+//     }
+// };
+
+// const selectLastInsertId = (knex: Knex) => {
+//     const sqlType = knexSqlType(knex);
+//     if (sqlType === KNEX_SQL_TYPES.MYSQL) {
+//         return knex.s
+//     }
+// };
 
 const versionedTransactionDecorator = <ResolverT extends (...args: any[]) => any>(
     extractors: IVersionSetupExtractors<ResolverT>,
@@ -231,6 +267,13 @@ const versionedTransactionDecorator = <ResolverT extends (...args: any[]) => any
         const {value} = descriptor;
         if (typeof value !== 'function') {
             throw new TypeError('Only functions can be decorated.');
+        }
+
+        if (!extractors.nodeIdCreate && !extractors.nodeIdUpdate) {
+            throw new Error(
+                // tslint:disable-next-line
+                'No node id extractor specified in the config. You need to specify either a `nodeIdUpdate` or `nodeIdCreate` extractor'
+            );
         }
 
         // tslint:disable-next-line
@@ -257,6 +300,9 @@ const versionedTransactionDecorator = <ResolverT extends (...args: any[]) => any
             const nodeName = extractors.nodeName
                 ? extractors.nodeName(...(args as Parameters<ResolverT>))
                 : property;
+            let nodeId = extractors.nodeIdUpdate
+                ? extractors.nodeIdUpdate(...(args as Parameters<ResolverT>))
+                : undefined;
 
             const revisionInput = {
                 userId,
@@ -264,15 +310,28 @@ const versionedTransactionDecorator = <ResolverT extends (...args: any[]) => any
                 revisionData,
                 revisionTime,
                 nodeVersion,
-                nodeName: typeof nodeName === 'symbol' ? nodeName.toString() : nodeName
+                nodeName: typeof nodeName === 'symbol' ? nodeName.toString() : nodeName,
+                nodeId
             };
 
             const revTxFn = revisionTx ? revisionTx : createRevisionTransaction();
-            const {transaction} = await revTxFn(localKnexClient, revisionInput);
+            const {transaction, revisionId} = await revTxFn(localKnexClient, revisionInput);
 
             const [parent, ar, ctx, info] = args;
             const newArgs = {...ar, transaction};
-            return (await value(parent, newArgs, ctx, info)) as ReturnType<ResolverT>;
+            const node = (await value(parent, newArgs, ctx, info)) as UnPromisify<
+                ReturnType<ResolverT>
+            >;
+
+            if (!nodeId) {
+                nodeId = extractors.nodeIdCreate ? extractors.nodeIdCreate(node) : undefined;
+                await localKnexClient
+                    .table('revision')
+                    .update({node_id: nodeId})
+                    .where({id: revisionId});
+            }
+
+            return node;
         }) as ResolverT;
 
         return descriptor;
