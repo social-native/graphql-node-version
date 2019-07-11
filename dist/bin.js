@@ -3,6 +3,7 @@
 
 function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'default' in ex) ? ex['default'] : ex; }
 
+require('snpkg-snapi-connections');
 var yargs = _interopDefault(require('yargs'));
 var path = _interopDefault(require('path'));
 var tildify = _interopDefault(require('tildify'));
@@ -32,6 +33,7 @@ var DEFAULT_COLUMN_NAMES;
     DEFAULT_COLUMN_NAMES["nodeName"] = "node_name";
     DEFAULT_COLUMN_NAMES["nodeId"] = "node_id";
     DEFAULT_COLUMN_NAMES["roleName"] = "role_name";
+    DEFAULT_COLUMN_NAMES["resolverName"] = "resolver_name";
 })(DEFAULT_COLUMN_NAMES || (DEFAULT_COLUMN_NAMES = {}));
 const setNames = ({ tableNames, columnNames }) => ({
     tableNames: {
@@ -43,6 +45,7 @@ const setNames = ({ tableNames, columnNames }) => ({
         ...columnNames
     }
 });
+//# sourceMappingURL=columnNames.js.map
 
 var createRevisionMigrations = (config) => {
     const { tableNames, columnNames } = setNames(config || {});
@@ -57,6 +60,7 @@ var createRevisionMigrations = (config) => {
             t.string(columnNames.nodeName);
             t.integer(columnNames.nodeVersion);
             t.integer(columnNames.nodeId);
+            t.string(columnNames.resolverName);
         });
         if (tableNames.revisionRole && tableNames.revisionUserRole) {
             await knex.schema.createTable(tableNames.revisionRole, t => {
@@ -96,6 +100,7 @@ var createRevisionMigrations = (config) => {
     };
     return { up, down };
 };
+//# sourceMappingURL=generator.js.map
 
 const { keys } = lodash;
 
@@ -413,7 +418,6 @@ yargs.command({
         };
         opts.client = opts.client || 'sqlite3'; // We don't really care about client when creating migrations
         const knex = kenxBin.initKnex(Object.assign({}, env), opts);
-        // console.log(knex);
         await up(knex);
         console.log('Created revision table');
         process.exit(0);
@@ -443,3 +447,4 @@ yargs.command({
 // run!
 // tslint:disable-next-line
 yargs.help().argv;
+//# sourceMappingURL=bin.js.map

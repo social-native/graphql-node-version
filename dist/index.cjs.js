@@ -2,11 +2,46 @@
 
 Object.defineProperty(exports, '__esModule', { value: true });
 
-var versionConnection = (extractors
-// config?: ICreateRevisionTransactionConfig & INamesConfig
-) => {
+var snpkgSnapiConnections = require('snpkg-snapi-connections');
+
+/**
+ * Sets the names for tables and columns that revisions will be stored in
+ *
+ * Allows users to specify their own column and table names. If none are specified, the defaults will be used.
+ */
+var DEFAULT_TABLE_NAMES;
+(function (DEFAULT_TABLE_NAMES) {
+    DEFAULT_TABLE_NAMES["revision"] = "revision";
+    DEFAULT_TABLE_NAMES["revisionRole"] = "revision_role";
+    DEFAULT_TABLE_NAMES["revisionUserRole"] = "revision_user_roles";
+})(DEFAULT_TABLE_NAMES || (DEFAULT_TABLE_NAMES = {}));
+var DEFAULT_COLUMN_NAMES;
+(function (DEFAULT_COLUMN_NAMES) {
+    DEFAULT_COLUMN_NAMES["userId"] = "user_id";
+    DEFAULT_COLUMN_NAMES["userRoles"] = "user_roles";
+    DEFAULT_COLUMN_NAMES["revisionData"] = "revision";
+    DEFAULT_COLUMN_NAMES["revisionTime"] = "created_at";
+    DEFAULT_COLUMN_NAMES["nodeVersion"] = "node_version";
+    DEFAULT_COLUMN_NAMES["nodeName"] = "node_name";
+    DEFAULT_COLUMN_NAMES["nodeId"] = "node_id";
+    DEFAULT_COLUMN_NAMES["roleName"] = "role_name";
+    DEFAULT_COLUMN_NAMES["resolverName"] = "resolver_name";
+})(DEFAULT_COLUMN_NAMES || (DEFAULT_COLUMN_NAMES = {}));
+const setNames = ({ tableNames, columnNames }) => ({
+    tableNames: {
+        ...DEFAULT_TABLE_NAMES,
+        ...tableNames
+    },
+    columnNames: {
+        ...DEFAULT_COLUMN_NAMES,
+        ...columnNames
+    }
+});
+//# sourceMappingURL=columnNames.js.map
+
+var versionConnection = (extractors, config) => {
     return (_target, _property, descriptor) => {
-        // const {tableNames, columnNames} = setNames(config || {});
+        const { tableNames, columnNames } = setNames(config || {});
         const { value } = descriptor;
         if (typeof value !== 'function') {
             throw new TypeError('Only functions can be decorated.');
@@ -20,7 +55,7 @@ var versionConnection = (extractors
         // tslint:disable-next-line
         descriptor.value = (async (...args) => {
             const localKnexClient = extractors.knex && extractors.knex(...args);
-            console.log(localKnexClient);
+            // console.log(localKnexClient);
             // const userId =
             //     extractors.userId && extractors.userId(...(args as Parameters<ResolverT>));
             // const userRoles = extractors.userRoles
@@ -56,8 +91,16 @@ var versionConnection = (extractors
             // const revTxFn = createRevisionTransaction(config);
             // const {transaction, revisionId} = await revTxFn(localKnexClient, revisionInput);
             const [parent, ar, ctx, info] = args;
+            const { nodeId, revisionData } = columnNames;
             // const newArgs = {...ar, transaction};
             const node = (await value(parent, ar, ctx, info));
+            const revisionsInRange = await getRevisionsInRange(ar, localKnexClient, tableNames, columnNames, {
+                nodeId,
+                revisionData
+            });
+            console.log(revisionsInRange);
+            // const revisionsOfInterest = await getRevisionsOfInterest(ar, localKnexClient);
+            // const nodes = createRevisionNodes(revisionsInRange, revisionsOfInterest);
             // if (!nodeId) {
             //     nodeId = extractors.nodeIdCreate ? extractors.nodeIdCreate(node) : undefined;
             //     await localKnexClient
@@ -70,41 +113,46 @@ var versionConnection = (extractors
         return descriptor;
     };
 };
+const transformSqlToNode = ({ columnNames, columnData }) => {
+    const inverseColumnNames = Object.keys(columnNames || {}).reduce((inverseColumnNamesObj, nodeName) => {
+        const sqlName = columnNames[nodeName];
+        inverseColumnNamesObj[sqlName] = nodeName;
+        return inverseColumnNamesObj;
+    }, {});
+    return Object.keys(inverseColumnNames || {}).reduce((newColumnDataObj, sqlName) => {
+        const nodeName = inverseColumnNames[sqlName];
+        const data = columnData[sqlName];
+        if (data) {
+            newColumnDataObj[nodeName] = data;
+        }
+        return newColumnDataObj;
+    }, {});
+};
+const getRevisionsInRange = async ({ id, ...inputArgs }, knex, 
+// TODO reuse types
+tableNames, columnNames, 
+// TODO reuse types
+attributeMap) => {
+    const nodeConnection = new snpkgSnapiConnections.ConnectionManager(inputArgs, attributeMap, {
+        resultOptions: {
+            nodeTransformer: (node) => ({
+                ...transformSqlToNode({ columnNames, columnData: node }),
+                id: node.id
+            })
+        }
+    });
+    const queryBuilder = knex
+        .queryBuilder()
+        .table(tableNames.revision)
+        .where({ [columnNames.nodeId]: id })
+        .select(Object.values(attributeMap), 'id');
+    console.log(queryBuilder.toSQL());
+    const result = await nodeConnection.createQuery(queryBuilder);
+    nodeConnection.addResult(result);
+    return nodeConnection.edges.map(({ node }) => node.revisionData);
+};
 
-/**
- * Sets the names for tables and columns that revisions will be stored in
- *
- * Allows users to specify their own column and table names. If none are specified, the defaults will be used.
- */
-var DEFAULT_TABLE_NAMES;
-(function (DEFAULT_TABLE_NAMES) {
-    DEFAULT_TABLE_NAMES["revision"] = "revision";
-    DEFAULT_TABLE_NAMES["revisionRole"] = "revision_role";
-    DEFAULT_TABLE_NAMES["revisionUserRole"] = "revision_user_roles";
-})(DEFAULT_TABLE_NAMES || (DEFAULT_TABLE_NAMES = {}));
-var DEFAULT_COLUMN_NAMES;
-(function (DEFAULT_COLUMN_NAMES) {
-    DEFAULT_COLUMN_NAMES["userId"] = "user_id";
-    DEFAULT_COLUMN_NAMES["userRoles"] = "user_roles";
-    DEFAULT_COLUMN_NAMES["revisionData"] = "revision";
-    DEFAULT_COLUMN_NAMES["revisionTime"] = "created_at";
-    DEFAULT_COLUMN_NAMES["nodeVersion"] = "node_version";
-    DEFAULT_COLUMN_NAMES["nodeName"] = "node_name";
-    DEFAULT_COLUMN_NAMES["nodeId"] = "node_id";
-    DEFAULT_COLUMN_NAMES["roleName"] = "role_name";
-})(DEFAULT_COLUMN_NAMES || (DEFAULT_COLUMN_NAMES = {}));
-const setNames = ({ tableNames, columnNames }) => ({
-    tableNames: {
-        ...DEFAULT_TABLE_NAMES,
-        ...tableNames
-    },
-    columnNames: {
-        ...DEFAULT_COLUMN_NAMES,
-        ...columnNames
-    }
-});
-
-const transformInput = ({ columnNames, columnData }) => {
+const transformNodeToSql = ({ columnNames, columnData }) => {
     return Object.keys(columnNames || {}).reduce((newColumnDataObj, columnName) => {
         const newColumnName = columnNames[columnName];
         const data = columnData[columnName];
@@ -117,7 +165,7 @@ const transformInput = ({ columnNames, columnData }) => {
 const createRevisionTransaction = (config) => async (knex, input) => {
     const { tableNames, columnNames } = setNames(config || {});
     const { userRoles, ...mainTableInput } = input;
-    const transformedMainTableInput = transformInput({ columnNames, columnData: mainTableInput });
+    const transformedMainTableInput = transformNodeToSql({ columnNames, columnData: mainTableInput });
     const transaction = await knex.transaction();
     const revisionId = (await transaction
         .table(tableNames.revision)
@@ -163,35 +211,35 @@ var versionRecorder = (extractors, config) => {
         }
         // tslint:disable-next-line
         descriptor.value = (async (...args) => {
-            const localKnexClient = extractors.knex && extractors.knex(...args);
-            const userId = extractors.userId && extractors.userId(...args);
+            const localKnexClient = extractors.knex(...args);
+            const userId = extractors.userId(...args);
+            const revisionData = extractors.revisionData(...args);
+            const nodeVersion = extractors.nodeVersion(...args);
+            const nodeName = extractors.nodeName(...args);
             const userRoles = extractors.userRoles
                 ? extractors.userRoles(...args)
                 : [];
-            const revisionData = extractors.revisionData &&
-                extractors.revisionData(...args);
             const revisionTime = extractors.revisionTime
                 ? extractors.revisionTime(...args)
                 : new Date()
                     .toISOString()
                     .split('Z')
                     .join('');
-            const nodeVersion = extractors.nodeVersion &&
-                extractors.nodeVersion(...args);
-            const nodeName = extractors.nodeName
-                ? extractors.nodeName(...args)
-                : property;
             let nodeId = extractors.nodeIdUpdate
                 ? extractors.nodeIdUpdate(...args)
                 : undefined;
+            const resolverName = extractors.resolverName
+                ? extractors.resolverName(...args)
+                : property;
             const revisionInput = {
                 userId,
                 userRoles,
                 revisionData,
                 revisionTime,
                 nodeVersion,
-                nodeName: typeof nodeName === 'symbol' ? nodeName.toString() : nodeName,
-                nodeId
+                nodeName,
+                nodeId,
+                resolverName: typeof resolverName === 'symbol' ? resolverName.toString() : resolverName
             };
             const revTxFn = createRevisionTransaction(config);
             const { transaction, revisionId } = await revTxFn(localKnexClient, revisionInput);
@@ -210,6 +258,7 @@ var versionRecorder = (extractors, config) => {
         return descriptor;
     };
 };
+//# sourceMappingURL=versionRecorder.js.map
 
 var generator = (config) => {
     const { tableNames, columnNames } = setNames(config || {});
@@ -224,6 +273,7 @@ var generator = (config) => {
             t.string(columnNames.nodeName);
             t.integer(columnNames.nodeVersion);
             t.integer(columnNames.nodeId);
+            t.string(columnNames.resolverName);
         });
         if (tableNames.revisionRole && tableNames.revisionUserRole) {
             await knex.schema.createTable(tableNames.revisionRole, t => {
@@ -263,6 +313,7 @@ var generator = (config) => {
     };
     return { up, down };
 };
+//# sourceMappingURL=generator.js.map
 
 // tslint:disable
 /**
@@ -314,6 +365,7 @@ function decorate(thing, decorators) {
 function isDecoratorArray(decorator) {
     return decorator !== undefined && Array.isArray(decorator);
 }
+//# sourceMappingURL=decorate.js.map
 
 exports.createRevisionMigrations = generator;
 exports.decorate = decorate;

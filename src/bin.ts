@@ -31,7 +31,7 @@ yargs.command({
         opts.client = opts.client || 'sqlite3'; // We don't really care about client when creating migrations
 
         const knex = (kenxBin as any).initKnex(Object.assign({}, env), opts);
-        // console.log(knex);
+
         await up(knex);
         console.log('Created revision table');
         process.exit(0);

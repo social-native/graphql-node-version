@@ -1,24 +1,9 @@
 import * as Knex from 'knex';
 
-import {INamesForTablesAndColumns, INamesConfig, UnPromisify} from '../types';
+import {INamesConfig, UnPromisify, IRevisionInfo, ITransformInput} from '../types';
 import {setNames} from '../columnNames';
 
-export interface IRevisionData {
-    userId?: string;
-    userRoles?: string[];
-    revisionData?: string;
-    revisionTime?: string;
-    nodeVersion?: number;
-    nodeName?: string;
-    nodeId?: string | number;
-}
-
-interface ITransformInput {
-    columnNames: NonNullable<INamesForTablesAndColumns['columnNames']> & {[column: string]: any};
-    columnData: NonNullable<IRevisionData> & {[column: string]: any};
-}
-
-const transformInput = ({columnNames, columnData}: ITransformInput) => {
+const transformNodeToSql = ({columnNames, columnData}: ITransformInput) => {
     return Object.keys(columnNames || {}).reduce(
         (newColumnDataObj, columnName) => {
             const newColumnName = columnNames[columnName];
@@ -28,7 +13,7 @@ const transformInput = ({columnNames, columnData}: ITransformInput) => {
             }
             return newColumnDataObj;
         },
-        {} as IRevisionData & {[column: string]: any}
+        {} as IRevisionInfo & {[column: string]: any}
     );
 };
 
@@ -38,8 +23,9 @@ export interface IVersionRecorderExtractors<Resolver extends (...args: any[]) =>
     revisionData: (...args: Parameters<Resolver>) => string;
     revisionTime?: (...args: Parameters<Resolver>) => string;
     nodeVersion: (...args: Parameters<Resolver>) => number;
-    nodeName?: (...args: Parameters<Resolver>) => string;
+    nodeName: (...args: Parameters<Resolver>) => string;
     knex: (...args: Parameters<Resolver>) => Knex;
+    resolverName?: (...args: Parameters<Resolver>) => string;
     nodeIdUpdate?: (...args: Parameters<Resolver>) => string | number;
     nodeIdCreate?: (node: UnPromisify<ReturnType<Resolver>>) => string | number; // tslint:disable-line
 }
@@ -52,11 +38,11 @@ const createRevisionTransaction = (
     config?: ICreateRevisionTransactionConfig & INamesConfig
 ) => async (
     knex: Knex,
-    input: IRevisionData
+    input: IRevisionInfo
 ): Promise<{transaction: Knex.Transaction; revisionId: number}> => {
     const {tableNames, columnNames} = setNames(config || {});
     const {userRoles, ...mainTableInput} = input;
-    const transformedMainTableInput = transformInput({columnNames, columnData: mainTableInput});
+    const transformedMainTableInput = transformNodeToSql({columnNames, columnData: mainTableInput});
 
     const transaction = await knex.transaction();
     const revisionId = ((await transaction
@@ -119,31 +105,26 @@ export default <ResolverT extends (...args: any[]) => any>(
 
         // tslint:disable-next-line
         descriptor.value = (async (...args) => {
-            const localKnexClient =
-                extractors.knex && extractors.knex(...(args as Parameters<ResolverT>));
-            const userId =
-                extractors.userId && extractors.userId(...(args as Parameters<ResolverT>));
+            const localKnexClient = extractors.knex(...(args as Parameters<ResolverT>));
+            const userId = extractors.userId(...(args as Parameters<ResolverT>));
+            const revisionData = extractors.revisionData(...(args as Parameters<ResolverT>));
+            const nodeVersion = extractors.nodeVersion(...(args as Parameters<ResolverT>));
+            const nodeName = extractors.nodeName(...(args as Parameters<ResolverT>));
             const userRoles = extractors.userRoles
                 ? extractors.userRoles(...(args as Parameters<ResolverT>))
                 : [];
-            const revisionData =
-                extractors.revisionData &&
-                extractors.revisionData(...(args as Parameters<ResolverT>));
             const revisionTime = extractors.revisionTime
                 ? extractors.revisionTime(...(args as Parameters<ResolverT>))
                 : new Date()
                       .toISOString()
                       .split('Z')
                       .join('');
-            const nodeVersion =
-                extractors.nodeVersion &&
-                extractors.nodeVersion(...(args as Parameters<ResolverT>));
-            const nodeName = extractors.nodeName
-                ? extractors.nodeName(...(args as Parameters<ResolverT>))
-                : property;
             let nodeId = extractors.nodeIdUpdate
                 ? extractors.nodeIdUpdate(...(args as Parameters<ResolverT>))
                 : undefined;
+            const resolverName = extractors.resolverName
+                ? extractors.resolverName(...(args as Parameters<ResolverT>))
+                : property;
 
             const revisionInput = {
                 userId,
@@ -151,8 +132,10 @@ export default <ResolverT extends (...args: any[]) => any>(
                 revisionData,
                 revisionTime,
                 nodeVersion,
-                nodeName: typeof nodeName === 'symbol' ? nodeName.toString() : nodeName,
-                nodeId
+                nodeName,
+                nodeId,
+                resolverName:
+                    typeof resolverName === 'symbol' ? resolverName.toString() : resolverName
             };
 
             const revTxFn = createRevisionTransaction(config);

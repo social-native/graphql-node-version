@@ -25,6 +25,7 @@ export default (config?: IConfig) => {
             t.string(columnNames.nodeName);
             t.integer(columnNames.nodeVersion);
             t.integer(columnNames.nodeId);
+            t.string(columnNames.resolverName);
         });
 
         if (tableNames.revisionRole && tableNames.revisionUserRole) {

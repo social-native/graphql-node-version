@@ -14,7 +14,7 @@ export interface IRevisionConnection<Node> {
             userId?: string;
             userRoles?: string[];
             revisionData?: string;
-            revisionTime?: string;
+            createdOn?: string;
             nodeVersion?: number;
             nodeName?: string;
             nodeId?: string | number;
@@ -40,6 +40,7 @@ export interface INamesConfig {
         nodeName?: string;
         nodeId?: string;
         roleName?: string;
+        resolverName?: string;
     };
 }
 
@@ -49,3 +50,19 @@ export interface INamesForTablesAndColumns {
 }
 
 export type UnPromisify<T> = T extends Promise<infer U> ? U : T;
+
+export interface IRevisionInfo {
+    userId: string;
+    userRoles?: string[];
+    revisionData: string;
+    revisionTime?: string;
+    nodeVersion: number;
+    nodeName: string;
+    nodeId?: string | number;
+    resolverName?: string;
+}
+
+export interface ITransformInput {
+    columnNames: NonNullable<INamesForTablesAndColumns['columnNames']> & {[column: string]: any};
+    columnData: NonNullable<IRevisionInfo> & {[column: string]: any};
+}

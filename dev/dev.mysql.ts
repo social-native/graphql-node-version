@@ -14,7 +14,8 @@ import {Resolver} from './types';
 import {
     decorate,
     versionRecorderDecorator as versionRecorder,
-    versionConnectionDecorator as versionConnection
+    versionConnectionDecorator as versionConnection,
+    IRevisionInfo
 } from '../src/index';
 const knexClient = knex(developmentConfig);
 
@@ -40,7 +41,38 @@ const typeDefs = gql`
         node: User
     }
 
+    type QueryUserVersionConnection implements IConnection {
+        pageInfo: PageInfo!
+        edges: [QueryUserVersionEdge]!
+    }
+
+    type Version {
+        userId: ID!
+        userRoles: [String]!
+        revisionData: String!
+        revisionTime: Int!
+        nodeVersion: Int!
+        nodeName: String!
+        resolverName: String!
+    }
+
+    type QueryUserVersionEdge implements IEdge {
+        cursor: String!
+        node: User
+        version: Version
+    }
+
     type Query {
+        user(
+            id: ID!
+            first: First
+            last: Last
+            orderBy: OrderBy
+            orderDir: OrderDir
+            before: Before
+            after: After
+            filter: Filter
+        ): QueryUserVersionConnection
         users(
             first: First
             last: Last
@@ -53,7 +85,7 @@ const typeDefs = gql`
         ): QueryUserConnection
     }
     type Mutation {
-        user(username: String, firstname: String): User
+        userCreate(username: String, firstname: String): User
     }
 `;
 
@@ -74,7 +106,7 @@ interface IUserMutationInput {
 
 type KnexQueryResult = Array<{[attributeName: string]: any}>;
 
-type UserResolver = Resolver<
+type MutationUserCreateResolver = Resolver<
     IUserNode,
     undefined,
     IUserMutationInput & {transaction?: knex.Transaction<any, any>}
@@ -83,8 +115,8 @@ type UserResolver = Resolver<
 type QueryUsersResolver = Resolver<IQueryResult<IUserNode | null>, undefined, IInputArgs>;
 type QueryUserResolver = Resolver<IUserNode, undefined, {id: string}>;
 
-const mutation: {user: UserResolver} = {
-    user: async (_, {firstname, username, transaction}) => {
+const mutation: {userCreate: MutationUserCreateResolver} = {
+    userCreate: async (_, {firstname, username, transaction}) => {
         const tx = transaction || (await knexClient.transaction());
         try {
             await tx.table('mock').insert({firstname, username});
@@ -130,8 +162,8 @@ const query: {user: QueryUserResolver; users: QueryUsersResolver} = {
             builderOptions
         });
 
-        const query = nodeConnection.createQuery(queryBuilder.clone()).select();
-        const result = (await query) as KnexQueryResult;
+        const queryResult = nodeConnection.createQuery(queryBuilder.clone()).select();
+        const result = (await queryResult) as KnexQueryResult;
 
         nodeConnection.addResult(result);
 
@@ -144,19 +176,28 @@ const query: {user: QueryUserResolver; users: QueryUsersResolver} = {
 
 decorate(mutation, {
     // TODO add ability to differentiate between additions and deletions in revision data
-    user: versionRecorder<UserResolver>({
+    userCreate: versionRecorder<MutationUserCreateResolver>({
         knex: () => knexClient,
         userId: () => '1',
         userRoles: () => ['operations', 'user', 'billing'],
         nodeIdCreate: ({id}) => id,
         nodeVersion: () => 1,
-        revisionData: (_parent, args) => JSON.stringify(args)
+        revisionData: (_parent, args) => JSON.stringify(args),
+        resolverName: () => 'create',
+        nodeName: () => 'user'
     })
 });
 
+const nodeBuilder = (previousModel: object, revisionInfo: IRevisionInfo) => {
+    const {revisionData} = revisionInfo;
+    const data = JSON.parse(revisionData);
+    return {...previousModel, ...data};
+};
+
 decorate(query, {
     user: versionConnection<QueryUserResolver>({
-        knex: () => knexClient
+        knex: () => knexClient,
+        nodeBuilder
     })
 });
 

@@ -1,16 +1,28 @@
 import * as Knex from 'knex';
-import {UnPromisify} from '../types';
+import {UnPromisify, IRevisionInfo, INamesConfig} from '../types';
+import {
+    ConnectionManager,
+    IInputArgs
+    // typeDefs as connectionTypeDefs,
+    // resolvers as connectionResolvers,
+    // IQueryResult
+} from 'snpkg-snapi-connections';
+import {setNames} from 'columnNames';
 
 export interface IVersionConnectionExtractors<Resolver extends (...args: any[]) => any> {
     knex: (...args: Parameters<Resolver>) => Knex;
+    nodeBuilder?: (
+        previousModel: UnPromisify<ReturnType<Resolver>>,
+        versionInfo: IRevisionInfo
+    ) => UnPromisify<ReturnType<Resolver>>;
 }
 
 export default <ResolverT extends (...args: any[]) => any>(
-    extractors: IVersionConnectionExtractors<ResolverT>
-    // config?: ICreateRevisionTransactionConfig & INamesConfig
+    extractors: IVersionConnectionExtractors<ResolverT>,
+    config?: INamesConfig
 ): MethodDecorator => {
     return (_target, _property, descriptor: TypedPropertyDescriptor<any>) => {
-        // const {tableNames, columnNames} = setNames(config || {});
+        const {tableNames, columnNames} = setNames(config || {});
         const {value} = descriptor;
         if (typeof value !== 'function') {
             throw new TypeError('Only functions can be decorated.');
@@ -27,7 +39,7 @@ export default <ResolverT extends (...args: any[]) => any>(
         descriptor.value = (async (...args) => {
             const localKnexClient =
                 extractors.knex && extractors.knex(...(args as Parameters<ResolverT>));
-            console.log(localKnexClient);
+            // console.log(localKnexClient);
             // const userId =
             //     extractors.userId && extractors.userId(...(args as Parameters<ResolverT>));
             // const userRoles = extractors.userRoles
@@ -66,8 +78,22 @@ export default <ResolverT extends (...args: any[]) => any>(
             // const {transaction, revisionId} = await revTxFn(localKnexClient, revisionInput);
 
             const [parent, ar, ctx, info] = args;
+            const {nodeId, revisionData} = columnNames;
             // const newArgs = {...ar, transaction};
             const node = (await value(parent, ar, ctx, info)) as UnPromisify<ReturnType<ResolverT>>;
+            const revisionsInRange = await getRevisionsInRange(
+                ar,
+                localKnexClient,
+                tableNames,
+                columnNames,
+                {
+                    nodeId,
+                    revisionData
+                }
+            );
+            console.log(revisionsInRange);
+            // const revisionsOfInterest = await getRevisionsOfInterest(ar, localKnexClient);
+            // const nodes = createRevisionNodes(revisionsInRange, revisionsOfInterest);
 
             // if (!nodeId) {
             //     nodeId = extractors.nodeIdCreate ? extractors.nodeIdCreate(node) : undefined;
@@ -82,4 +108,63 @@ export default <ResolverT extends (...args: any[]) => any>(
 
         return descriptor;
     };
+};
+
+const transformSqlToNode = ({
+    columnNames,
+    columnData
+}: {
+    columnNames: {[column: string]: string};
+    columnData: {[column: string]: any};
+}) => {
+    const inverseColumnNames = Object.keys(columnNames || {}).reduce(
+        (inverseColumnNamesObj, nodeName) => {
+            const sqlName = columnNames[nodeName];
+            inverseColumnNamesObj[sqlName] = nodeName;
+            return inverseColumnNamesObj;
+        },
+        {} as {[column: string]: string}
+    );
+
+    return Object.keys(inverseColumnNames || {}).reduce(
+        (newColumnDataObj, sqlName) => {
+            const nodeName = inverseColumnNames[sqlName];
+            const data = columnData[sqlName];
+            if (data) {
+                newColumnDataObj[nodeName] = data;
+            }
+            return newColumnDataObj;
+        },
+        {} as IRevisionInfo & {[column: string]: any}
+    );
+};
+
+const getRevisionsInRange = async (
+    {id, ...inputArgs}: IInputArgs & {id: string},
+    knex: Knex,
+    // TODO reuse types
+    tableNames: {revision: string},
+    columnNames: {nodeId: string; revisionData: string},
+    // TODO reuse types
+    attributeMap: {nodeId: string; revisionData: string}
+) => {
+    const nodeConnection = new ConnectionManager<typeof attributeMap>(inputArgs, attributeMap, {
+        resultOptions: {
+            nodeTransformer: (node: any) => ({
+                ...(transformSqlToNode({columnNames, columnData: node}) as any),
+                id: node.id
+            })
+        }
+    });
+    const queryBuilder = knex
+        .queryBuilder()
+        .table(tableNames.revision)
+        .where({[columnNames.nodeId]: id})
+        .select(Object.values(attributeMap), 'id');
+
+    console.log(queryBuilder.toSQL());
+    const result = await nodeConnection.createQuery(queryBuilder);
+
+    nodeConnection.addResult(result);
+    return nodeConnection.edges.map(({node}) => node.revisionData);
 };
