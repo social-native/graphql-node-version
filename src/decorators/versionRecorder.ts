@@ -1,21 +1,8 @@
 import * as Knex from 'knex';
 
-import {INamesConfig, UnPromisify, IRevisionInfo, ITransformInput} from '../types';
+import {INamesConfig, UnPromisify, IRevisionInfo} from '../types';
 import {setNames} from '../columnNames';
-
-const transformNodeToSql = ({columnNames, columnData}: ITransformInput) => {
-    return Object.keys(columnNames || {}).reduce(
-        (newColumnDataObj, columnName) => {
-            const newColumnName = columnNames[columnName];
-            const data = columnData[columnName];
-            if (data) {
-                newColumnDataObj[newColumnName] = data;
-            }
-            return newColumnDataObj;
-        },
-        {} as IRevisionInfo & {[column: string]: any}
-    );
-};
+import nodeToSql from 'transformers/nodeToSql';
 
 export interface IVersionRecorderExtractors<Resolver extends (...args: any[]) => any> {
     userId: (...args: Parameters<Resolver>) => string;
@@ -40,40 +27,45 @@ const createRevisionTransaction = (
     knex: Knex,
     input: IRevisionInfo
 ): Promise<{transaction: Knex.Transaction; revisionId: number}> => {
-    const {tableNames, columnNames} = setNames(config || {});
+    const nodeToSqlNameMappings = setNames(config || {});
+
     const {userRoles, ...mainTableInput} = input;
-    const transformedMainTableInput = transformNodeToSql({columnNames, columnData: mainTableInput});
+    const sqlData = nodeToSql(nodeToSqlNameMappings, mainTableInput);
 
     const transaction = await knex.transaction();
     const revisionId = ((await transaction
-        .table(tableNames.revision)
-        .insert(transformedMainTableInput)
+        .table(nodeToSqlNameMappings.tableNames.revision)
+        .insert(sqlData)
         .returning('id')) as number[])[0];
 
     const roles = userRoles || [];
 
     // calculate which role are missing in the db
     const foundRoleNames = await transaction
-        .table(tableNames.revisionRole)
-        .whereIn(columnNames.roleName, roles);
-    const foundRoles = foundRoleNames.map((n: any) => n[columnNames.roleName]);
+        .table(nodeToSqlNameMappings.tableNames.revisionRole)
+        .whereIn(nodeToSqlNameMappings.columnNames.roleName, roles);
+    const foundRoles = foundRoleNames.map(
+        (n: any) => n[nodeToSqlNameMappings.columnNames.roleName]
+    );
     const missingRoles = roles.filter(i => foundRoles.indexOf(i) < 0);
 
     // insert the missing roles
-    await transaction
-        .table(tableNames.revisionRole)
-        .insert(missingRoles.map((role: string) => ({[columnNames.roleName]: role})));
+    await transaction.table(nodeToSqlNameMappings.tableNames.revisionRole).insert(
+        missingRoles.map((role: string) => ({
+            [nodeToSqlNameMappings.columnNames.roleName]: role
+        }))
+    );
 
     // select the role ids
     const ids = (await transaction
-        .table(tableNames.revisionRole)
-        .whereIn(columnNames.roleName, roles)) as Array<{id: number}>;
+        .table(nodeToSqlNameMappings.tableNames.revisionRole)
+        .whereIn(nodeToSqlNameMappings.columnNames.roleName, roles)) as Array<{id: number}>;
 
     // insert roles ids associated with the revision id
-    await transaction.table(tableNames.revisionUserRole).insert(
+    await transaction.table(nodeToSqlNameMappings.tableNames.revisionUserRole).insert(
         ids.map(({id}) => ({
-            [`${tableNames.revisionRole}_id`]: id,
-            [`${tableNames.revision}_id`]: revisionId
+            [`${nodeToSqlNameMappings.tableNames.revisionRole}_id`]: id,
+            [`${nodeToSqlNameMappings.tableNames.revision}_id`]: revisionId
         }))
     );
 

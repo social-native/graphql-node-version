@@ -13,8 +13,9 @@ var DEFAULT_TABLE_NAMES;
 })(DEFAULT_TABLE_NAMES || (DEFAULT_TABLE_NAMES = {}));
 var DEFAULT_COLUMN_NAMES;
 (function (DEFAULT_COLUMN_NAMES) {
+    DEFAULT_COLUMN_NAMES["id"] = "revision.id";
     DEFAULT_COLUMN_NAMES["userId"] = "user_id";
-    DEFAULT_COLUMN_NAMES["userRoles"] = "user_roles";
+    // userRoles = 'user_roles',
     DEFAULT_COLUMN_NAMES["revisionData"] = "revision";
     DEFAULT_COLUMN_NAMES["revisionTime"] = "created_at";
     DEFAULT_COLUMN_NAMES["nodeVersion"] = "node_version";
@@ -35,9 +36,32 @@ const setNames = ({ tableNames, columnNames }) => ({
 });
 //# sourceMappingURL=columnNames.js.map
 
+var sqlToNode = (nodeToSqlNameMappings, sqlData) => {
+    console.log('sql data', sqlData, 'mapping', nodeToSqlNameMappings);
+    const { columnNames } = nodeToSqlNameMappings;
+    const nodeNames = Object.keys(columnNames);
+    const sqlToNodeNameMappings = nodeNames.reduce((inverseColumnNamesObj, nodeName) => {
+        const sqlName = columnNames[nodeName];
+        inverseColumnNamesObj[sqlName] = nodeName;
+        return inverseColumnNamesObj;
+    }, {});
+    const d = Object.keys(sqlToNodeNameMappings).reduce((nodeData, sqlName) => {
+        const nodeName = sqlToNodeNameMappings[sqlName];
+        const data = sqlData[sqlName];
+        if (data) {
+            nodeData[nodeName] = data;
+        }
+        return nodeData;
+    }, {});
+    console.log(d);
+    return d;
+};
+//# sourceMappingURL=sqlToNode.js.map
+
 var versionConnection = (extractors, config) => {
     return (_target, _property, descriptor) => {
-        const { tableNames, columnNames } = setNames(config || {});
+        // const {tableNames, columnNames}
+        const nodeToSqlNameMappings = setNames(config || {});
         const { value } = descriptor;
         if (typeof value !== 'function') {
             throw new TypeError('Only functions can be decorated.');
@@ -45,15 +69,18 @@ var versionConnection = (extractors, config) => {
         // if (!extractors.nodeIdCreate && !extractors.nodeIdUpdate) {
         //     throw new Error(
         //         // tslint:disable-next-line
-        //         'No node id extractor specified in the config. You need to specify either a `nodeIdUpdate` or `nodeIdCreate` extractor'
+        //         `No node id extractor specified in the config.
+        // You need to specify either a 'nodeIdUpdate' or `nodeIdCreate` extractor`
         //     );
         // }
         // tslint:disable-next-line
         descriptor.value = (async (...args) => {
             const localKnexClient = extractors.knex && extractors.knex(...args);
             // console.log(localKnexClient);
-            // const userId =
-            //     extractors.userId && extractors.userId(...(args as Parameters<ResolverT>));
+            // TODO complete nodeId
+            // const nodeId = extractors.nodeId
+            //     ? extractors.nodeId(...(args as Parameters<ResolverT>))
+            //     : args.args.id;
             // const userRoles = extractors.userRoles
             //     ? extractors.userRoles(...(args as Parameters<ResolverT>))
             //     : [];
@@ -87,15 +114,12 @@ var versionConnection = (extractors, config) => {
             // const revTxFn = createRevisionTransaction(config);
             // const {transaction, revisionId} = await revTxFn(localKnexClient, revisionInput);
             const [parent, ar, ctx, info] = args;
-            const { nodeId, revisionData } = columnNames;
             // const newArgs = {...ar, transaction};
             const node = (await value(parent, ar, ctx, info));
-            const revisionsInRange = await getRevisionsInRange(ar, localKnexClient, tableNames, columnNames, {
-                nodeId,
-                revisionData
-            });
+            const revisionsInRange = await getRevisionsInRange(ar, localKnexClient, nodeToSqlNameMappings, extractors);
             console.log(revisionsInRange);
-            // const revisionsOfInterest = await getRevisionsOfInterest(ar, localKnexClient);
+            const revisionsOfInterest = await getRevisionsOfInterest(ar, localKnexClient, nodeToSqlNameMappings, extractors);
+            console.log(revisionsOfInterest);
             // const nodes = createRevisionNodes(revisionsInRange, revisionsOfInterest);
             // if (!nodeId) {
             //     nodeId = extractors.nodeIdCreate ? extractors.nodeIdCreate(node) : undefined;
@@ -109,83 +133,96 @@ var versionConnection = (extractors, config) => {
         return descriptor;
     };
 };
-const transformSqlToNode = ({ columnNames, columnData }) => {
-    const inverseColumnNames = Object.keys(columnNames || {}).reduce((inverseColumnNamesObj, nodeName) => {
-        const sqlName = columnNames[nodeName];
-        inverseColumnNamesObj[sqlName] = nodeName;
-        return inverseColumnNamesObj;
-    }, {});
-    return Object.keys(inverseColumnNames || {}).reduce((newColumnDataObj, sqlName) => {
-        const nodeName = inverseColumnNames[sqlName];
-        const data = columnData[sqlName];
-        if (data) {
-            newColumnDataObj[nodeName] = data;
-        }
-        return newColumnDataObj;
-    }, {});
-};
-const getRevisionsInRange = async ({ id, ...inputArgs }, knex, 
-// TODO reuse types
-tableNames, columnNames, 
-// TODO reuse types
-attributeMap) => {
-    const nodeConnection = new ConnectionManager(inputArgs, attributeMap, {
+const getRevisionsInRange = async (inputArgs, // IInputArgs & {[inputArg: string]: number | string},
+knex, nodeToSqlNameMappings, extractors) => {
+    const { id: idName, nodeId: nodeIdName, revisionData: revisionDataName } = nodeToSqlNameMappings.columnNames;
+    const attributeMap = { id: idName, nodeId: nodeIdName, revisionData: revisionDataName };
+    const nodeConnection = new ConnectionManager({}, attributeMap, {
         resultOptions: {
-            nodeTransformer: (node) => ({
-                ...transformSqlToNode({ columnNames, columnData: node }),
-                id: node.id
-            })
+            nodeTransformer: node => sqlToNode(nodeToSqlNameMappings, node)
         }
     });
+    const nodeId = extractors.nodeId ? extractors.nodeId(...inputArgs) : inputArgs.id;
     const queryBuilder = knex
         .queryBuilder()
-        .table(tableNames.revision)
-        .where({ [columnNames.nodeId]: id })
-        .select(Object.values(attributeMap), 'id');
+        .table(nodeToSqlNameMappings.tableNames.revision)
+        .where({ [nodeToSqlNameMappings.columnNames.nodeId]: nodeId })
+        .select(...Object.values(attributeMap));
+    const result = await nodeConnection.createQuery(queryBuilder);
+    nodeConnection.addResult(result);
+    return nodeConnection.edges.map(({ node }) => node);
+};
+const getRevisionsOfInterest = async (inputArgs, // IInputArgs & {[inputArg: string]: number | string},
+knex, nodeToSqlNameMappings, extractors) => {
+    // // const {
+    // //     id: idName,
+    // //     nodeId: nodeIdName,
+    // //     revisionData: revisionDataName
+    // } = nodeToSqlNameMappings.columnNames;
+    // const attributeMap = {id: idName, nodeId: nodeIdName, revisionData: revisionDataName};
+    const attributeMap = nodeToSqlNameMappings.columnNames;
+    const nodeConnection = new ConnectionManager(inputArgs, attributeMap, {
+        resultOptions: {
+            nodeTransformer: node => sqlToNode(nodeToSqlNameMappings, node)
+        }
+    });
+    const nodeId = extractors.nodeId ? extractors.nodeId(...inputArgs) : inputArgs.id;
+    const queryBuilder = knex
+        .queryBuilder()
+        .table(nodeToSqlNameMappings.tableNames.revision)
+        .leftJoin(nodeToSqlNameMappings.tableNames.revisionUserRole, `${nodeToSqlNameMappings.tableNames.revisionUserRole}.${nodeToSqlNameMappings.tableNames.revision}_id`, `${nodeToSqlNameMappings.columnNames.id}`)
+        .leftJoin(nodeToSqlNameMappings.tableNames.revisionRole, `${nodeToSqlNameMappings.tableNames.revisionUserRole}.${nodeToSqlNameMappings.tableNames.revisionRole}_id`, `${nodeToSqlNameMappings.tableNames.revisionRole}.id`)
+        .where({ [nodeToSqlNameMappings.columnNames.nodeId]: nodeId })
+        .select(...Object.values(attributeMap));
     console.log(queryBuilder.toSQL());
     const result = await nodeConnection.createQuery(queryBuilder);
     nodeConnection.addResult(result);
-    return nodeConnection.edges.map(({ node }) => node.revisionData);
+    return nodeConnection.edges.map(({ node }) => node);
 };
+//# sourceMappingURL=versionConnection.js.map
 
-const transformNodeToSql = ({ columnNames, columnData }) => {
-    return Object.keys(columnNames || {}).reduce((newColumnDataObj, columnName) => {
-        const newColumnName = columnNames[columnName];
-        const data = columnData[columnName];
+var nodeToSql = (nodeToSqlNameMappings, nodeData) => {
+    const { columnNames } = nodeToSqlNameMappings;
+    const nodeNames = Object.keys(columnNames);
+    return nodeNames.reduce((sqlData, nodeName) => {
+        const sqlName = columnNames[nodeName];
+        const data = nodeData[nodeName];
         if (data) {
-            newColumnDataObj[newColumnName] = data;
+            sqlData[sqlName] = data;
         }
-        return newColumnDataObj;
+        return sqlData;
     }, {});
 };
+//# sourceMappingURL=nodeToSql.js.map
+
 const createRevisionTransaction = (config) => async (knex, input) => {
-    const { tableNames, columnNames } = setNames(config || {});
+    const nodeToSqlNameMappings = setNames(config || {});
     const { userRoles, ...mainTableInput } = input;
-    const transformedMainTableInput = transformNodeToSql({ columnNames, columnData: mainTableInput });
+    const sqlData = nodeToSql(nodeToSqlNameMappings, mainTableInput);
     const transaction = await knex.transaction();
     const revisionId = (await transaction
-        .table(tableNames.revision)
-        .insert(transformedMainTableInput)
+        .table(nodeToSqlNameMappings.tableNames.revision)
+        .insert(sqlData)
         .returning('id'))[0];
     const roles = userRoles || [];
     // calculate which role are missing in the db
     const foundRoleNames = await transaction
-        .table(tableNames.revisionRole)
-        .whereIn(columnNames.roleName, roles);
-    const foundRoles = foundRoleNames.map((n) => n[columnNames.roleName]);
+        .table(nodeToSqlNameMappings.tableNames.revisionRole)
+        .whereIn(nodeToSqlNameMappings.columnNames.roleName, roles);
+    const foundRoles = foundRoleNames.map((n) => n[nodeToSqlNameMappings.columnNames.roleName]);
     const missingRoles = roles.filter(i => foundRoles.indexOf(i) < 0);
     // insert the missing roles
-    await transaction
-        .table(tableNames.revisionRole)
-        .insert(missingRoles.map((role) => ({ [columnNames.roleName]: role })));
+    await transaction.table(nodeToSqlNameMappings.tableNames.revisionRole).insert(missingRoles.map((role) => ({
+        [nodeToSqlNameMappings.columnNames.roleName]: role
+    })));
     // select the role ids
     const ids = (await transaction
-        .table(tableNames.revisionRole)
-        .whereIn(columnNames.roleName, roles));
+        .table(nodeToSqlNameMappings.tableNames.revisionRole)
+        .whereIn(nodeToSqlNameMappings.columnNames.roleName, roles));
     // insert roles ids associated with the revision id
-    await transaction.table(tableNames.revisionUserRole).insert(ids.map(({ id }) => ({
-        [`${tableNames.revisionRole}_id`]: id,
-        [`${tableNames.revision}_id`]: revisionId
+    await transaction.table(nodeToSqlNameMappings.tableNames.revisionUserRole).insert(ids.map(({ id }) => ({
+        [`${nodeToSqlNameMappings.tableNames.revisionRole}_id`]: id,
+        [`${nodeToSqlNameMappings.tableNames.revision}_id`]: revisionId
     })));
     setTimeout(async () => {
         await transaction.rollback();

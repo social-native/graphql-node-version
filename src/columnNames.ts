@@ -13,8 +13,9 @@ enum DEFAULT_TABLE_NAMES {
 }
 
 enum DEFAULT_COLUMN_NAMES {
+    id = 'revision.id',
     userId = 'user_id',
-    userRoles = 'user_roles',
+    // userRoles = 'user_roles',
     revisionData = 'revision',
     revisionTime = 'created_at',
     nodeVersion = 'node_version',

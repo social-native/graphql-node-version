@@ -25,8 +25,9 @@ var DEFAULT_TABLE_NAMES;
 })(DEFAULT_TABLE_NAMES || (DEFAULT_TABLE_NAMES = {}));
 var DEFAULT_COLUMN_NAMES;
 (function (DEFAULT_COLUMN_NAMES) {
+    DEFAULT_COLUMN_NAMES["id"] = "revision.id";
     DEFAULT_COLUMN_NAMES["userId"] = "user_id";
-    DEFAULT_COLUMN_NAMES["userRoles"] = "user_roles";
+    // userRoles = 'user_roles',
     DEFAULT_COLUMN_NAMES["revisionData"] = "revision";
     DEFAULT_COLUMN_NAMES["revisionTime"] = "created_at";
     DEFAULT_COLUMN_NAMES["nodeVersion"] = "node_version";

@@ -11,6 +11,7 @@ export interface IRevisionConnection<Node> {
     edges: Array<{
         cursor: string;
         version: {
+            id?: string;
             userId?: string;
             userRoles?: string[];
             revisionData?: string;
@@ -29,11 +30,23 @@ export interface IRevisionConnection<Node> {
     };
 }
 
+// type ColumnNames =
+//     | 'userId'
+//     | 'userRoles'
+//     | 'revisionData'
+//     | 'revisionTime'
+//     | 'nodeVersion'
+//     | 'nodeName'
+//     | 'nodeId';
+
+// type TableNames = 'revision' | 'revisionRole' | 'revisionUserRole';
+
 export interface INamesConfig {
     tableNames?: {revision?: string; revisionRole?: string; revisionUserRole?: string};
     columnNames?: {
+        id?: string;
         userId?: string;
-        userRoles?: string;
+        // userRoles?: string;
         revisionData?: string;
         revisionTime?: string;
         nodeVersion?: string;
@@ -45,13 +58,22 @@ export interface INamesConfig {
 }
 
 export interface INamesForTablesAndColumns {
-    tableNames: Required<INamesConfig['tableNames']>;
-    columnNames: Required<INamesConfig['columnNames']>;
+    tableNames: {
+        [tableName in keyof Required<Required<INamesConfig>['tableNames']>]: string;
+    };
+    columnNames: {
+        [columnName in keyof Required<Required<INamesConfig>['columnNames']>]: string;
+    };
 }
 
 export type UnPromisify<T> = T extends Promise<infer U> ? U : T;
 
+export type ResolverArgs<T> = T extends (node: any, parent: any, args: infer A) => any
+    ? A
+    : undefined;
+
 export interface IRevisionInfo {
+    // id: string;
     userId: string;
     userRoles?: string[];
     revisionData: string;

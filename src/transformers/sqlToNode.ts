@@ -4,6 +4,7 @@ export default (
     nodeToSqlNameMappings: INamesForTablesAndColumns,
     sqlData: {[column: string]: any}
 ) => {
+    console.log('sql data', sqlData, 'mapping', nodeToSqlNameMappings);
     const {columnNames} = nodeToSqlNameMappings;
     const nodeNames = Object.keys(columnNames) as Array<keyof typeof columnNames>;
     const sqlToNodeNameMappings = nodeNames.reduce(
@@ -15,7 +16,7 @@ export default (
         {} as {[sqlName: string]: keyof typeof columnNames}
     );
 
-    return Object.keys(sqlToNodeNameMappings).reduce(
+    const d = Object.keys(sqlToNodeNameMappings).reduce(
         (nodeData, sqlName) => {
             const nodeName = sqlToNodeNameMappings[sqlName];
             const data = sqlData[sqlName];
@@ -24,6 +25,8 @@ export default (
             }
             return nodeData;
         },
-        {} as {[column: string]: any}
+        {} as {[column in keyof typeof nodeToSqlNameMappings['columnNames']]: any}
     );
+    console.log(d);
+    return d;
 };
