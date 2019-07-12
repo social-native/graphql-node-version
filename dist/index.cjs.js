@@ -78,7 +78,14 @@ var versionConnection = (extractors, config) => {
             const edgesOfInterest = connectionNode.edges.map(edge => {
                 const { node: fullNode } = versionEdgesObj[edge.node.nodeId];
                 const version = edge.node;
-                return { ...edge, node: fullNode, version };
+                const revisionData = version.revisionData;
+                const newVersion = {
+                    ...version,
+                    revisionData: typeof revisionData === 'string'
+                        ? revisionData
+                        : JSON.stringify(revisionData)
+                };
+                return { ...edge, node: fullNode, version: newVersion };
             });
             return { ...connectionNode, edges: edgesOfInterest };
         });
