@@ -188,9 +188,10 @@ decorate(mutation, {
     })
 });
 
-const nodeBuilder = (previousModel: object, revisionInfo: IRevisionInfo) => {
+const nodeBuilder = (previousModel: object, revisionInfo: Partial<IRevisionInfo>) => {
     const {revisionData} = revisionInfo;
-    const data = JSON.parse(revisionData);
+    // TODO figure out why this is an object
+    const data = revisionData as any;
     return {...previousModel, ...data};
 };
 

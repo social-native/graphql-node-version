@@ -1,22 +1,24 @@
 import {INamesForTablesAndColumns} from 'types';
+import inverseObject from './inverseObject';
 
 export default (
     nodeToSqlNameMappings: INamesForTablesAndColumns,
     sqlData: {[column: string]: any}
 ) => {
-    console.log('sql data', sqlData, 'mapping', nodeToSqlNameMappings);
     const {columnNames} = nodeToSqlNameMappings;
-    const nodeNames = Object.keys(columnNames) as Array<keyof typeof columnNames>;
-    const sqlToNodeNameMappings = nodeNames.reduce(
-        (inverseColumnNamesObj, nodeName: keyof typeof columnNames) => {
-            const sqlName = columnNames[nodeName];
-            inverseColumnNamesObj[sqlName] = nodeName;
-            return inverseColumnNamesObj;
-        },
-        {} as {[sqlName: string]: keyof typeof columnNames}
-    );
+    const sqlToNodeNameMappings = inverseObject(columnNames) as {[key: string]: string};
+    // const nodeNames = Object.keys(columnNames) as Array<keyof typeof columnNames>;
+    // const sqlToNodeNameMappings = nodeNames.reduce(
+    //     (inverseColumnNamesObj, nodeName: keyof typeof columnNames) => {
+    //         const sqlName = columnNames[nodeName];
+    //         inverseColumnNamesObj[sqlName] = nodeName;
+    //         return inverseColumnNamesObj;
+    //     },
+    //     {} as {[sqlName: string]: keyof typeof columnNames}
+    // );
+    // const sqlToNodeNameMappings = inverseColumnNameMappings(nodeToSqlNameMappings);
 
-    const d = Object.keys(sqlToNodeNameMappings).reduce(
+    return Object.keys(sqlToNodeNameMappings).reduce(
         (nodeData, sqlName) => {
             const nodeName = sqlToNodeNameMappings[sqlName];
             const data = sqlData[sqlName];
@@ -25,8 +27,6 @@ export default (
             }
             return nodeData;
         },
-        {} as {[column in keyof typeof nodeToSqlNameMappings['columnNames']]: any}
+        {} as {[column: string]: any} //as {[column in keyof typeof sqlToNodeNameMappings['columnNames']]: any}
     );
-    console.log(d);
-    return d;
 };

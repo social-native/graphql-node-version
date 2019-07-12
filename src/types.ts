@@ -88,3 +88,13 @@ export interface ITransformInput {
     columnNames: NonNullable<INamesForTablesAndColumns['columnNames']> & {[column: string]: any};
     columnData: NonNullable<IRevisionInfo> & {[column: string]: any};
 }
+
+// tslint:disable
+export type Unpacked<T> = T extends (infer U)[]
+    ? U
+    : T extends (...args: any[]) => infer U
+    ? U
+    : T extends Promise<infer U>
+    ? U
+    : T;
+// tslint:enable

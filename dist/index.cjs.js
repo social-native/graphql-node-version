@@ -40,136 +40,68 @@ const setNames = ({ tableNames, columnNames }) => ({
 });
 //# sourceMappingURL=columnNames.js.map
 
-var sqlToNode = (nodeToSqlNameMappings, sqlData) => {
-    console.log('sql data', sqlData, 'mapping', nodeToSqlNameMappings);
-    const { columnNames } = nodeToSqlNameMappings;
-    const nodeNames = Object.keys(columnNames);
-    const sqlToNodeNameMappings = nodeNames.reduce((inverseColumnNamesObj, nodeName) => {
-        const sqlName = columnNames[nodeName];
-        inverseColumnNamesObj[sqlName] = nodeName;
-        return inverseColumnNamesObj;
-    }, {});
-    const d = Object.keys(sqlToNodeNameMappings).reduce((nodeData, sqlName) => {
-        const nodeName = sqlToNodeNameMappings[sqlName];
-        const data = sqlData[sqlName];
-        if (data) {
-            nodeData[nodeName] = data;
-        }
-        return nodeData;
-    }, {});
-    console.log(d);
-    return d;
-};
-//# sourceMappingURL=sqlToNode.js.map
-
 var versionConnection = (extractors, config) => {
     return (_target, _property, descriptor) => {
-        // const {tableNames, columnNames}
         const nodeToSqlNameMappings = setNames(config || {});
         const { value } = descriptor;
         if (typeof value !== 'function') {
             throw new TypeError('Only functions can be decorated.');
         }
-        // if (!extractors.nodeIdCreate && !extractors.nodeIdUpdate) {
-        //     throw new Error(
-        //         // tslint:disable-next-line
-        //         `No node id extractor specified in the config.
-        // You need to specify either a 'nodeIdUpdate' or `nodeIdCreate` extractor`
-        //     );
-        // }
         // tslint:disable-next-line
         descriptor.value = (async (...args) => {
             const localKnexClient = extractors.knex && extractors.knex(...args);
-            // console.log(localKnexClient);
-            // TODO complete nodeId
-            // const nodeId = extractors.nodeId
-            //     ? extractors.nodeId(...(args as Parameters<ResolverT>))
-            //     : args.args.id;
-            // const userRoles = extractors.userRoles
-            //     ? extractors.userRoles(...(args as Parameters<ResolverT>))
-            //     : [];
-            // const revisionData =
-            //     extractors.revisionData &&
-            //     extractors.revisionData(...(args as Parameters<ResolverT>));
-            // const revisionTime = extractors.revisionTime
-            //     ? extractors.revisionTime(...(args as Parameters<ResolverT>))
-            //     : new Date()
-            //           .toISOString()
-            //           .split('Z')
-            //           .join('');
-            // const nodeVersion =
-            //     extractors.nodeVersion &&
-            //     extractors.nodeVersion(...(args as Parameters<ResolverT>));
-            // const nodeName = extractors.nodeName
-            //     ? extractors.nodeName(...(args as Parameters<ResolverT>))
-            //     : property;
-            // let nodeId = extractors.nodeIdUpdate
-            //     ? extractors.nodeIdUpdate(...(args as Parameters<ResolverT>))
-            //     : undefined;
-            // const revisionInput = {
-            //     userId,
-            //     userRoles,
-            //     revisionData,
-            //     revisionTime,
-            //     nodeVersion,
-            //     nodeName: typeof nodeName === 'symbol' ? nodeName.toString() : nodeName,
-            //     nodeId
-            // };
-            // const revTxFn = createRevisionTransaction(config);
-            // const {transaction, revisionId} = await revTxFn(localKnexClient, revisionInput);
             const [parent, ar, ctx, info] = args;
-            // const newArgs = {...ar, transaction};
             const node = (await value(parent, ar, ctx, info));
             const revisionsInRange = await getRevisionsInRange(ar, localKnexClient, nodeToSqlNameMappings, extractors);
-            console.log(revisionsInRange);
-            const revisionsOfInterest = await getRevisionsOfInterest(ar, localKnexClient, nodeToSqlNameMappings, extractors);
-            console.log(revisionsOfInterest);
-            // const nodes = createRevisionNodes(revisionsInRange, revisionsOfInterest);
-            // if (!nodeId) {
-            //     nodeId = extractors.nodeIdCreate ? extractors.nodeIdCreate(node) : undefined;
-            //     await localKnexClient
-            //         .table(tableNames.revision)
-            //         .update({[columnNames.nodeId]: nodeId})
-            //         .where({id: revisionId});
-            // }
-            return node;
+            const versionEdges = revisionsInRange.reduce((edges, version, index) => {
+                let edge;
+                if (index === 0) {
+                    edge = {
+                        version,
+                        node: extractors.nodeBuilder(node, version)
+                    };
+                }
+                else {
+                    const previousNode = edges[index - 1].node;
+                    edge = {
+                        version,
+                        node: extractors.nodeBuilder(previousNode, version)
+                    };
+                }
+                return [...edges, edge];
+            }, []);
+            const versionEdgesObj = versionEdges.reduce((obj, edge) => {
+                obj[edge.version.nodeId] = edge;
+                return obj;
+            }, {});
+            const connectionNode = await getRevisionsOfInterest(ar, localKnexClient, nodeToSqlNameMappings, extractors);
+            const edgesOfInterest = connectionNode.edges.map(edge => {
+                const { node: fullNode } = versionEdgesObj[edge.node.nodeId];
+                const version = edge.node;
+                return { ...edge, node: fullNode, version };
+            });
+            return { ...connectionNode, edges: edgesOfInterest };
         });
         return descriptor;
     };
 };
-const getRevisionsInRange = async (inputArgs, // IInputArgs & {[inputArg: string]: number | string},
-knex, nodeToSqlNameMappings, extractors) => {
+const getRevisionsInRange = async (inputArgs, knex, nodeToSqlNameMappings, extractors) => {
     const { id: idName, nodeId: nodeIdName, revisionData: revisionDataName } = nodeToSqlNameMappings.columnNames;
     const attributeMap = { id: idName, nodeId: nodeIdName, revisionData: revisionDataName };
-    const nodeConnection = new snpkgSnapiConnections.ConnectionManager({}, attributeMap, {
-        resultOptions: {
-            nodeTransformer: node => sqlToNode(nodeToSqlNameMappings, node)
-        }
-    });
+    const nodeConnection = new snpkgSnapiConnections.ConnectionManager({}, attributeMap);
     const nodeId = extractors.nodeId ? extractors.nodeId(...inputArgs) : inputArgs.id;
     const queryBuilder = knex
         .queryBuilder()
         .table(nodeToSqlNameMappings.tableNames.revision)
         .where({ [nodeToSqlNameMappings.columnNames.nodeId]: nodeId })
-        .select(...Object.values(attributeMap));
+        .select(attributeMap);
     const result = await nodeConnection.createQuery(queryBuilder);
     nodeConnection.addResult(result);
     return nodeConnection.edges.map(({ node }) => node);
 };
-const getRevisionsOfInterest = async (inputArgs, // IInputArgs & {[inputArg: string]: number | string},
-knex, nodeToSqlNameMappings, extractors) => {
-    // // const {
-    // //     id: idName,
-    // //     nodeId: nodeIdName,
-    // //     revisionData: revisionDataName
-    // } = nodeToSqlNameMappings.columnNames;
-    // const attributeMap = {id: idName, nodeId: nodeIdName, revisionData: revisionDataName};
+const getRevisionsOfInterest = async (inputArgs, knex, nodeToSqlNameMappings, extractors) => {
     const attributeMap = nodeToSqlNameMappings.columnNames;
-    const nodeConnection = new snpkgSnapiConnections.ConnectionManager(inputArgs, attributeMap, {
-        resultOptions: {
-            nodeTransformer: node => sqlToNode(nodeToSqlNameMappings, node)
-        }
-    });
+    const nodeConnection = new snpkgSnapiConnections.ConnectionManager(inputArgs, attributeMap);
     const nodeId = extractors.nodeId ? extractors.nodeId(...inputArgs) : inputArgs.id;
     const queryBuilder = knex
         .queryBuilder()
@@ -177,13 +109,12 @@ knex, nodeToSqlNameMappings, extractors) => {
         .leftJoin(nodeToSqlNameMappings.tableNames.revisionUserRole, `${nodeToSqlNameMappings.tableNames.revisionUserRole}.${nodeToSqlNameMappings.tableNames.revision}_id`, `${nodeToSqlNameMappings.columnNames.id}`)
         .leftJoin(nodeToSqlNameMappings.tableNames.revisionRole, `${nodeToSqlNameMappings.tableNames.revisionUserRole}.${nodeToSqlNameMappings.tableNames.revisionRole}_id`, `${nodeToSqlNameMappings.tableNames.revisionRole}.id`)
         .where({ [nodeToSqlNameMappings.columnNames.nodeId]: nodeId })
-        .select(...Object.values(attributeMap));
-    console.log(queryBuilder.toSQL());
+        .select(attributeMap);
     const result = await nodeConnection.createQuery(queryBuilder);
     nodeConnection.addResult(result);
-    return nodeConnection.edges.map(({ node }) => node);
+    const { pageInfo, edges } = nodeConnection;
+    return { pageInfo, edges };
 };
-//# sourceMappingURL=versionConnection.js.map
 
 var nodeToSql = (nodeToSqlNameMappings, nodeData) => {
     const { columnNames } = nodeToSqlNameMappings;
