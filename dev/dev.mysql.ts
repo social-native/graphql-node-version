@@ -50,7 +50,7 @@ const typeDefs = gql`
         userId: ID!
         userRoles: [String]!
         revisionData: String!
-        revisionTime: Int!
+        revisionTime: String!
         nodeVersion: Int!
         nodeName: String!
         resolverName: String!

@@ -71,12 +71,19 @@ var versionConnection = (extractors, config) => {
                 return obj;
             }, {});
             const connectionNode = await getRevisionsOfInterest(ar, localKnexClient, nodeToSqlNameMappings, extractors);
+            const rolesByNodeId = connectionNode.edges.reduce((rolesObj, edge) => {
+                const { nodeId, roleName } = edge.node;
+                const roleNames = rolesObj[nodeId] || [];
+                rolesObj[nodeId] = [...roleNames, roleName];
+                return rolesObj;
+            }, {});
             const edgesOfInterest = connectionNode.edges.map(edge => {
                 const { node: fullNode } = versionEdgesObj[edge.node.nodeId];
                 const version = edge.node;
-                const revisionData = version.revisionData;
+                const { revisionData, nodeId } = version;
                 const newVersion = {
                     ...version,
+                    userRoles: rolesByNodeId[nodeId],
                     revisionData: typeof revisionData === 'string'
                         ? revisionData
                         : JSON.stringify(revisionData)
@@ -118,6 +125,7 @@ const getRevisionsOfInterest = async (inputArgs, knex, nodeToSqlNameMappings, ex
     const { pageInfo, edges } = nodeConnection;
     return { pageInfo, edges };
 };
+//# sourceMappingURL=versionConnection.js.map
 
 var nodeToSql = (nodeToSqlNameMappings, nodeData) => {
     const { columnNames } = nodeToSqlNameMappings;

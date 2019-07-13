@@ -79,12 +79,24 @@ export default <ResolverT extends (...args: any[]) => any>(
                 nodeToSqlNameMappings,
                 extractors
             );
+
+            const rolesByNodeId = connectionNode.edges.reduce(
+                (rolesObj, edge) => {
+                    const {nodeId, roleName} = edge.node;
+                    const roleNames = rolesObj[nodeId] || [];
+
+                    rolesObj[nodeId] = [...roleNames, roleName];
+                    return rolesObj;
+                },
+                {} as {[nodeId: string]: string[]}
+            );
             const edgesOfInterest = connectionNode.edges.map(edge => {
                 const {node: fullNode} = versionEdgesObj[edge.node.nodeId];
                 const version = edge.node;
-                const revisionData = version.revisionData;
+                const {revisionData, nodeId} = version;
                 const newVersion = {
                     ...version,
+                    userRoles: rolesByNodeId[nodeId],
                     revisionData:
                         typeof revisionData === 'string'
                             ? revisionData
