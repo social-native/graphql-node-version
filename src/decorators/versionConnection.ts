@@ -90,20 +90,35 @@ export default <ResolverT extends (...args: any[]) => any>(
                 },
                 {} as {[nodeId: string]: string[]}
             );
-            const edgesOfInterest = connectionNode.edges.map(edge => {
-                const {node: fullNode} = versionEdgesObj[edge.node.nodeId];
-                const version = edge.node;
-                const {revisionData, nodeId} = version;
-                const newVersion = {
-                    ...version,
-                    userRoles: rolesByNodeId[nodeId],
-                    revisionData:
-                        typeof revisionData === 'string'
-                            ? revisionData
-                            : JSON.stringify(revisionData)
-                };
-                return {...edge, node: fullNode, version: newVersion};
-            });
+            const edgesOfInterestObj = connectionNode.edges.reduce(
+                (edgeObj, edge) => {
+                    const {node: fullNode} = versionEdgesObj[edge.node.nodeId];
+                    const version = edge.node;
+                    const {revisionData, nodeId} = version;
+                    const newVersion = {
+                        ...version,
+                        userRoles: rolesByNodeId[nodeId],
+                        revisionData:
+                            typeof revisionData === 'string'
+                                ? revisionData
+                                : JSON.stringify(revisionData)
+                    };
+                    edgeObj[nodeId] = {...edge, node: fullNode, version: newVersion};
+                    return edgeObj;
+                },
+                {} as {
+                    [nodeId: string]: {
+                        cursor: string;
+                        node: Unpacked<typeof versionEdges>;
+                        version: Unpacked<typeof connectionNode.edges>['node'];
+                    };
+                    node: any;
+                }
+            );
+
+            const edgesOfInterest = [...Object.keys(rolesByNodeId)].map(
+                id => edgesOfInterestObj[id]
+            );
 
             return {...connectionNode, edges: edgesOfInterest};
         }) as ResolverT;

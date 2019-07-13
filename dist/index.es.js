@@ -77,7 +77,7 @@ var versionConnection = (extractors, config) => {
                 rolesObj[nodeId] = [...roleNames, roleName];
                 return rolesObj;
             }, {});
-            const edgesOfInterest = connectionNode.edges.map(edge => {
+            const edgesOfInterestObj = connectionNode.edges.reduce((edgeObj, edge) => {
                 const { node: fullNode } = versionEdgesObj[edge.node.nodeId];
                 const version = edge.node;
                 const { revisionData, nodeId } = version;
@@ -88,8 +88,10 @@ var versionConnection = (extractors, config) => {
                         ? revisionData
                         : JSON.stringify(revisionData)
                 };
-                return { ...edge, node: fullNode, version: newVersion };
-            });
+                edgeObj[nodeId] = { ...edge, node: fullNode, version: newVersion };
+                return edgeObj;
+            }, {});
+            const edgesOfInterest = [...Object.keys(rolesByNodeId)].map(id => edgesOfInterestObj[id]);
             return { ...connectionNode, edges: edgesOfInterest };
         });
         return descriptor;
