@@ -71,27 +71,28 @@ var versionConnection = (extractors, config) => {
                 return obj;
             }, {});
             const connectionNode = await getRevisionsOfInterest(ar, localKnexClient, nodeToSqlNameMappings, extractors);
-            const rolesByNodeId = connectionNode.edges.reduce((rolesObj, edge) => {
-                const { nodeId, roleName } = edge.node;
-                const roleNames = rolesObj[nodeId] || [];
-                rolesObj[nodeId] = [...roleNames, roleName];
+            const rolesByRevisionId = connectionNode.edges.reduce((rolesObj, edge) => {
+                const { id, roleName } = edge.node;
+                const roleNames = rolesObj[id] || [];
+                rolesObj[id] = [...roleNames, roleName];
                 return rolesObj;
             }, {});
             const edgesOfInterestObj = connectionNode.edges.reduce((edgeObj, edge) => {
                 const { node: fullNode } = versionEdgesObj[edge.node.nodeId];
                 const version = edge.node;
-                const { revisionData, nodeId } = version;
+                const { revisionData, id: versionId } = version;
                 const newVersion = {
                     ...version,
-                    userRoles: rolesByNodeId[nodeId],
+                    userRoles: rolesByRevisionId[versionId],
                     revisionData: typeof revisionData === 'string'
                         ? revisionData
                         : JSON.stringify(revisionData)
                 };
-                edgeObj[nodeId] = { ...edge, node: fullNode, version: newVersion };
+                edgeObj[versionId] = { ...edge, node: fullNode, version: newVersion };
                 return edgeObj;
             }, {});
-            const edgesOfInterest = [...Object.keys(rolesByNodeId)].map(id => edgesOfInterestObj[id]);
+            console.log(edgesOfInterestObj);
+            const edgesOfInterest = [...Object.keys(rolesByRevisionId)].map(id => edgesOfInterestObj[id]);
             return { ...connectionNode, edges: edgesOfInterest };
         });
         return descriptor;

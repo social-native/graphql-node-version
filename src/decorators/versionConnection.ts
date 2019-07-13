@@ -80,34 +80,34 @@ export default <ResolverT extends (...args: any[]) => any>(
                 extractors
             );
 
-            const rolesByNodeId = connectionNode.edges.reduce(
+            const rolesByRevisionId = connectionNode.edges.reduce(
                 (rolesObj, edge) => {
-                    const {nodeId, roleName} = edge.node;
-                    const roleNames = rolesObj[nodeId] || [];
+                    const {id, roleName} = edge.node;
+                    const roleNames = rolesObj[id] || [];
 
-                    rolesObj[nodeId] = [...roleNames, roleName];
+                    rolesObj[id] = [...roleNames, roleName];
                     return rolesObj;
                 },
-                {} as {[nodeId: string]: string[]}
+                {} as {[revisionId: string]: string[]}
             );
             const edgesOfInterestObj = connectionNode.edges.reduce(
                 (edgeObj, edge) => {
                     const {node: fullNode} = versionEdgesObj[edge.node.nodeId];
                     const version = edge.node;
-                    const {revisionData, nodeId} = version;
+                    const {revisionData, id: versionId} = version;
                     const newVersion = {
                         ...version,
-                        userRoles: rolesByNodeId[nodeId],
+                        userRoles: rolesByRevisionId[versionId],
                         revisionData:
                             typeof revisionData === 'string'
                                 ? revisionData
                                 : JSON.stringify(revisionData)
                     };
-                    edgeObj[nodeId] = {...edge, node: fullNode, version: newVersion};
+                    edgeObj[versionId] = {...edge, node: fullNode, version: newVersion};
                     return edgeObj;
                 },
                 {} as {
-                    [nodeId: string]: {
+                    [versionId: string]: {
                         cursor: string;
                         node: Unpacked<typeof versionEdges>;
                         version: Unpacked<typeof connectionNode.edges>['node'];
@@ -115,8 +115,9 @@ export default <ResolverT extends (...args: any[]) => any>(
                     node: any;
                 }
             );
+            console.log(edgesOfInterestObj);
 
-            const edgesOfInterest = [...Object.keys(rolesByNodeId)].map(
+            const edgesOfInterest = [...Object.keys(rolesByRevisionId)].map(
                 id => edgesOfInterestObj[id]
             );
 

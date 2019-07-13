@@ -85,7 +85,23 @@ const typeDefs = gql`
         ): QueryUserConnection
     }
     type Mutation {
-        userCreate(username: String, firstname: String): User
+        userCreate(
+            username: String!
+            firstname: String!
+            lastname: String
+            bio: String
+            age: Int
+            haircolor: String
+        ): User
+        userUpdate(
+            id: ID!
+            username: String
+            firstname: String
+            lastname: String
+            bio: String
+            age: Int
+            haircolor: String
+        ): User
     }
 `;
 
@@ -99,9 +115,23 @@ interface IUserNode {
     bio: string;
 }
 
-interface IUserMutationInput {
+interface IUserCreationMutationInput {
     username: string;
     firstname: string;
+    lastname?: string;
+    age?: number;
+    haircolor?: string;
+    bio?: string;
+}
+
+interface IUserUpdateMutationInput {
+    id: string;
+    username?: string;
+    firstname?: string;
+    lastname?: string;
+    age?: number;
+    haircolor?: string;
+    bio?: string;
 }
 
 type KnexQueryResult = Array<{[attributeName: string]: any}>;
@@ -109,17 +139,40 @@ type KnexQueryResult = Array<{[attributeName: string]: any}>;
 type MutationUserCreateResolver = Resolver<
     IUserNode,
     undefined,
-    IUserMutationInput & {transaction?: knex.Transaction<any, any>}
+    IUserCreationMutationInput & {transaction?: knex.Transaction<any, any>}
+>;
+type MutationUserUpdateResolver = Resolver<
+    IUserNode,
+    undefined,
+    IUserUpdateMutationInput & {transaction?: knex.Transaction<any, any>}
 >;
 
 type QueryUsersResolver = Resolver<IQueryResult<IUserNode | null>, undefined, IInputArgs>;
 type QueryUserResolver = Resolver<IUserNode, undefined, {id: string}>;
 
-const mutation: {userCreate: MutationUserCreateResolver} = {
-    userCreate: async (_, {firstname, username, transaction}) => {
+const mutation: {userCreate: MutationUserCreateResolver; userUpdate: MutationUserUpdateResolver} = {
+    userCreate: async (_, {transaction, ...input}) => {
         const tx = transaction || (await knexClient.transaction());
         try {
-            await tx.table('mock').insert({firstname, username});
+            await tx.table('mock').insert(input);
+            const user = await tx
+                .table('mock')
+                .orderBy('id', 'desc')
+                .first();
+            await tx.commit();
+            return user as IUserNode;
+        } catch (e) {
+            await tx.rollback();
+            throw e;
+        }
+    },
+    userUpdate: async (_, {id, transaction, ...input}) => {
+        const tx = transaction || (await knexClient.transaction());
+        try {
+            await tx
+                .table('mock')
+                .update(input)
+                .where({id});
             const user = await tx
                 .table('mock')
                 .orderBy('id', 'desc')
@@ -184,6 +237,16 @@ decorate(mutation, {
         nodeVersion: () => 1,
         revisionData: (_parent, args) => JSON.stringify(args),
         resolverName: () => 'create',
+        nodeName: () => 'user'
+    }),
+    userUpdate: versionRecorder<MutationUserUpdateResolver>({
+        knex: () => knexClient,
+        userId: () => '1',
+        userRoles: () => ['operations', 'user', 'billing'],
+        nodeIdCreate: ({id}) => id,
+        nodeVersion: () => 1,
+        revisionData: (_parent, args) => JSON.stringify(args),
+        resolverName: () => 'update',
         nodeName: () => 'user'
     })
 });
