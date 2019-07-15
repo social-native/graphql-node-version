@@ -9,7 +9,8 @@ import {INamesConfig} from './types';
 enum DEFAULT_TABLE_NAMES {
     revision = 'revision',
     revisionRole = 'revision_role',
-    revisionUserRole = 'revision_user_roles'
+    revisionUserRole = 'revision_user_roles',
+    revisionNodeSnapshot = 'revision_node_snapshot'
 }
 
 enum DEFAULT_COLUMN_NAMES {
@@ -22,7 +23,8 @@ enum DEFAULT_COLUMN_NAMES {
     nodeName = 'node_name',
     nodeId = 'node_id',
     roleName = 'role_name',
-    resolverName = 'resolver_name'
+    resolverName = 'resolver_name',
+    snapshot = 'snapshot'
 }
 
 export const setNames = ({tableNames, columnNames}: INamesConfig) => ({

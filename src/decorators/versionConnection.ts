@@ -7,8 +7,8 @@ import {
     ResolverArgs,
     Unpacked
 } from '../types';
-import {ConnectionManager} from 'snpkg-snapi-connections';
-import {setNames} from 'columnNames';
+import {ConnectionManager, IInputArgs} from 'snpkg-snapi-connections';
+import {setNames} from 'sqlNames';
 import sqlToNode from 'transformers/sqlToNode';
 
 export interface IVersionConnectionExtractors<Resolver extends (...args: any[]) => any> {
@@ -39,6 +39,35 @@ export default <ResolverT extends (...args: any[]) => any>(
             const [parent, ar, ctx, info] = args;
             const node = (await value(parent, ar, ctx, info)) as UnPromisify<ReturnType<ResolverT>>;
 
+            // --------------
+            const nodeId = extractors.nodeId ? extractors.nodeId(...ar) : ar.id;
+            const {id: latestId, snapshot: latestSnapshot} = await localKnexClient
+                .queryBuilder()
+                .table(nodeToSqlNameMappings.tableNames.revision)
+                .leftJoin(
+                    nodeToSqlNameMappings.tableNames.revisionNodeSnapshot,
+                    `${nodeToSqlNameMappings.tableNames.revisionNodeSnapshot}.${nodeToSqlNameMappings.tableNames.revision}_id`, // tslint:disable-line
+                    `${nodeToSqlNameMappings.tableNames.revision}.id`
+                )
+                .where({[nodeToSqlNameMappings.columnNames.nodeId]: nodeId})
+                .orderBy(`${nodeToSqlNameMappings.tableNames.revision}.id`, 'desc')
+                .first()
+                .select(
+                    `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.id}`,
+                    `${nodeToSqlNameMappings.tableNames.revisionNodeSnapshot}.${nodeToSqlNameMappings.columnNames.snapshot}` // tslint:disable-line
+                );
+
+            if (!latestSnapshot) {
+                await localKnexClient
+                    .table(nodeToSqlNameMappings.tableNames.revisionNodeSnapshot)
+                    .insert({
+                        [`${nodeToSqlNameMappings.tableNames.revision}_id`]: latestId,
+                        [nodeToSqlNameMappings.columnNames.snapshot]: JSON.stringify(node) // tslint:disable-line
+                    });
+            }
+            console.log('LATEST SNAPSHOT', latestSnapshot);
+
+            // --------------
             const revisionsInRange = await getRevisionsInRange(
                 ar,
                 localKnexClient,
@@ -109,7 +138,8 @@ const getRevisionsInRange = async <ResolverT extends (...args: any[]) => any>(
     } = nodeToSqlNameMappings.columnNames;
     const attributeMap = {id: idName, nodeId: nodeIdName, revisionData: revisionDataName};
 
-    const nodeConnection = new ConnectionManager<typeof attributeMap>({}, attributeMap);
+    const connectionArgs = {orderBy: 'id', orderDir: 'asc'} as IInputArgs;
+    const nodeConnection = new ConnectionManager<typeof attributeMap>(connectionArgs, attributeMap);
 
     const nodeId = extractors.nodeId ? extractors.nodeId(...inputArgs) : inputArgs.id;
     const queryBuilder = knex
@@ -132,16 +162,16 @@ const getRevisionsOfInterest = async <ResolverT extends (...args: any[]) => any>
     const attributeMap = nodeToSqlNameMappings.columnNames;
 
     // force orderDir to be 'desc' b/c last is most recent in versions
-    const newInputArgs = {...inputArgs, orderDir: 'desc'};
-    const nodeConnection = new ConnectionManager<typeof attributeMap>(newInputArgs, attributeMap);
+    // const newInputArgs = {...inputArgs, orderDir: 'desc'};
+    const nodeConnection = new ConnectionManager<typeof attributeMap>(inputArgs, attributeMap);
 
     const nodeId = extractors.nodeId ? extractors.nodeId(...inputArgs) : inputArgs.id;
 
-    const {id, ...selectableAttributes} = attributeMap;
+    const {id, snapshot, ...selectableAttributes} = attributeMap;
     const query = knex
         .queryBuilder()
         .from(function() {
-            const {roleName, ...attributes} = attributeMap;
+            const {roleName, snapshot: unusedSnapshot, ...attributes} = attributeMap;
             const queryBuilder = this.table(nodeToSqlNameMappings.tableNames.revision)
                 .where({
                     [nodeToSqlNameMappings.columnNames.nodeId]: nodeId

@@ -1,7 +1,7 @@
 import * as Knex from 'knex';
 
 import {INamesConfig, UnPromisify, IRevisionInfo} from '../types';
-import {setNames} from '../columnNames';
+import {setNames} from '../sqlNames';
 import nodeToSql from 'transformers/nodeToSql';
 
 export interface IVersionRecorderExtractors<Resolver extends (...args: any[]) => any> {

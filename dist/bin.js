@@ -22,6 +22,7 @@ var DEFAULT_TABLE_NAMES;
     DEFAULT_TABLE_NAMES["revision"] = "revision";
     DEFAULT_TABLE_NAMES["revisionRole"] = "revision_role";
     DEFAULT_TABLE_NAMES["revisionUserRole"] = "revision_user_roles";
+    DEFAULT_TABLE_NAMES["revisionNodeSnapshot"] = "revision_node_snapshot";
 })(DEFAULT_TABLE_NAMES || (DEFAULT_TABLE_NAMES = {}));
 var DEFAULT_COLUMN_NAMES;
 (function (DEFAULT_COLUMN_NAMES) {
@@ -35,6 +36,7 @@ var DEFAULT_COLUMN_NAMES;
     DEFAULT_COLUMN_NAMES["nodeId"] = "node_id";
     DEFAULT_COLUMN_NAMES["roleName"] = "role_name";
     DEFAULT_COLUMN_NAMES["resolverName"] = "resolver_name";
+    DEFAULT_COLUMN_NAMES["snapshot"] = "snapshot";
 })(DEFAULT_COLUMN_NAMES || (DEFAULT_COLUMN_NAMES = {}));
 const setNames = ({ tableNames, columnNames }) => ({
     tableNames: {
@@ -46,7 +48,7 @@ const setNames = ({ tableNames, columnNames }) => ({
         ...columnNames
     }
 });
-//# sourceMappingURL=columnNames.js.map
+//# sourceMappingURL=sqlNames.js.map
 
 var createRevisionMigrations = (config) => {
     const { tableNames, columnNames } = setNames(config || {});
@@ -62,6 +64,17 @@ var createRevisionMigrations = (config) => {
             t.integer(columnNames.nodeVersion);
             t.integer(columnNames.nodeId);
             t.string(columnNames.resolverName);
+        });
+        await knex.schema.createTable(tableNames.revisionNodeSnapshot, t => {
+            t.increments('id')
+                .unsigned()
+                .primary();
+            t.integer(`${tableNames.revision}_id`)
+                .unsigned()
+                .notNullable()
+                .references('id')
+                .inTable(tableNames.revision);
+            t.json(columnNames.snapshot);
         });
         if (tableNames.revisionRole && tableNames.revisionUserRole) {
             await knex.schema.createTable(tableNames.revisionRole, t => {
@@ -97,6 +110,7 @@ var createRevisionMigrations = (config) => {
             await knex.schema.dropTable(tableNames.revisionUserRole);
             await knex.schema.dropTable(tableNames.revisionRole);
         }
+        await knex.schema.dropTable(tableNames.revisionNodeSnapshot);
         return await knex.schema.dropTable(tableNames.revision);
     };
     return { up, down };

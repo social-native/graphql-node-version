@@ -54,6 +54,7 @@ export interface INamesConfig {
         nodeId?: string;
         roleName?: string;
         resolverName?: string;
+        snapshot?: string;
     };
 }
 

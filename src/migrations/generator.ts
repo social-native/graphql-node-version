@@ -1,7 +1,7 @@
 import * as Knex from 'knex';
 
 import {INamesConfig} from '../types';
-import {setNames} from '../columnNames';
+import {setNames} from '../sqlNames';
 
 /**
  * Crates a table for storing revision
@@ -26,6 +26,18 @@ export default (config?: IConfig) => {
             t.integer(columnNames.nodeVersion);
             t.integer(columnNames.nodeId);
             t.string(columnNames.resolverName);
+        });
+
+        await knex.schema.createTable(tableNames.revisionNodeSnapshot, t => {
+            t.increments('id')
+                .unsigned()
+                .primary();
+            t.integer(`${tableNames.revision}_id`)
+                .unsigned()
+                .notNullable()
+                .references('id')
+                .inTable(tableNames.revision);
+            t.json(columnNames.snapshot);
         });
 
         if (tableNames.revisionRole && tableNames.revisionUserRole) {
@@ -63,6 +75,7 @@ export default (config?: IConfig) => {
             await knex.schema.dropTable(tableNames.revisionUserRole);
             await knex.schema.dropTable(tableNames.revisionRole);
         }
+        await knex.schema.dropTable(tableNames.revisionNodeSnapshot);
         return await knex.schema.dropTable(tableNames.revision);
     };
 
