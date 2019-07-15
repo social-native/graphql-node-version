@@ -13,7 +13,7 @@ enum DEFAULT_TABLE_NAMES {
 }
 
 enum DEFAULT_COLUMN_NAMES {
-    id = 'revision.id',
+    id = 'id',
     userId = 'user_id',
     // userRoles = 'user_roles',
     revisionData = 'revision',

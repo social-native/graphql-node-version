@@ -9,6 +9,7 @@ import {
 } from '../types';
 import {ConnectionManager} from 'snpkg-snapi-connections';
 import {setNames} from 'columnNames';
+import sqlToNode from 'transformers/sqlToNode';
 
 export interface IVersionConnectionExtractors<Resolver extends (...args: any[]) => any> {
     knex: (...args: Parameters<Resolver>) => Knex;
@@ -65,63 +66,30 @@ export default <ResolverT extends (...args: any[]) => any>(
                 [] as Array<{node: typeof node; version: Unpacked<typeof revisionsInRange>}>
             );
 
-            const versionEdgesObj = versionEdges.reduce(
+            const versionEdgesObjByVersionId = versionEdges.reduce(
                 (obj, edge) => {
-                    obj[edge.version.nodeId] = edge;
+                    obj[edge.version.id] = edge;
                     return obj;
                 },
                 {} as {[nodeId: string]: Unpacked<typeof versionEdges>}
             );
 
-            const connectionNode = await getRevisionsOfInterest(
+            const connectionOfInterest = await getRevisionsOfInterest(
                 ar,
                 localKnexClient,
                 nodeToSqlNameMappings,
                 extractors
             );
 
-            const rolesByRevisionId = connectionNode.edges.reduce(
-                (rolesObj, edge) => {
-                    const {id, roleName} = edge.node;
-                    const roleNames = rolesObj[id] || [];
+            const edgesOfInterest = connectionOfInterest.edges.map(edge => {
+                return {
+                    ...edge,
+                    node: versionEdgesObjByVersionId[edge.node.id].node,
+                    version: edge.node
+                };
+            });
 
-                    rolesObj[id] = [...roleNames, roleName];
-                    return rolesObj;
-                },
-                {} as {[revisionId: string]: string[]}
-            );
-            const edgesOfInterestObj = connectionNode.edges.reduce(
-                (edgeObj, edge) => {
-                    const {node: fullNode} = versionEdgesObj[edge.node.nodeId];
-                    const version = edge.node;
-                    const {revisionData, id: versionId} = version;
-                    const newVersion = {
-                        ...version,
-                        userRoles: rolesByRevisionId[versionId],
-                        revisionData:
-                            typeof revisionData === 'string'
-                                ? revisionData
-                                : JSON.stringify(revisionData)
-                    };
-                    edgeObj[versionId] = {...edge, node: fullNode, version: newVersion};
-                    return edgeObj;
-                },
-                {} as {
-                    [versionId: string]: {
-                        cursor: string;
-                        node: Unpacked<typeof versionEdges>;
-                        version: Unpacked<typeof connectionNode.edges>['node'];
-                    };
-                    node: any;
-                }
-            );
-            console.log(edgesOfInterestObj);
-
-            const edgesOfInterest = [...Object.keys(rolesByRevisionId)].map(
-                id => edgesOfInterestObj[id]
-            );
-
-            return {...connectionNode, edges: edgesOfInterest};
+            return {...connectionOfInterest, edges: edgesOfInterest};
         }) as ResolverT;
 
         return descriptor;
@@ -162,28 +130,87 @@ const getRevisionsOfInterest = async <ResolverT extends (...args: any[]) => any>
     extractors: IVersionConnectionExtractors<ResolverT>
 ) => {
     const attributeMap = nodeToSqlNameMappings.columnNames;
-    const nodeConnection = new ConnectionManager<typeof attributeMap>(inputArgs, attributeMap);
+
+    // force orderDir to be 'desc' b/c last is most recent in versions
+    const newInputArgs = {...inputArgs, orderDir: 'desc'};
+    const nodeConnection = new ConnectionManager<typeof attributeMap>(newInputArgs, attributeMap);
 
     const nodeId = extractors.nodeId ? extractors.nodeId(...inputArgs) : inputArgs.id;
-    const queryBuilder = knex
+
+    const {id, ...selectableAttributes} = attributeMap;
+    const query = knex
         .queryBuilder()
-        .table(nodeToSqlNameMappings.tableNames.revision)
+        .from(function() {
+            const {roleName, ...attributes} = attributeMap;
+            const queryBuilder = this.table(nodeToSqlNameMappings.tableNames.revision)
+                .where({
+                    [nodeToSqlNameMappings.columnNames.nodeId]: nodeId
+                })
+                .select(Object.values(attributes));
+
+            nodeConnection.createQuery(queryBuilder).as('main');
+        })
         .leftJoin(
             nodeToSqlNameMappings.tableNames.revisionUserRole,
             `${nodeToSqlNameMappings.tableNames.revisionUserRole}.${nodeToSqlNameMappings.tableNames.revision}_id`,
-            `${nodeToSqlNameMappings.columnNames.id}`
+            `main.${nodeToSqlNameMappings.columnNames.id}`
         )
         .leftJoin(
             nodeToSqlNameMappings.tableNames.revisionRole,
             `${nodeToSqlNameMappings.tableNames.revisionUserRole}.${nodeToSqlNameMappings.tableNames.revisionRole}_id`,
             `${nodeToSqlNameMappings.tableNames.revisionRole}.id`
         )
-        .where({[nodeToSqlNameMappings.columnNames.nodeId]: nodeId})
-        .select(attributeMap);
+        .select([
+            `main.${nodeToSqlNameMappings.columnNames.id}`,
+            ...Object.values(selectableAttributes)
+        ]);
 
-    const result = await nodeConnection.createQuery(queryBuilder);
-
-    nodeConnection.addResult(result);
+    const result = await query;
+    const nodeResult = result.map(r => sqlToNode(nodeToSqlNameMappings, r)) as ReturnType<
+        ResolverT
+    >;
+    const uniqueVersions = aggregateVersionsById(nodeResult);
+    nodeConnection.addResult(uniqueVersions);
     const {pageInfo, edges} = nodeConnection;
     return {pageInfo, edges};
+};
+
+const aggregateVersionsById = (
+    nodeVersions: Array<{id: string; roleName: string; revisionData: object}>
+) => {
+    // extract all the user roles for the version
+    const rolesByRevisionId = nodeVersions.reduce(
+        (rolesObj, {id, roleName}) => {
+            const roleNames = rolesObj[id] || [];
+
+            rolesObj[id] = roleNames.includes(roleName) ? roleNames : [...roleNames, roleName];
+            return rolesObj;
+        },
+        {} as {[revisionId: string]: string[]}
+    );
+
+    // map over the versions
+    // - aggregate by version id
+    // - serialize revision data to json if its not already
+    // - add user roles
+    const versions = nodeVersions.reduce(
+        (uniqueVersions, version) => {
+            if (uniqueVersions[version.id]) {
+                return uniqueVersions;
+            }
+            uniqueVersions[version.id] = {
+                ...version,
+                userRoles: rolesByRevisionId[version.id],
+                revisionData:
+                    typeof version.revisionData === 'string'
+                        ? version.revisionData
+                        : JSON.stringify(version.revisionData)
+            };
+            return uniqueVersions;
+        },
+        {} as {[revisionId: string]: {id: string; userRoles: string[]; revisionData: string}}
+    );
+
+    // make sure versions are returned in the same order as they came in
+    return [...new Set(nodeVersions.map(({id}) => id))].map(id => versions[id]);
 };

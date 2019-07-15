@@ -13,7 +13,7 @@ var DEFAULT_TABLE_NAMES;
 })(DEFAULT_TABLE_NAMES || (DEFAULT_TABLE_NAMES = {}));
 var DEFAULT_COLUMN_NAMES;
 (function (DEFAULT_COLUMN_NAMES) {
-    DEFAULT_COLUMN_NAMES["id"] = "revision.id";
+    DEFAULT_COLUMN_NAMES["id"] = "id";
     DEFAULT_COLUMN_NAMES["userId"] = "user_id";
     // userRoles = 'user_roles',
     DEFAULT_COLUMN_NAMES["revisionData"] = "revision";
@@ -35,6 +35,30 @@ const setNames = ({ tableNames, columnNames }) => ({
     }
 });
 //# sourceMappingURL=columnNames.js.map
+
+var inverseObject = (obj) => {
+    const keys = Object.keys(obj);
+    return keys.reduce((inverseColumnNamesObj, nodeName) => {
+        const sqlName = obj[nodeName];
+        inverseColumnNamesObj[sqlName] = nodeName;
+        return inverseColumnNamesObj;
+    }, {});
+};
+//# sourceMappingURL=inverseObject.js.map
+
+var sqlToNode = (nodeToSqlNameMappings, sqlData) => {
+    const { columnNames } = nodeToSqlNameMappings;
+    const sqlToNodeNameMappings = inverseObject(columnNames);
+    return Object.keys(sqlToNodeNameMappings).reduce((nodeData, sqlName) => {
+        const nodeName = sqlToNodeNameMappings[sqlName];
+        const data = sqlData[sqlName];
+        if (data) {
+            nodeData[nodeName] = data;
+        }
+        return nodeData;
+    }, {});
+};
+//# sourceMappingURL=sqlToNode.js.map
 
 var versionConnection = (extractors, config) => {
     return (_target, _property, descriptor) => {
@@ -66,34 +90,19 @@ var versionConnection = (extractors, config) => {
                 }
                 return [...edges, edge];
             }, []);
-            const versionEdgesObj = versionEdges.reduce((obj, edge) => {
-                obj[edge.version.nodeId] = edge;
+            const versionEdgesObjByVersionId = versionEdges.reduce((obj, edge) => {
+                obj[edge.version.id] = edge;
                 return obj;
             }, {});
-            const connectionNode = await getRevisionsOfInterest(ar, localKnexClient, nodeToSqlNameMappings, extractors);
-            const rolesByRevisionId = connectionNode.edges.reduce((rolesObj, edge) => {
-                const { id, roleName } = edge.node;
-                const roleNames = rolesObj[id] || [];
-                rolesObj[id] = [...roleNames, roleName];
-                return rolesObj;
-            }, {});
-            const edgesOfInterestObj = connectionNode.edges.reduce((edgeObj, edge) => {
-                const { node: fullNode } = versionEdgesObj[edge.node.nodeId];
-                const version = edge.node;
-                const { revisionData, id: versionId } = version;
-                const newVersion = {
-                    ...version,
-                    userRoles: rolesByRevisionId[versionId],
-                    revisionData: typeof revisionData === 'string'
-                        ? revisionData
-                        : JSON.stringify(revisionData)
+            const connectionOfInterest = await getRevisionsOfInterest(ar, localKnexClient, nodeToSqlNameMappings, extractors);
+            const edgesOfInterest = connectionOfInterest.edges.map(edge => {
+                return {
+                    ...edge,
+                    node: versionEdgesObjByVersionId[edge.node.id].node,
+                    version: edge.node
                 };
-                edgeObj[versionId] = { ...edge, node: fullNode, version: newVersion };
-                return edgeObj;
-            }, {});
-            console.log(edgesOfInterestObj);
-            const edgesOfInterest = [...Object.keys(rolesByRevisionId)].map(id => edgesOfInterestObj[id]);
-            return { ...connectionNode, edges: edgesOfInterest };
+            });
+            return { ...connectionOfInterest, edges: edgesOfInterest };
         });
         return descriptor;
     };
@@ -114,19 +123,61 @@ const getRevisionsInRange = async (inputArgs, knex, nodeToSqlNameMappings, extra
 };
 const getRevisionsOfInterest = async (inputArgs, knex, nodeToSqlNameMappings, extractors) => {
     const attributeMap = nodeToSqlNameMappings.columnNames;
-    const nodeConnection = new ConnectionManager(inputArgs, attributeMap);
+    // force orderDir to be 'desc' b/c last is most recent in versions
+    const newInputArgs = { ...inputArgs, orderDir: 'desc' };
+    const nodeConnection = new ConnectionManager(newInputArgs, attributeMap);
     const nodeId = extractors.nodeId ? extractors.nodeId(...inputArgs) : inputArgs.id;
-    const queryBuilder = knex
+    const { id, ...selectableAttributes } = attributeMap;
+    const query = knex
         .queryBuilder()
-        .table(nodeToSqlNameMappings.tableNames.revision)
-        .leftJoin(nodeToSqlNameMappings.tableNames.revisionUserRole, `${nodeToSqlNameMappings.tableNames.revisionUserRole}.${nodeToSqlNameMappings.tableNames.revision}_id`, `${nodeToSqlNameMappings.columnNames.id}`)
+        .from(function () {
+        const { roleName, ...attributes } = attributeMap;
+        const queryBuilder = this.table(nodeToSqlNameMappings.tableNames.revision)
+            .where({
+            [nodeToSqlNameMappings.columnNames.nodeId]: nodeId
+        })
+            .select(Object.values(attributes));
+        nodeConnection.createQuery(queryBuilder).as('main');
+    })
+        .leftJoin(nodeToSqlNameMappings.tableNames.revisionUserRole, `${nodeToSqlNameMappings.tableNames.revisionUserRole}.${nodeToSqlNameMappings.tableNames.revision}_id`, `main.${nodeToSqlNameMappings.columnNames.id}`)
         .leftJoin(nodeToSqlNameMappings.tableNames.revisionRole, `${nodeToSqlNameMappings.tableNames.revisionUserRole}.${nodeToSqlNameMappings.tableNames.revisionRole}_id`, `${nodeToSqlNameMappings.tableNames.revisionRole}.id`)
-        .where({ [nodeToSqlNameMappings.columnNames.nodeId]: nodeId })
-        .select(attributeMap);
-    const result = await nodeConnection.createQuery(queryBuilder);
-    nodeConnection.addResult(result);
+        .select([
+        `main.${nodeToSqlNameMappings.columnNames.id}`,
+        ...Object.values(selectableAttributes)
+    ]);
+    const result = await query;
+    const nodeResult = result.map(r => sqlToNode(nodeToSqlNameMappings, r));
+    const uniqueVersions = aggregateVersionsById(nodeResult);
+    nodeConnection.addResult(uniqueVersions);
     const { pageInfo, edges } = nodeConnection;
     return { pageInfo, edges };
+};
+const aggregateVersionsById = (nodeVersions) => {
+    // extract all the user roles for the version
+    const rolesByRevisionId = nodeVersions.reduce((rolesObj, { id, roleName }) => {
+        const roleNames = rolesObj[id] || [];
+        rolesObj[id] = roleNames.includes(roleName) ? roleNames : [...roleNames, roleName];
+        return rolesObj;
+    }, {});
+    // map over the versions
+    // - aggregate by version id
+    // - serialize revision data to json if its not already
+    // - add user roles
+    const versions = nodeVersions.reduce((uniqueVersions, version) => {
+        if (uniqueVersions[version.id]) {
+            return uniqueVersions;
+        }
+        uniqueVersions[version.id] = {
+            ...version,
+            userRoles: rolesByRevisionId[version.id],
+            revisionData: typeof version.revisionData === 'string'
+                ? version.revisionData
+                : JSON.stringify(version.revisionData)
+        };
+        return uniqueVersions;
+    }, {});
+    // make sure versions are returned in the same order as they came in
+    return [...new Set(nodeVersions.map(({ id }) => id))].map(id => versions[id]);
 };
 //# sourceMappingURL=versionConnection.js.map
 
