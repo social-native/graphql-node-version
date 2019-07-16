@@ -1,6 +1,6 @@
 import * as Knex from 'knex';
 
-import {INamesConfig, UnPromisify, IRevisionInfo} from '../types';
+import {INamesConfig, UnPromisify, IRevisionInfo, INamesForTablesAndColumns} from '../types';
 import {setNames} from '../sqlNames';
 import nodeToSql from 'transformers/nodeToSql';
 
@@ -15,6 +15,7 @@ export interface IVersionRecorderExtractors<Resolver extends (...args: any[]) =>
     resolverName?: (...args: Parameters<Resolver>) => string;
     nodeIdUpdate?: (...args: Parameters<Resolver>) => string | number;
     nodeIdCreate?: (node: UnPromisify<ReturnType<Resolver>>) => string | number; // tslint:disable-line
+    currentNodeVersion: (parent?: any, args?: any, ctx?: any, info?: any) => ReturnType<Resolver>; // tslint:disable-line
 }
 
 interface ICreateRevisionTransactionConfig extends INamesConfig {
@@ -133,6 +134,15 @@ export default <ResolverT extends (...args: any[]) => any>(
             const revTxFn = createRevisionTransaction(config);
             const {transaction, revisionId} = await revTxFn(localKnexClient, revisionInput);
 
+            const currentNodeVersion = await extractors.currentNodeVersion(
+                ...(args as Parameters<ResolverT>)
+            );
+            await storePreviousNodeVersionSnapshot(
+                {tableNames, columnNames},
+                currentNodeVersion,
+                revisionId,
+                transaction
+            );
             const [parent, ar, ctx, info] = args;
             const newArgs = {...ar, transaction};
             const node = (await value(parent, newArgs, ctx, info)) as UnPromisify<
@@ -152,4 +162,16 @@ export default <ResolverT extends (...args: any[]) => any>(
 
         return descriptor;
     };
+};
+
+const storePreviousNodeVersionSnapshot = async (
+    {tableNames, columnNames}: INamesForTablesAndColumns,
+    previousNodeVersion: any,
+    revisionId: string | number,
+    localKnexClient: Knex
+) => {
+    await localKnexClient.table(tableNames.revisionNodeSnapshot).insert({
+        [`${tableNames.revision}_id`]: revisionId,
+        [columnNames.snapshot]: JSON.stringify(previousNodeVersion) // tslint:disable-line
+    });
 };

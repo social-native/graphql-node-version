@@ -24,7 +24,7 @@ enum DEFAULT_COLUMN_NAMES {
     nodeId = 'node_id',
     roleName = 'role_name',
     resolverName = 'resolver_name',
-    snapshot = 'snapshot'
+    snapshot = 'previous_node_version_snapshot'
 }
 
 export const setNames = ({tableNames, columnNames}: INamesConfig) => ({

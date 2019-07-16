@@ -39,41 +39,14 @@ export default <ResolverT extends (...args: any[]) => any>(
             const [parent, ar, ctx, info] = args;
             const node = (await value(parent, ar, ctx, info)) as UnPromisify<ReturnType<ResolverT>>;
 
-            // --------------
-            const nodeId = extractors.nodeId ? extractors.nodeId(...ar) : ar.id;
-            const {id: latestId, snapshot: latestSnapshot} = await localKnexClient
-                .queryBuilder()
-                .table(nodeToSqlNameMappings.tableNames.revision)
-                .leftJoin(
-                    nodeToSqlNameMappings.tableNames.revisionNodeSnapshot,
-                    `${nodeToSqlNameMappings.tableNames.revisionNodeSnapshot}.${nodeToSqlNameMappings.tableNames.revision}_id`, // tslint:disable-line
-                    `${nodeToSqlNameMappings.tableNames.revision}.id`
-                )
-                .where({[nodeToSqlNameMappings.columnNames.nodeId]: nodeId})
-                .orderBy(`${nodeToSqlNameMappings.tableNames.revision}.id`, 'desc')
-                .first()
-                .select(
-                    `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.id}`,
-                    `${nodeToSqlNameMappings.tableNames.revisionNodeSnapshot}.${nodeToSqlNameMappings.columnNames.snapshot}` // tslint:disable-line
-                );
-
-            if (!latestSnapshot) {
-                await localKnexClient
-                    .table(nodeToSqlNameMappings.tableNames.revisionNodeSnapshot)
-                    .insert({
-                        [`${nodeToSqlNameMappings.tableNames.revision}_id`]: latestId,
-                        [nodeToSqlNameMappings.columnNames.snapshot]: JSON.stringify(node) // tslint:disable-line
-                    });
-            }
-            console.log('LATEST SNAPSHOT', latestSnapshot);
-
-            // --------------
             const revisionsInRange = await getRevisionsInRange(
                 ar,
                 localKnexClient,
                 nodeToSqlNameMappings,
                 extractors
             );
+
+            console.log('REVISIONS IN RANGE', revisionsInRange);
 
             const versionEdges = revisionsInRange.reduce(
                 (edges, version, index) => {
@@ -134,9 +107,17 @@ const getRevisionsInRange = async <ResolverT extends (...args: any[]) => any>(
     const {
         id: idName,
         nodeId: nodeIdName,
-        revisionData: revisionDataName
+        revisionData: revisionDataName,
+        snapshot: snapshotName
     } = nodeToSqlNameMappings.columnNames;
-    const attributeMap = {id: idName, nodeId: nodeIdName, revisionData: revisionDataName};
+    const attributeMap = {
+        id: idName,
+        nodeId: nodeIdName,
+        revisionData: revisionDataName,
+        snapshot: snapshotName
+    };
+
+    const {id, ...selectableAttributes} = attributeMap;
 
     const connectionArgs = {orderBy: 'id', orderDir: 'asc'} as IInputArgs;
     const nodeConnection = new ConnectionManager<typeof attributeMap>(connectionArgs, attributeMap);
@@ -145,8 +126,16 @@ const getRevisionsInRange = async <ResolverT extends (...args: any[]) => any>(
     const queryBuilder = knex
         .queryBuilder()
         .table(nodeToSqlNameMappings.tableNames.revision)
+        .leftJoin(
+            nodeToSqlNameMappings.tableNames.revisionNodeSnapshot,
+            `${nodeToSqlNameMappings.tableNames.revisionNodeSnapshot}.${nodeToSqlNameMappings.tableNames.revision}_id`, // tslint:disable-line
+            `${nodeToSqlNameMappings.tableNames.revision}.id`
+        )
         .where({[nodeToSqlNameMappings.columnNames.nodeId]: nodeId})
-        .select(attributeMap);
+        .select([
+            `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.id}`,
+            ...Object.values(selectableAttributes)
+        ]);
     const result = await nodeConnection.createQuery(queryBuilder);
 
     nodeConnection.addResult(result);

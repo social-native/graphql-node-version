@@ -36,7 +36,7 @@ var DEFAULT_COLUMN_NAMES;
     DEFAULT_COLUMN_NAMES["nodeId"] = "node_id";
     DEFAULT_COLUMN_NAMES["roleName"] = "role_name";
     DEFAULT_COLUMN_NAMES["resolverName"] = "resolver_name";
-    DEFAULT_COLUMN_NAMES["snapshot"] = "snapshot";
+    DEFAULT_COLUMN_NAMES["snapshot"] = "previous_node_version_snapshot";
 })(DEFAULT_COLUMN_NAMES || (DEFAULT_COLUMN_NAMES = {}));
 const setNames = ({ tableNames, columnNames }) => ({
     tableNames: {

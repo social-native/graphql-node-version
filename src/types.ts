@@ -42,7 +42,12 @@ export interface IRevisionConnection<Node> {
 // type TableNames = 'revision' | 'revisionRole' | 'revisionUserRole';
 
 export interface INamesConfig {
-    tableNames?: {revision?: string; revisionRole?: string; revisionUserRole?: string};
+    tableNames?: {
+        revision?: string;
+        revisionRole?: string;
+        revisionUserRole?: string;
+        revisionNodeSnapshot?: string;
+    };
     columnNames?: {
         id?: string;
         userId?: string;
@@ -70,6 +75,20 @@ export interface INamesForTablesAndColumns {
 export type UnPromisify<T> = T extends Promise<infer U> ? U : T;
 
 export type ResolverArgs<T> = T extends (node: any, parent: any, args: infer A) => any
+    ? A
+    : undefined;
+
+export type ContextArgs<T> = T extends (node: any, parent: any, args: any, ctx: infer A) => any
+    ? A
+    : undefined;
+
+export type InfoArgs<T> = T extends (
+    node: any,
+    parent: any,
+    args: any,
+    ctx: any,
+    info: infer A
+) => any
     ? A
     : undefined;
 

@@ -237,17 +237,19 @@ decorate(mutation, {
         nodeVersion: () => 1,
         revisionData: (_parent, args) => JSON.stringify(args),
         resolverName: () => 'create',
-        nodeName: () => 'user'
+        nodeName: () => 'user',
+        currentNodeVersion: query.user
     }),
     userUpdate: versionRecorder<MutationUserUpdateResolver>({
         knex: () => knexClient,
         userId: () => '1',
         userRoles: () => ['operations', 'user', 'billing'],
-        nodeIdCreate: ({id}) => id,
+        nodeIdUpdate: (_, {id}) => id,
         nodeVersion: () => 1,
         revisionData: (_parent, args) => JSON.stringify(args),
         resolverName: () => 'update',
-        nodeName: () => 'user'
+        nodeName: () => 'user',
+        currentNodeVersion: query.user
     })
 });
 
