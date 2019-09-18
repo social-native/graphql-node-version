@@ -19,7 +19,7 @@ var DEFAULT_COLUMN_NAMES;
     // userRoles = 'user_roles',
     DEFAULT_COLUMN_NAMES["revisionData"] = "revision";
     DEFAULT_COLUMN_NAMES["revisionTime"] = "created_at";
-    DEFAULT_COLUMN_NAMES["nodeVersion"] = "node_version";
+    DEFAULT_COLUMN_NAMES["nodeSchemaVersion"] = "node_schema_version";
     DEFAULT_COLUMN_NAMES["nodeName"] = "node_name";
     DEFAULT_COLUMN_NAMES["nodeId"] = "node_id";
     DEFAULT_COLUMN_NAMES["roleName"] = "role_name";
@@ -257,8 +257,12 @@ var versionRecorder = (extractors, config) => {
             const localKnexClient = extractors.knex(...args);
             const userId = extractors.userId(...args);
             const revisionData = extractors.revisionData(...args);
-            const nodeVersion = extractors.nodeVersion(...args);
+            const nodeSchemaVersion = extractors.nodeSchemaVersion(...args);
             const nodeName = extractors.nodeName(...args);
+            const snapshotFrequency = extractors.currentNodeSnapshotFrequency
+                ? extractors.currentNodeSnapshotFrequency
+                : 1;
+            console.log('SNAPSHOT FREQUENCY', snapshotFrequency);
             const userRoles = extractors.userRoles
                 ? extractors.userRoles(...args)
                 : [];
@@ -279,26 +283,32 @@ var versionRecorder = (extractors, config) => {
                 userRoles,
                 revisionData,
                 revisionTime,
-                nodeVersion,
+                nodeSchemaVersion,
                 nodeName,
                 nodeId,
                 resolverName: typeof resolverName === 'symbol' ? resolverName.toString() : resolverName
             };
             const revTxFn = createRevisionTransaction(config);
             const { transaction, revisionId } = await revTxFn(localKnexClient, revisionInput);
-            const currentNodeSnapshot = extractors.currentNodeSnapshot
-                ? await extractors.currentNodeSnapshot(...args)
-                : revisionData;
-            await storePreviousNodeVersionSnapshot({ tableNames, columnNames }, currentNodeSnapshot, revisionId, transaction);
             const [parent, ar, ctx, info] = args;
             const newArgs = { ...ar, transaction };
             const node = (await value(parent, newArgs, ctx, info));
             if (!nodeId) {
                 nodeId = extractors.nodeIdCreate ? extractors.nodeIdCreate(node) : undefined;
+                if (nodeId === undefined) {
+                    throw new Error(`Unable to extract node id in version recorder for node ${nodeName}`);
+                }
                 await localKnexClient
                     .table(tableNames.revision)
                     .update({ [columnNames.nodeId]: nodeId })
                     .where({ id: revisionId });
+            }
+            const shouldStoreSnapshot = await findIfShouldStoreSnapshot({ tableNames, columnNames }, snapshotFrequency, localKnexClient, nodeId, nodeName, nodeSchemaVersion);
+            if (shouldStoreSnapshot) {
+                const currentNodeSnapshot = extractors.currentNodeSnapshot
+                    ? await extractors.currentNodeSnapshot(...args)
+                    : revisionData;
+                await storePreviousNodeVersionSnapshot({ tableNames, columnNames }, currentNodeSnapshot, revisionId, localKnexClient);
             }
             return node;
         });
@@ -311,9 +321,23 @@ const storePreviousNodeVersionSnapshot = async ({ tableNames, columnNames }, pre
         [columnNames.snapshot]: JSON.stringify(previousNodeVersion) // tslint:disable-line
     });
 };
-// const shouldStoreSnapshot = async (
-// ) => {
-// }
+// TODO make sure frequency is within same node version number!!
+const findIfShouldStoreSnapshot = async ({ tableNames, columnNames }, snapshotFrequency, localKnexClient, nodeId, nodeName, mostRecentNodeSchemaVersion) => {
+    const sql = localKnexClient
+        .table(tableNames.revision)
+        .leftJoin(tableNames.revisionNodeSnapshot, `${tableNames.revision}.id`, `${tableNames.revisionNodeSnapshot}.${tableNames.revision}_id`)
+        .where({
+        [`${tableNames.revision}.${columnNames.nodeName}`]: nodeName,
+        [`${tableNames.revision}.${columnNames.nodeId}`]: nodeId,
+        [`${tableNames.revision}.${columnNames.nodeSchemaVersion}`]: mostRecentNodeSchemaVersion
+    })
+        .orderBy(`${tableNames.revision}.${columnNames.revisionTime}`, 'desc')
+        .limit(snapshotFrequency)
+        .select(`${tableNames.revision}.${columnNames.revisionTime} as revision_creation`, `${tableNames.revisionNodeSnapshot}.${columnNames.revisionTime} as snapshot_creation`);
+    const snapshots = (await sql);
+    const snapshotWithinFrequencyRange = !!snapshots.find(data => data.snapshot_creation);
+    return !snapshotWithinFrequencyRange;
+};
 
 var generator = (config) => {
     const { tableNames, columnNames } = setNames(config || {});
@@ -326,7 +350,7 @@ var generator = (config) => {
             t.string(columnNames.userId);
             t.json(columnNames.revisionData);
             t.string(columnNames.nodeName);
-            t.integer(columnNames.nodeVersion);
+            t.integer(columnNames.nodeSchemaVersion);
             t.integer(columnNames.nodeId);
             t.string(columnNames.resolverName);
         });

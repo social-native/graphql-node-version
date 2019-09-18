@@ -9,13 +9,16 @@ export interface IVersionRecorderExtractors<Resolver extends (...args: any[]) =>
     userRoles: (...args: Parameters<Resolver>) => string[];
     revisionData: (...args: Parameters<Resolver>) => string;
     revisionTime?: (...args: Parameters<Resolver>) => string;
-    nodeVersion: (...args: Parameters<Resolver>) => number;
+    nodeSchemaVersion: (...args: Parameters<Resolver>) => number;
     nodeName: (...args: Parameters<Resolver>) => string;
     knex: (...args: Parameters<Resolver>) => Knex;
     resolverName?: (...args: Parameters<Resolver>) => string;
     nodeIdUpdate?: (...args: Parameters<Resolver>) => string | number;
     nodeIdCreate?: (node: UnPromisify<ReturnType<Resolver>>) => string | number; // tslint:disable-line
-    currentNodeSnapshot?: (parent?: any, args?: any, ctx?: any, info?: any) => ReturnType<Resolver>; // tslint:disable-line
+    currentNodeSnapshot: (
+        nodeId: string | number,
+        resolverArgs: {parent?: any; args?: any; ctx?: any; info?: any}
+    ) => any; // tslint:disable-line
     currentNodeSnapshotFrequency?: number;
 }
 
@@ -102,13 +105,14 @@ export default <ResolverT extends (...args: any[]) => any>(
             const localKnexClient = extractors.knex(...(args as Parameters<ResolverT>));
             const userId = extractors.userId(...(args as Parameters<ResolverT>));
             const revisionData = extractors.revisionData(...(args as Parameters<ResolverT>));
-            const nodeVersion = extractors.nodeVersion(...(args as Parameters<ResolverT>));
+            const nodeSchemaVersion = extractors.nodeSchemaVersion(
+                ...(args as Parameters<ResolverT>)
+            );
             const nodeName = extractors.nodeName(...(args as Parameters<ResolverT>));
             const snapshotFrequency = extractors.currentNodeSnapshotFrequency
                 ? extractors.currentNodeSnapshotFrequency
                 : 1;
 
-            console.log('SNAPSHOT FREQUENCY', snapshotFrequency);
             const userRoles = extractors.userRoles
                 ? extractors.userRoles(...(args as Parameters<ResolverT>))
                 : [];
@@ -130,7 +134,7 @@ export default <ResolverT extends (...args: any[]) => any>(
                 userRoles,
                 revisionData,
                 revisionTime,
-                nodeVersion,
+                nodeSchemaVersion,
                 nodeName,
                 nodeId,
                 resolverName:
@@ -164,14 +168,19 @@ export default <ResolverT extends (...args: any[]) => any>(
                 snapshotFrequency,
                 localKnexClient,
                 nodeId,
-                nodeName
+                nodeName,
+                nodeSchemaVersion
             );
             if (shouldStoreSnapshot) {
-                const currentNodeSnapshot = extractors.currentNodeSnapshot
-                    ? await extractors.currentNodeSnapshot(...(args as Parameters<ResolverT>))
-                    : revisionData;
+                console.log('THESE ARGS', args);
+                const currentNodeSnapshot = await extractors.currentNodeSnapshot(nodeId, {
+                    ...args
+                } as any);
+                // (
+                //     ...(args as Parameters<ResolverT>)
+                // );
 
-                await storePreviousNodeVersionSnapshot(
+                await storeCurrentNodeSnapshot(
                     {tableNames, columnNames},
                     currentNodeSnapshot,
                     revisionId,
@@ -185,24 +194,29 @@ export default <ResolverT extends (...args: any[]) => any>(
     };
 };
 
-const storePreviousNodeVersionSnapshot = async (
+const storeCurrentNodeSnapshot = async (
     {tableNames, columnNames}: INamesForTablesAndColumns,
-    previousNodeVersion: any,
+    currentNodeSnapshot: any,
     revisionId: string | number,
     localKnexClient: Knex
 ) => {
     await localKnexClient.table(tableNames.revisionNodeSnapshot).insert({
         [`${tableNames.revision}_id`]: revisionId,
-        [columnNames.snapshot]: JSON.stringify(previousNodeVersion) // tslint:disable-line
+        [columnNames.snapshot]: JSON.stringify(currentNodeSnapshot) // tslint:disable-line
     });
 };
 
+/**
+ * Fetch the number of full node snapshots for the node id and node schema version
+ * If a snapshot exists within the expected snapshot frequency, then we don't need to take another snapshot
+ */
 const findIfShouldStoreSnapshot = async (
     {tableNames, columnNames}: INamesForTablesAndColumns,
     snapshotFrequency: number,
     localKnexClient: Knex,
     nodeId: number | string,
-    nodeName: string
+    nodeName: string,
+    mostRecentNodeSchemaVersion: number
 ) => {
     const sql = localKnexClient
         .table(tableNames.revision)
@@ -213,7 +227,8 @@ const findIfShouldStoreSnapshot = async (
         )
         .where({
             [`${tableNames.revision}.${columnNames.nodeName}`]: nodeName,
-            [`${tableNames.revision}.${columnNames.nodeId}`]: nodeId
+            [`${tableNames.revision}.${columnNames.nodeId}`]: nodeId,
+            [`${tableNames.revision}.${columnNames.nodeSchemaVersion}`]: mostRecentNodeSchemaVersion
         })
         .orderBy(`${tableNames.revision}.${columnNames.revisionTime}`, 'desc')
         .limit(snapshotFrequency)

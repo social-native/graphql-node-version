@@ -23,7 +23,7 @@ export default (config?: IConfig) => {
             t.string(columnNames.userId);
             t.json(columnNames.revisionData);
             t.string(columnNames.nodeName);
-            t.integer(columnNames.nodeVersion);
+            t.integer(columnNames.nodeSchemaVersion);
             t.integer(columnNames.nodeId);
             t.string(columnNames.resolverName);
         });

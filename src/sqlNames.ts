@@ -19,7 +19,7 @@ enum DEFAULT_COLUMN_NAMES {
     // userRoles = 'user_roles',
     revisionData = 'revision',
     revisionTime = 'created_at',
-    nodeVersion = 'node_version',
+    nodeSchemaVersion = 'node_schema_version',
     nodeName = 'node_name',
     nodeId = 'node_id',
     roleName = 'role_name',

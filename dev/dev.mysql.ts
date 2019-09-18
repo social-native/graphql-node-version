@@ -51,7 +51,7 @@ const typeDefs = gql`
         userRoles: [String]!
         revisionData: String!
         revisionTime: String!
-        nodeVersion: Int!
+        nodeSchemaVersion: Int!
         nodeName: String!
         resolverName: String!
     }
@@ -234,22 +234,24 @@ decorate(mutation, {
         userId: () => '1',
         userRoles: () => ['operations', 'user', 'billing'],
         nodeIdCreate: ({id}) => id,
-        nodeVersion: () => 1,
+        nodeSchemaVersion: () => 1,
         revisionData: (_parent, args) => JSON.stringify(args),
         resolverName: () => 'create',
-        nodeName: () => 'user'
-        // currentNodeSnapshot: query.user
+        nodeName: () => 'user',
+        currentNodeSnapshot: (nodeId, args) =>
+            query.user(undefined, {id: nodeId as string}, args.ctx, args.info)
     }),
     userUpdate: versionRecorder<MutationUserUpdateResolver>({
         knex: () => knexClient,
         userId: () => '1',
         userRoles: () => ['operations', 'user', 'billing'],
         nodeIdUpdate: (_, {id}) => id,
-        nodeVersion: () => 1,
+        nodeSchemaVersion: () => 1,
         revisionData: (_parent, args) => JSON.stringify(args),
         resolverName: () => 'update',
         nodeName: () => 'user',
-        currentNodeSnapshot: query.user,
+        currentNodeSnapshot: (nodeId, args) =>
+            query.user(undefined, {id: nodeId as string}, args.ctx, args.info),
         currentNodeSnapshotFrequency: 5
     })
 });

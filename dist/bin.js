@@ -31,7 +31,7 @@ var DEFAULT_COLUMN_NAMES;
     // userRoles = 'user_roles',
     DEFAULT_COLUMN_NAMES["revisionData"] = "revision";
     DEFAULT_COLUMN_NAMES["revisionTime"] = "created_at";
-    DEFAULT_COLUMN_NAMES["nodeVersion"] = "node_version";
+    DEFAULT_COLUMN_NAMES["nodeSchemaVersion"] = "node_schema_version";
     DEFAULT_COLUMN_NAMES["nodeName"] = "node_name";
     DEFAULT_COLUMN_NAMES["nodeId"] = "node_id";
     DEFAULT_COLUMN_NAMES["roleName"] = "role_name";
@@ -60,7 +60,7 @@ var createRevisionMigrations = (config) => {
             t.string(columnNames.userId);
             t.json(columnNames.revisionData);
             t.string(columnNames.nodeName);
-            t.integer(columnNames.nodeVersion);
+            t.integer(columnNames.nodeSchemaVersion);
             t.integer(columnNames.nodeId);
             t.string(columnNames.resolverName);
         });

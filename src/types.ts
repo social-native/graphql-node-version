@@ -16,7 +16,7 @@ export interface IRevisionConnection<Node> {
             userRoles?: string[];
             revisionData?: string;
             createdOn?: string;
-            nodeVersion?: number;
+            nodeSchemaVersion?: number;
             nodeName?: string;
             nodeId?: string | number;
         };
@@ -35,7 +35,7 @@ export interface IRevisionConnection<Node> {
 //     | 'userRoles'
 //     | 'revisionData'
 //     | 'revisionTime'
-//     | 'nodeVersion'
+//     | 'nodeSchemaVersion'
 //     | 'nodeName'
 //     | 'nodeId';
 
@@ -54,7 +54,7 @@ export interface INamesConfig {
         // userRoles?: string;
         revisionData?: string;
         revisionTime?: string;
-        nodeVersion?: string;
+        nodeSchemaVersion?: string;
         nodeName?: string;
         nodeId?: string;
         roleName?: string;
@@ -98,7 +98,7 @@ export interface IRevisionInfo {
     userRoles?: string[];
     revisionData: string;
     revisionTime?: string;
-    nodeVersion: number;
+    nodeSchemaVersion: number;
     nodeName: string;
     nodeId?: string | number;
     resolverName?: string;
