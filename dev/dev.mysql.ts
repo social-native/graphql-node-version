@@ -237,8 +237,8 @@ decorate(mutation, {
         nodeVersion: () => 1,
         revisionData: (_parent, args) => JSON.stringify(args),
         resolverName: () => 'create',
-        nodeName: () => 'user',
-        currentNodeVersion: query.user
+        nodeName: () => 'user'
+        // currentNodeSnapshot: query.user
     }),
     userUpdate: versionRecorder<MutationUserUpdateResolver>({
         knex: () => knexClient,
@@ -249,7 +249,8 @@ decorate(mutation, {
         revisionData: (_parent, args) => JSON.stringify(args),
         resolverName: () => 'update',
         nodeName: () => 'user',
-        currentNodeVersion: query.user
+        currentNodeSnapshot: query.user,
+        currentNodeSnapshotFrequency: 5
     })
 });
 

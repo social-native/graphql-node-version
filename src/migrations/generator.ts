@@ -32,6 +32,9 @@ export default (config?: IConfig) => {
             t.increments('id')
                 .unsigned()
                 .primary();
+
+            t.timestamp(columnNames.revisionTime).defaultTo(knex.fn.now());
+
             t.integer(`${tableNames.revision}_id`)
                 .unsigned()
                 .notNullable()

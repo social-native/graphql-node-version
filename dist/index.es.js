@@ -36,7 +36,6 @@ const setNames = ({ tableNames, columnNames }) => ({
         ...columnNames
     }
 });
-//# sourceMappingURL=sqlNames.js.map
 
 var inverseObject = (obj) => {
     const keys = Object.keys(obj);
@@ -46,7 +45,6 @@ var inverseObject = (obj) => {
         return inverseColumnNamesObj;
     }, {});
 };
-//# sourceMappingURL=inverseObject.js.map
 
 var sqlToNode = (nodeToSqlNameMappings, sqlData) => {
     const { columnNames } = nodeToSqlNameMappings;
@@ -60,7 +58,6 @@ var sqlToNode = (nodeToSqlNameMappings, sqlData) => {
         return nodeData;
     }, {});
 };
-//# sourceMappingURL=sqlToNode.js.map
 
 var versionConnection = (extractors, config) => {
     return (_target, _property, descriptor) => {
@@ -194,7 +191,6 @@ const aggregateVersionsById = (nodeVersions) => {
     // make sure versions are returned in the same order as they came in
     return [...new Set(nodeVersions.map(({ id }) => id))].map(id => versions[id]);
 };
-//# sourceMappingURL=versionConnection.js.map
 
 var nodeToSql = (nodeToSqlNameMappings, nodeData) => {
     const { columnNames } = nodeToSqlNameMappings;
@@ -208,7 +204,6 @@ var nodeToSql = (nodeToSqlNameMappings, nodeData) => {
         return sqlData;
     }, {});
 };
-//# sourceMappingURL=nodeToSql.js.map
 
 const createRevisionTransaction = (config) => async (knex, input) => {
     const nodeToSqlNameMappings = setNames(config || {});
@@ -291,8 +286,10 @@ var versionRecorder = (extractors, config) => {
             };
             const revTxFn = createRevisionTransaction(config);
             const { transaction, revisionId } = await revTxFn(localKnexClient, revisionInput);
-            const currentNodeVersion = await extractors.currentNodeVersion(...args);
-            await storePreviousNodeVersionSnapshot({ tableNames, columnNames }, currentNodeVersion, revisionId, transaction);
+            const currentNodeSnapshot = extractors.currentNodeSnapshot
+                ? await extractors.currentNodeSnapshot(...args)
+                : revisionData;
+            await storePreviousNodeVersionSnapshot({ tableNames, columnNames }, currentNodeSnapshot, revisionId, transaction);
             const [parent, ar, ctx, info] = args;
             const newArgs = { ...ar, transaction };
             const node = (await value(parent, newArgs, ctx, info));
@@ -314,7 +311,9 @@ const storePreviousNodeVersionSnapshot = async ({ tableNames, columnNames }, pre
         [columnNames.snapshot]: JSON.stringify(previousNodeVersion) // tslint:disable-line
     });
 };
-//# sourceMappingURL=versionRecorder.js.map
+// const shouldStoreSnapshot = async (
+// ) => {
+// }
 
 var generator = (config) => {
     const { tableNames, columnNames } = setNames(config || {});
@@ -335,6 +334,7 @@ var generator = (config) => {
             t.increments('id')
                 .unsigned()
                 .primary();
+            t.timestamp(columnNames.revisionTime).defaultTo(knex.fn.now());
             t.integer(`${tableNames.revision}_id`)
                 .unsigned()
                 .notNullable()
@@ -381,7 +381,6 @@ var generator = (config) => {
     };
     return { up, down };
 };
-//# sourceMappingURL=generator.js.map
 
 // tslint:disable
 /**
@@ -433,6 +432,5 @@ function decorate(thing, decorators) {
 function isDecoratorArray(decorator) {
     return decorator !== undefined && Array.isArray(decorator);
 }
-//# sourceMappingURL=decorate.js.map
 
 export { generator as createRevisionMigrations, decorate, versionConnection as versionConnectionDecorator, versionRecorder as versionRecorderDecorator };

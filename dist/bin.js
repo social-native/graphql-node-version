@@ -48,7 +48,6 @@ const setNames = ({ tableNames, columnNames }) => ({
         ...columnNames
     }
 });
-//# sourceMappingURL=sqlNames.js.map
 
 var createRevisionMigrations = (config) => {
     const { tableNames, columnNames } = setNames(config || {});
@@ -69,6 +68,7 @@ var createRevisionMigrations = (config) => {
             t.increments('id')
                 .unsigned()
                 .primary();
+            t.timestamp(columnNames.revisionTime).defaultTo(knex.fn.now());
             t.integer(`${tableNames.revision}_id`)
                 .unsigned()
                 .notNullable()
@@ -115,7 +115,6 @@ var createRevisionMigrations = (config) => {
     };
     return { up, down };
 };
-//# sourceMappingURL=generator.js.map
 
 const { keys } = lodash;
 
@@ -462,4 +461,3 @@ yargs.command({
 // run!
 // tslint:disable-next-line
 yargs.help().argv;
-//# sourceMappingURL=bin.js.map
