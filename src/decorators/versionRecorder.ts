@@ -202,8 +202,8 @@ const storeCurrentNodeSnapshot = async (
     localKnexClient: Knex
 ) => {
     await localKnexClient.table(tableNames.revisionNodeSnapshot).insert({
-        [`${tableNames.revision}_id`]: revisionId,
-        [columnNames.snapshot]: JSON.stringify(currentNodeSnapshot) // tslint:disable-line
+        [`${tableNames.revision}_${columnNames.revisionId}`]: revisionId,
+        [columnNames.snapshotData]: JSON.stringify(currentNodeSnapshot) // tslint:disable-line
     });
 };
 
@@ -223,8 +223,8 @@ const findIfShouldStoreSnapshot = async (
         .table(tableNames.revision)
         .leftJoin(
             tableNames.revisionNodeSnapshot,
-            `${tableNames.revision}.id`,
-            `${tableNames.revisionNodeSnapshot}.${tableNames.revision}_id`
+            `${tableNames.revision}.${columnNames.revisionId}`,
+            `${tableNames.revisionNodeSnapshot}.${tableNames.revision}_${columnNames.revisionId}`
         )
         .where({
             [`${tableNames.revision}.${columnNames.nodeName}`]: nodeName,
@@ -235,7 +235,7 @@ const findIfShouldStoreSnapshot = async (
         .limit(snapshotFrequency)
         .select(
             `${tableNames.revision}.${columnNames.revisionTime} as revision_creation`,
-            `${tableNames.revisionNodeSnapshot}.${columnNames.revisionTime} as snapshot_creation`
+            `${tableNames.revisionNodeSnapshot}.${columnNames.snapshotTime} as snapshot_creation`
         );
 
     const snapshots = (await sql) as Array<{

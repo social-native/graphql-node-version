@@ -26,17 +26,24 @@ var DEFAULT_TABLE_NAMES;
 })(DEFAULT_TABLE_NAMES || (DEFAULT_TABLE_NAMES = {}));
 var DEFAULT_COLUMN_NAMES;
 (function (DEFAULT_COLUMN_NAMES) {
-    DEFAULT_COLUMN_NAMES["id"] = "id";
+    // revision table
+    DEFAULT_COLUMN_NAMES["revisionId"] = "id";
+    DEFAULT_COLUMN_NAMES["revisionTime"] = "revision_created_at";
     DEFAULT_COLUMN_NAMES["userId"] = "user_id";
-    // userRoles = 'user_roles',
     DEFAULT_COLUMN_NAMES["revisionData"] = "revision";
-    DEFAULT_COLUMN_NAMES["revisionTime"] = "created_at";
-    DEFAULT_COLUMN_NAMES["nodeSchemaVersion"] = "node_schema_version";
     DEFAULT_COLUMN_NAMES["nodeName"] = "node_name";
+    DEFAULT_COLUMN_NAMES["nodeSchemaVersion"] = "node_schema_version";
     DEFAULT_COLUMN_NAMES["nodeId"] = "node_id";
-    DEFAULT_COLUMN_NAMES["roleName"] = "role_name";
     DEFAULT_COLUMN_NAMES["resolverName"] = "resolver_name";
-    DEFAULT_COLUMN_NAMES["snapshot"] = "previous_node_version_snapshot";
+    // revision node snapshot table
+    DEFAULT_COLUMN_NAMES["snapshotId"] = "id";
+    DEFAULT_COLUMN_NAMES["snapshotTime"] = "snapshot_created_at";
+    DEFAULT_COLUMN_NAMES["snapshotData"] = "previous_node_version_snapshot";
+    // revision role table
+    DEFAULT_COLUMN_NAMES["roleId"] = "id";
+    DEFAULT_COLUMN_NAMES["roleName"] = "role_name";
+    // revision user roles
+    DEFAULT_COLUMN_NAMES["userRoleId"] = "id";
 })(DEFAULT_COLUMN_NAMES || (DEFAULT_COLUMN_NAMES = {}));
 const setNames = ({ tableNames, columnNames }) => ({
     tableNames: {
@@ -53,7 +60,7 @@ var createRevisionMigrations = (config) => {
     const { tableNames, columnNames } = setNames(config || {});
     const up = async (knex) => {
         const revision = await knex.schema.createTable(tableNames.revision, t => {
-            t.increments('id')
+            t.increments(columnNames.revisionId)
                 .unsigned()
                 .primary();
             t.timestamp(columnNames.revisionTime).defaultTo(knex.fn.now());
@@ -65,20 +72,20 @@ var createRevisionMigrations = (config) => {
             t.string(columnNames.resolverName);
         });
         await knex.schema.createTable(tableNames.revisionNodeSnapshot, t => {
-            t.increments('id')
+            t.increments(columnNames.snapshotId)
                 .unsigned()
                 .primary();
-            t.timestamp(columnNames.revisionTime).defaultTo(knex.fn.now());
-            t.integer(`${tableNames.revision}_id`)
+            t.timestamp(columnNames.snapshotTime).defaultTo(knex.fn.now());
+            t.integer(`${tableNames.revision}_${columnNames.revisionId}`)
                 .unsigned()
                 .notNullable()
-                .references('id')
+                .references(columnNames.revisionId)
                 .inTable(tableNames.revision);
-            t.json(columnNames.snapshot);
+            t.json(columnNames.snapshotData);
         });
         if (tableNames.revisionRole && tableNames.revisionUserRole) {
             await knex.schema.createTable(tableNames.revisionRole, t => {
-                t.increments('id')
+                t.increments(columnNames.roleId)
                     .unsigned()
                     .primary();
                 t.string(columnNames.roleName)
@@ -86,18 +93,18 @@ var createRevisionMigrations = (config) => {
                     .unique();
             });
             return await knex.schema.createTable(tableNames.revisionUserRole, t => {
-                t.increments('id')
+                t.increments(columnNames.userRoleId)
                     .unsigned()
                     .primary();
-                t.integer(`${tableNames.revision}_id`)
+                t.integer(`${tableNames.revision}_${columnNames.revisionId}`)
                     .unsigned()
                     .notNullable()
-                    .references('id')
+                    .references(columnNames.revisionId)
                     .inTable(tableNames.revision);
-                t.integer(`${tableNames.revisionRole}_id`)
+                t.integer(`${tableNames.revisionRole}_${columnNames.roleId}`)
                     .unsigned()
                     .notNullable()
-                    .references('id')
+                    .references(columnNames.roleId)
                     .inTable(tableNames.revisionRole);
             });
         }

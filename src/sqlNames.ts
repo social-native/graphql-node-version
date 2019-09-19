@@ -1,4 +1,4 @@
-import {INamesConfig} from './types';
+import {INamesConfig, INamesForTablesAndColumns} from './types';
 
 /**
  * Sets the names for tables and columns that revisions will be stored in
@@ -14,20 +14,30 @@ enum DEFAULT_TABLE_NAMES {
 }
 
 enum DEFAULT_COLUMN_NAMES {
-    id = 'id',
+    // revision table
+    revisionId = 'id',
+    revisionTime = 'revision_created_at',
     userId = 'user_id',
-    // userRoles = 'user_roles',
     revisionData = 'revision',
-    revisionTime = 'created_at',
-    nodeSchemaVersion = 'node_schema_version',
     nodeName = 'node_name',
+    nodeSchemaVersion = 'node_schema_version',
     nodeId = 'node_id',
-    roleName = 'role_name',
     resolverName = 'resolver_name',
-    snapshot = 'previous_node_version_snapshot'
+
+    // revision node snapshot table
+    snapshotId = 'id',
+    snapshotTime = 'snapshot_created_at',
+    snapshotData = 'previous_node_version_snapshot',
+
+    // revision role table
+    roleId = 'id',
+    roleName = 'role_name',
+
+    // revision user roles
+    userRoleId = 'id'
 }
 
-export const setNames = ({tableNames, columnNames}: INamesConfig) => ({
+export const setNames = ({tableNames, columnNames}: INamesConfig): INamesForTablesAndColumns => ({
     tableNames: {
         ...DEFAULT_TABLE_NAMES,
         ...tableNames

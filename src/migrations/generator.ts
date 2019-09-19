@@ -15,7 +15,7 @@ export default (config?: IConfig) => {
 
     const up = async (knex: Knex) => {
         const revision = await knex.schema.createTable(tableNames.revision, t => {
-            t.increments('id')
+            t.increments(columnNames.revisionId)
                 .unsigned()
                 .primary();
             t.timestamp(columnNames.revisionTime).defaultTo(knex.fn.now());
@@ -29,23 +29,23 @@ export default (config?: IConfig) => {
         });
 
         await knex.schema.createTable(tableNames.revisionNodeSnapshot, t => {
-            t.increments('id')
+            t.increments(columnNames.snapshotId)
                 .unsigned()
                 .primary();
 
-            t.timestamp(columnNames.revisionTime).defaultTo(knex.fn.now());
+            t.timestamp(columnNames.snapshotTime).defaultTo(knex.fn.now());
 
-            t.integer(`${tableNames.revision}_id`)
+            t.integer(`${tableNames.revision}_${columnNames.revisionId}`)
                 .unsigned()
                 .notNullable()
-                .references('id')
+                .references(columnNames.revisionId)
                 .inTable(tableNames.revision);
-            t.json(columnNames.snapshot);
+            t.json(columnNames.snapshotData);
         });
 
         if (tableNames.revisionRole && tableNames.revisionUserRole) {
             await knex.schema.createTable(tableNames.revisionRole, t => {
-                t.increments('id')
+                t.increments(columnNames.roleId)
                     .unsigned()
                     .primary();
                 t.string(columnNames.roleName)
@@ -54,18 +54,18 @@ export default (config?: IConfig) => {
             });
 
             return await knex.schema.createTable(tableNames.revisionUserRole, t => {
-                t.increments('id')
+                t.increments(columnNames.userRoleId)
                     .unsigned()
                     .primary();
-                t.integer(`${tableNames.revision}_id`)
+                t.integer(`${tableNames.revision}_${columnNames.revisionId}`)
                     .unsigned()
                     .notNullable()
-                    .references('id')
+                    .references(columnNames.revisionId)
                     .inTable(tableNames.revision);
-                t.integer(`${tableNames.revisionRole}_id`)
+                t.integer(`${tableNames.revisionRole}_${columnNames.roleId}`)
                     .unsigned()
                     .notNullable()
-                    .references('id')
+                    .references(columnNames.roleId)
                     .inTable(tableNames.revisionRole);
             });
         } else {

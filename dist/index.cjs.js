@@ -18,17 +18,24 @@ var DEFAULT_TABLE_NAMES;
 })(DEFAULT_TABLE_NAMES || (DEFAULT_TABLE_NAMES = {}));
 var DEFAULT_COLUMN_NAMES;
 (function (DEFAULT_COLUMN_NAMES) {
-    DEFAULT_COLUMN_NAMES["id"] = "id";
+    // revision table
+    DEFAULT_COLUMN_NAMES["revisionId"] = "id";
+    DEFAULT_COLUMN_NAMES["revisionTime"] = "revision_created_at";
     DEFAULT_COLUMN_NAMES["userId"] = "user_id";
-    // userRoles = 'user_roles',
     DEFAULT_COLUMN_NAMES["revisionData"] = "revision";
-    DEFAULT_COLUMN_NAMES["revisionTime"] = "created_at";
-    DEFAULT_COLUMN_NAMES["nodeSchemaVersion"] = "node_schema_version";
     DEFAULT_COLUMN_NAMES["nodeName"] = "node_name";
+    DEFAULT_COLUMN_NAMES["nodeSchemaVersion"] = "node_schema_version";
     DEFAULT_COLUMN_NAMES["nodeId"] = "node_id";
-    DEFAULT_COLUMN_NAMES["roleName"] = "role_name";
     DEFAULT_COLUMN_NAMES["resolverName"] = "resolver_name";
-    DEFAULT_COLUMN_NAMES["snapshot"] = "previous_node_version_snapshot";
+    // revision node snapshot table
+    DEFAULT_COLUMN_NAMES["snapshotId"] = "id";
+    DEFAULT_COLUMN_NAMES["snapshotTime"] = "snapshot_created_at";
+    DEFAULT_COLUMN_NAMES["snapshotData"] = "previous_node_version_snapshot";
+    // revision role table
+    DEFAULT_COLUMN_NAMES["roleId"] = "id";
+    DEFAULT_COLUMN_NAMES["roleName"] = "role_name";
+    // revision user roles
+    DEFAULT_COLUMN_NAMES["userRoleId"] = "id";
 })(DEFAULT_COLUMN_NAMES || (DEFAULT_COLUMN_NAMES = {}));
 const setNames = ({ tableNames, columnNames }) => ({
     tableNames: {
@@ -63,6 +70,7 @@ var sqlToNode = (nodeToSqlNameMappings, sqlData) => {
     }, {});
 };
 
+// import {ConnectionManager, IInputArgs} from 'snpkg-snapi-connections';
 var versionConnection = (extractors, config) => {
     return (_target, _property, descriptor) => {
         const nodeToSqlNameMappings = setNames(config || {});
@@ -75,99 +83,178 @@ var versionConnection = (extractors, config) => {
             const localKnexClient = extractors.knex && extractors.knex(...args);
             const [parent, ar, ctx, info] = args;
             const node = (await value(parent, ar, ctx, info));
-            const revisionsInRange = await getRevisionsInRange(ar, localKnexClient, nodeToSqlNameMappings, extractors);
-            console.log('REVISIONS IN RANGE', revisionsInRange);
-            const versionEdges = revisionsInRange.reduce((edges, version, index) => {
-                let edge;
-                if (index === 0) {
-                    edge = {
-                        version,
-                        node: extractors.nodeBuilder(node, version)
-                    };
-                }
-                else {
-                    const previousNode = edges[index - 1].node;
-                    edge = {
-                        version,
-                        node: extractors.nodeBuilder(previousNode, version)
-                    };
-                }
-                return [...edges, edge];
-            }, []);
-            const versionEdgesObjByVersionId = versionEdges.reduce((obj, edge) => {
-                obj[edge.version.id] = edge;
-                return obj;
-            }, {});
-            const connectionOfInterest = await getRevisionsOfInterest(ar, localKnexClient, nodeToSqlNameMappings, extractors);
-            const edgesOfInterest = connectionOfInterest.edges.map(edge => {
-                return {
-                    ...edge,
-                    node: versionEdgesObjByVersionId[edge.node.id].node,
-                    version: edge.node
-                };
-            });
-            return { ...connectionOfInterest, edges: edgesOfInterest };
+            // Step 1. Get all versions for the connection
+            const revisionsOfInterest = await getRevisionsOfInterest(ar, localKnexClient, nodeToSqlNameMappings, extractors);
+            // Step 2. Get all the revisions + snapshots used to calculate the oldest revision in
+            // the `revisionsOfInterest` array.
+            console.log('REVISIONS IN RANGE', revisionsOfInterest);
+            return node;
+            // const precursorRevisions = await getPrecursorRevisions(
+            //     revisionsOfInterest,
+            //     ar,
+            //     localKnexClient,
+            //     nodeToSqlNameMappings,
+            //     extractors
+            // );
+            // const versionEdges = revisionsInRange.reduce(
+            //     (edges, version, index) => {
+            //         let edge;
+            //         if (index === 0) {
+            //             edge = {
+            //                 version,
+            //                 node: extractors.nodeBuilder(node, version)
+            //             };
+            //         } else {
+            //             const previousNode = edges[index - 1].node;
+            //             edge = {
+            //                 version,
+            //                 node: extractors.nodeBuilder(previousNode, version)
+            //             };
+            //         }
+            //         return [...edges, edge];
+            //     },
+            //     [] as Array<{node: typeof node; version: Unpacked<typeof revisionsInRange>}>
+            // );
+            // const versionEdgesObjByVersionId = versionEdges.reduce(
+            //     (obj, edge) => {
+            //         obj[edge.version.id] = edge;
+            //         return obj;
+            //     },
+            //     {} as {[nodeId: string]: Unpacked<typeof versionEdges>}
+            // );
+            // const connectionOfInterest = await getRevisionsOfInterest(
+            //     ar,
+            //     localKnexClient,
+            //     nodeToSqlNameMappings,
+            //     extractors
+            // );
+            // const edgesOfInterest = connectionOfInterest.edges.map(edge => {
+            //     return {
+            //         ...edge,
+            //         node: versionEdgesObjByVersionId[edge.node.id].node,
+            //         version: edge.node
+            //     };
+            // });
+            // return {...connectionOfInterest, edges: edgesOfInterest};
         });
         return descriptor;
     };
 };
-const getRevisionsInRange = async (inputArgs, knex, nodeToSqlNameMappings, extractors) => {
-    const { id: idName, nodeId: nodeIdName, revisionData: revisionDataName, snapshot: snapshotName } = nodeToSqlNameMappings.columnNames;
-    const attributeMap = {
-        id: idName,
-        nodeId: nodeIdName,
-        revisionData: revisionDataName,
-        snapshot: snapshotName
-    };
-    const { id, ...selectableAttributes } = attributeMap;
-    const connectionArgs = { orderBy: 'id', orderDir: 'asc' };
-    const nodeConnection = new snpkgSnapiConnections.ConnectionManager(connectionArgs, attributeMap);
-    const nodeId = extractors.nodeId ? extractors.nodeId(...inputArgs) : inputArgs.id;
-    const queryBuilder = knex
-        .queryBuilder()
-        .table(nodeToSqlNameMappings.tableNames.revision)
-        .leftJoin(nodeToSqlNameMappings.tableNames.revisionNodeSnapshot, `${nodeToSqlNameMappings.tableNames.revisionNodeSnapshot}.${nodeToSqlNameMappings.tableNames.revision}_id`, // tslint:disable-line
-    `${nodeToSqlNameMappings.tableNames.revision}.id`)
-        .where({ [nodeToSqlNameMappings.columnNames.nodeId]: nodeId })
-        .select([
-        `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.id}`,
-        ...Object.values(selectableAttributes)
-    ]);
-    const result = await nodeConnection.createQuery(queryBuilder);
-    nodeConnection.addResult(result);
-    return nodeConnection.edges.map(({ node }) => node);
-};
+// const getPrecursorRevisions = async <ResolverT extends (...args: any[]) => any>(
+//     revisionsInRange: [object],
+//     inputArgs: ResolverArgs<ResolverT>,
+//     knex: Knex,
+//     nodeToSqlNameMappings: INamesForTablesAndColumns,
+//     extractors: IVersionConnectionExtractors<ResolverT>
+// ) => {};
+// const getRevisionsInRange = async <ResolverT extends (...args: any[]) => any>(
+//     inputArgs: ResolverArgs<ResolverT>,
+//     knex: Knex,
+//     nodeToSqlNameMappings: INamesForTablesAndColumns,
+//     extractors: IVersionConnectionExtractors<ResolverT>
+// ) => {
+//     const {
+//         id: idName,
+//         nodeId: nodeIdName,
+//         revisionData: revisionDataName,
+//         snapshot: snapshotName,
+//         revisionTime: revisionTimeName
+//     } = nodeToSqlNameMappings.columnNames;
+//     const attributeMap = {
+//         id: idName,
+//         nodeId: nodeIdName,
+//         revisionData: revisionDataName,
+//         snapshot: snapshotName,
+//         revisionTime: `${nodeToSqlNameMappings.tableNames.revision}.${revisionTimeName}`
+//     };
+//     const {id, ...selectableAttributes} = attributeMap;
+//     const connectionArgs = {orderBy: 'id', orderDir: 'asc'} as IInputArgs;
+//     const nodeConnection = new ConnectionManager<typeof attributeMap>(connectionArgs, attributeMap);
+//     const nodeId = extractors.nodeId ? extractors.nodeId(...inputArgs) : inputArgs.id;
+//     const queryBuilder = knex
+//         .queryBuilder()
+//         .table(nodeToSqlNameMappings.tableNames.revision)
+//         .leftJoin(
+//             nodeToSqlNameMappings.tableNames.revisionNodeSnapshot,
+//             `${nodeToSqlNameMappings.tableNames.revisionNodeSnapshot}.${nodeToSqlNameMappings.tableNames.revision}_id`, // tslint:disable-line
+//             `${nodeToSqlNameMappings.tableNames.revision}.id`
+//         )
+//         .where({[nodeToSqlNameMappings.columnNames.nodeId]: nodeId})
+//         .select([
+//             `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.id}`,
+//             ...Object.values(selectableAttributes)
+//         ]);
+//     const result = await nodeConnection.createQuery(queryBuilder);
+//     nodeConnection.addResult(result);
+//     return nodeConnection.edges.map(({node}) => node);
+// };
 const getRevisionsOfInterest = async (inputArgs, knex, nodeToSqlNameMappings, extractors) => {
-    const attributeMap = nodeToSqlNameMappings.columnNames;
+    // const {
+    //     id: idName,
+    //     nodeId: nodeIdName,
+    //     revisionData: revisionDataName,
+    //     snapshot: snapshotName,
+    //     revisionTime: revisionTimeName
+    // } = nodeToSqlNameMappings.columnNames;
+    const attributeMap = {
+        ...nodeToSqlNameMappings.columnNames,
+        id: `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.revisionId}`,
+        revisionTime: `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.revisionTime}`
+        // nodeId: `${nodeToSqlNameMappings.tableNames.revision}.${nodeIdName}`,
+        // revisionData: revisionDataName,
+        // snapshot: snapshotName,
+        // revisionTime: `${nodeToSqlNameMappings.tableNames.revision}.${revisionTimeName}`
+    };
+    // const attributeMap = nodeToSqlNameMappings.columnNames;
     // force orderDir to be 'desc' b/c last is most recent in versions
     // const newInputArgs = {...inputArgs, orderDir: 'desc'};
     const nodeConnection = new snpkgSnapiConnections.ConnectionManager(inputArgs, attributeMap);
     const nodeId = extractors.nodeId ? extractors.nodeId(...inputArgs) : inputArgs.id;
-    const { id, snapshot, ...selectableAttributes } = attributeMap;
+    // const {id, snapshot, revisionTime, ...selectableAttributes} = attributeMap;
     const query = knex
         .queryBuilder()
         .from(function () {
-        const { roleName, snapshot: unusedSnapshot, ...attributes } = attributeMap;
+        // const {roleName, snapshot: unusedSnapshot, ...attributes} = attributeMap;
         const queryBuilder = this.table(nodeToSqlNameMappings.tableNames.revision)
+            .leftJoin(nodeToSqlNameMappings.tableNames.revisionNodeSnapshot, `${nodeToSqlNameMappings.tableNames.revisionNodeSnapshot}.${nodeToSqlNameMappings.tableNames.revision}_${nodeToSqlNameMappings.columnNames.revisionId}`, // tslint:disable-line
+        `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.revisionId}`)
             .where({
-            [nodeToSqlNameMappings.columnNames.nodeId]: nodeId
+            [`${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.nodeId}`]: nodeId
         })
-            .select(Object.values(attributes));
+            .select(`${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.revisionId} as revision_id`, // tslint:disable-line
+        `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.revisionTime} as revision_created_at`, // tslint:disable-line
+        `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.revisionData} as revision_data`, // tslint:disable-line
+        `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.nodeName} as node_name`, // tslint:disable-line
+        `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.nodeSchemaVersion} as node_schema_version`, // tslint:disable-line
+        `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.nodeId} as node_id`, // tslint:disable-line
+        `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.resolverName} as resolver_name`, // tslint:disable-line
+        `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.userId} as user_id`, // tslint:disable-line
+        `${nodeToSqlNameMappings.tableNames.revisionNodeSnapshot}.${nodeToSqlNameMappings.columnNames.snapshotData} as snapshot`, // tslint:disable-line
+        `${nodeToSqlNameMappings.tableNames.revisionNodeSnapshot}.${nodeToSqlNameMappings.columnNames.revisionTime} as snapshot_created_at` // tslint:disable-line
+        );
         nodeConnection.createQuery(queryBuilder).as('main');
     })
-        .leftJoin(nodeToSqlNameMappings.tableNames.revisionUserRole, `${nodeToSqlNameMappings.tableNames.revisionUserRole}.${nodeToSqlNameMappings.tableNames.revision}_id`, `main.${nodeToSqlNameMappings.columnNames.id}`)
-        .leftJoin(nodeToSqlNameMappings.tableNames.revisionRole, `${nodeToSqlNameMappings.tableNames.revisionUserRole}.${nodeToSqlNameMappings.tableNames.revisionRole}_id`, `${nodeToSqlNameMappings.tableNames.revisionRole}.id`)
-        .select([
-        `main.${nodeToSqlNameMappings.columnNames.id}`,
-        ...Object.values(selectableAttributes)
-    ]);
+        .leftJoin(nodeToSqlNameMappings.tableNames.revisionUserRole, `${nodeToSqlNameMappings.tableNames.revisionUserRole}.${nodeToSqlNameMappings.tableNames.revision}_id`, `main.revision_id`)
+        .leftJoin(nodeToSqlNameMappings.tableNames.revisionRole, `${nodeToSqlNameMappings.tableNames.revisionUserRole}.${nodeToSqlNameMappings.tableNames.revisionRole}_id`, `${nodeToSqlNameMappings.tableNames.revisionRole}.id`);
+    // .select([
+    //     `main.${nodeToSqlNameMappings.columnNames.id}`,
+    //     ...Object.values(selectableAttributes)
+    // ]);
     const result = await query;
+    console.log('RAW RESULT', result);
     const nodeResult = result.map(r => sqlToNode(nodeToSqlNameMappings, r));
+    console.log('NODE RESULT', nodeResult);
     const uniqueVersions = aggregateVersionsById(nodeResult);
+    console.log('UNIQUE VERSIONS', uniqueVersions);
     nodeConnection.addResult(uniqueVersions);
     const { pageInfo, edges } = nodeConnection;
     return { pageInfo, edges };
 };
+/**
+ * B/c user roles are 1:many with a revision we have duplicates of revisions
+ * for each user role. Thus, we need to combine user roles together into an array for
+ * each duplicate of a revision.
+ */
 const aggregateVersionsById = (nodeVersions) => {
     // extract all the user roles for the version
     const rolesByRevisionId = nodeVersions.reduce((rolesObj, { id, roleName }) => {
@@ -266,7 +353,6 @@ var versionRecorder = (extractors, config) => {
             const snapshotFrequency = extractors.currentNodeSnapshotFrequency
                 ? extractors.currentNodeSnapshotFrequency
                 : 1;
-            console.log('SNAPSHOT FREQUENCY', snapshotFrequency);
             const userRoles = extractors.userRoles
                 ? extractors.userRoles(...args)
                 : [];
@@ -309,27 +395,35 @@ var versionRecorder = (extractors, config) => {
             }
             const shouldStoreSnapshot = await findIfShouldStoreSnapshot({ tableNames, columnNames }, snapshotFrequency, localKnexClient, nodeId, nodeName, nodeSchemaVersion);
             if (shouldStoreSnapshot) {
-                const currentNodeSnapshot = extractors.currentNodeSnapshot
-                    ? await extractors.currentNodeSnapshot(...args)
-                    : revisionData;
-                await storePreviousNodeVersionSnapshot({ tableNames, columnNames }, currentNodeSnapshot, revisionId, localKnexClient);
+                // console.log('THESE ARGS', args);
+                const currentNodeSnapshot = await extractors.currentNodeSnapshot(nodeId, args);
+                // (
+                //     ...(args as Parameters<ResolverT>)
+                // );
+                await storeCurrentNodeSnapshot({ tableNames, columnNames }, currentNodeSnapshot, revisionId, localKnexClient);
             }
             return node;
         });
         return descriptor;
     };
 };
-const storePreviousNodeVersionSnapshot = async ({ tableNames, columnNames }, previousNodeVersion, revisionId, localKnexClient) => {
+/**
+ * Write the node snapshot to the database
+ */
+const storeCurrentNodeSnapshot = async ({ tableNames, columnNames }, currentNodeSnapshot, revisionId, localKnexClient) => {
     await localKnexClient.table(tableNames.revisionNodeSnapshot).insert({
-        [`${tableNames.revision}_id`]: revisionId,
-        [columnNames.snapshot]: JSON.stringify(previousNodeVersion) // tslint:disable-line
+        [`${tableNames.revision}_${columnNames.revisionId}`]: revisionId,
+        [columnNames.snapshotData]: JSON.stringify(currentNodeSnapshot) // tslint:disable-line
     });
 };
-// TODO make sure frequency is within same node version number!!
+/**
+ * Fetch the number of full node snapshots for the node id and node schema version
+ * If a snapshot exists within the expected snapshot frequency, then we don't need to take another snapshot
+ */
 const findIfShouldStoreSnapshot = async ({ tableNames, columnNames }, snapshotFrequency, localKnexClient, nodeId, nodeName, mostRecentNodeSchemaVersion) => {
     const sql = localKnexClient
         .table(tableNames.revision)
-        .leftJoin(tableNames.revisionNodeSnapshot, `${tableNames.revision}.id`, `${tableNames.revisionNodeSnapshot}.${tableNames.revision}_id`)
+        .leftJoin(tableNames.revisionNodeSnapshot, `${tableNames.revision}.${columnNames.revisionId}`, `${tableNames.revisionNodeSnapshot}.${tableNames.revision}_${columnNames.revisionId}`)
         .where({
         [`${tableNames.revision}.${columnNames.nodeName}`]: nodeName,
         [`${tableNames.revision}.${columnNames.nodeId}`]: nodeId,
@@ -347,7 +441,7 @@ var generator = (config) => {
     const { tableNames, columnNames } = setNames(config || {});
     const up = async (knex) => {
         const revision = await knex.schema.createTable(tableNames.revision, t => {
-            t.increments('id')
+            t.increments(columnNames.revisionId)
                 .unsigned()
                 .primary();
             t.timestamp(columnNames.revisionTime).defaultTo(knex.fn.now());
@@ -359,20 +453,20 @@ var generator = (config) => {
             t.string(columnNames.resolverName);
         });
         await knex.schema.createTable(tableNames.revisionNodeSnapshot, t => {
-            t.increments('id')
+            t.increments(columnNames.snapshotId)
                 .unsigned()
                 .primary();
-            t.timestamp(columnNames.revisionTime).defaultTo(knex.fn.now());
-            t.integer(`${tableNames.revision}_id`)
+            t.timestamp(columnNames.snapshotTime).defaultTo(knex.fn.now());
+            t.integer(`${tableNames.revision}_${columnNames.revisionId}`)
                 .unsigned()
                 .notNullable()
-                .references('id')
+                .references(columnNames.revisionId)
                 .inTable(tableNames.revision);
-            t.json(columnNames.snapshot);
+            t.json(columnNames.snapshotData);
         });
         if (tableNames.revisionRole && tableNames.revisionUserRole) {
             await knex.schema.createTable(tableNames.revisionRole, t => {
-                t.increments('id')
+                t.increments(columnNames.roleId)
                     .unsigned()
                     .primary();
                 t.string(columnNames.roleName)
@@ -380,18 +474,18 @@ var generator = (config) => {
                     .unique();
             });
             return await knex.schema.createTable(tableNames.revisionUserRole, t => {
-                t.increments('id')
+                t.increments(columnNames.userRoleId)
                     .unsigned()
                     .primary();
-                t.integer(`${tableNames.revision}_id`)
+                t.integer(`${tableNames.revision}_${columnNames.revisionId}`)
                     .unsigned()
                     .notNullable()
-                    .references('id')
+                    .references(columnNames.revisionId)
                     .inTable(tableNames.revision);
-                t.integer(`${tableNames.revisionRole}_id`)
+                t.integer(`${tableNames.revisionRole}_${columnNames.roleId}`)
                     .unsigned()
                     .notNullable()
-                    .references('id')
+                    .references(columnNames.roleId)
                     .inTable(tableNames.revisionRole);
             });
         }

@@ -49,17 +49,23 @@ export interface INamesConfig {
         revisionNodeSnapshot?: string;
     };
     columnNames?: {
-        id?: string;
-        userId?: string;
-        // userRoles?: string;
-        revisionData?: string;
+        revisionId?: string;
         revisionTime?: string;
-        nodeSchemaVersion?: string;
+        userId?: string;
+        revisionData?: string;
         nodeName?: string;
+        nodeSchemaVersion?: string;
         nodeId?: string;
-        roleName?: string;
         resolverName?: string;
-        snapshot?: string;
+
+        snapshotId?: string;
+        snapshotTime?: string;
+        snapshotData?: string;
+
+        roleId?: string;
+        roleName?: string;
+
+        userRoleId?: string;
     };
 }
 
