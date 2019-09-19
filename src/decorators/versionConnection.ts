@@ -46,7 +46,7 @@ export default <ResolverT extends (...args: any[]) => any>(
                 extractors
             );
 
-            console.log('REVISIONS IN RANGE', revisionsInRange);
+            // console.log('REVISIONS IN RANGE', revisionsInRange);
 
             const versionEdges = revisionsInRange.reduce(
                 (edges, version, index) => {

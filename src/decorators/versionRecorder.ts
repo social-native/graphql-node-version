@@ -15,10 +15,7 @@ export interface IVersionRecorderExtractors<Resolver extends (...args: any[]) =>
     resolverName?: (...args: Parameters<Resolver>) => string;
     nodeIdUpdate?: (...args: Parameters<Resolver>) => string | number;
     nodeIdCreate?: (node: UnPromisify<ReturnType<Resolver>>) => string | number; // tslint:disable-line
-    currentNodeSnapshot: (
-        nodeId: string | number,
-        resolverArgs: {parent?: any; args?: any; ctx?: any; info?: any}
-    ) => any; // tslint:disable-line
+    currentNodeSnapshot: (nodeId: string | number, resolverArgs: Parameters<Resolver>) => any; // tslint:disable-line
     currentNodeSnapshotFrequency?: number;
 }
 
@@ -172,10 +169,11 @@ export default <ResolverT extends (...args: any[]) => any>(
                 nodeSchemaVersion
             );
             if (shouldStoreSnapshot) {
-                console.log('THESE ARGS', args);
-                const currentNodeSnapshot = await extractors.currentNodeSnapshot(nodeId, {
-                    ...args
-                } as any);
+                // console.log('THESE ARGS', args);
+                const currentNodeSnapshot = await extractors.currentNodeSnapshot(
+                    nodeId,
+                    args as Parameters<ResolverT>
+                );
                 // (
                 //     ...(args as Parameters<ResolverT>)
                 // );
@@ -194,6 +192,9 @@ export default <ResolverT extends (...args: any[]) => any>(
     };
 };
 
+/**
+ * Write the node snapshot to the database
+ */
 const storeCurrentNodeSnapshot = async (
     {tableNames, columnNames}: INamesForTablesAndColumns,
     currentNodeSnapshot: any,

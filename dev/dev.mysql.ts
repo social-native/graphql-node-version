@@ -15,7 +15,8 @@ import {
     decorate,
     versionRecorderDecorator as versionRecorder,
     versionConnectionDecorator as versionConnection,
-    IRevisionInfo
+    IRevisionInfo,
+    IRevisionConnection
 } from '../src/index';
 const knexClient = knex(developmentConfig);
 
@@ -238,8 +239,17 @@ decorate(mutation, {
         revisionData: (_parent, args) => JSON.stringify(args),
         resolverName: () => 'create',
         nodeName: () => 'user',
-        currentNodeSnapshot: (nodeId, args) =>
-            query.user(undefined, {id: nodeId as string}, args.ctx, args.info)
+        currentNodeSnapshot: async (nodeId, args) => {
+            // TODO remind users in readme that the resolver type changes and
+            // they need to cast it to IRevisionConnection<Node>
+            const r = ((await query.user(
+                undefined,
+                {id: nodeId as string},
+                args[2],
+                args[3]
+            )) as unknown) as IRevisionConnection<typeof query.user>;
+            return r.edges[0] ? r.edges[0].node : undefined;
+        }
     }),
     userUpdate: versionRecorder<MutationUserUpdateResolver>({
         knex: () => knexClient,
@@ -250,8 +260,17 @@ decorate(mutation, {
         revisionData: (_parent, args) => JSON.stringify(args),
         resolverName: () => 'update',
         nodeName: () => 'user',
-        currentNodeSnapshot: (nodeId, args) =>
-            query.user(undefined, {id: nodeId as string}, args.ctx, args.info),
+        currentNodeSnapshot: async (nodeId, args) => {
+            // TODO remind users in readme that the resolver type changes and
+            // they need to cast it to IRevisionConnection<Node>
+            const r = ((await query.user(
+                undefined,
+                {id: nodeId as string},
+                args[2],
+                args[3]
+            )) as unknown) as IRevisionConnection<typeof query.user>;
+            return r.edges[0] ? r.edges[0].node : undefined;
+        },
         currentNodeSnapshotFrequency: 5
     })
 });
