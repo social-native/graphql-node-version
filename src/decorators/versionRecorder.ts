@@ -138,6 +138,7 @@ export default <ResolverT extends (...args: any[]) => any>(
                     typeof resolverName === 'symbol' ? resolverName.toString() : resolverName
             };
 
+            console.log('CREATING TRANSACTION');
             const revTxFn = createRevisionTransaction(config);
             const {transaction, revisionId} = await revTxFn(localKnexClient, revisionInput);
 
@@ -146,6 +147,7 @@ export default <ResolverT extends (...args: any[]) => any>(
             const node = (await value(parent, newArgs, ctx, info)) as UnPromisify<
                 ReturnType<ResolverT>
             >;
+            console.log('NODE', node);
 
             if (!nodeId) {
                 nodeId = extractors.nodeIdCreate ? extractors.nodeIdCreate(node) : undefined;
@@ -168,12 +170,22 @@ export default <ResolverT extends (...args: any[]) => any>(
                 nodeName,
                 nodeSchemaVersion
             );
+            console.log('SHOUOLD STORE SNAPSHOT', shouldStoreSnapshot);
+            console.log('NODE ID', nodeId);
+
             if (shouldStoreSnapshot) {
                 // console.log('THESE ARGS', args);
-                const currentNodeSnapshot = await extractors.currentNodeSnapshot(
-                    nodeId,
-                    args as Parameters<ResolverT>
-                );
+                let currentNodeSnapshot;
+                try {
+                    currentNodeSnapshot = await extractors.currentNodeSnapshot(
+                        nodeId,
+                        args as Parameters<ResolverT>
+                    );
+                } catch (e) {
+                    console.log('EERRRROR', e);
+                }
+                console.log('CURRENT NODE SNAPSHOT', currentNodeSnapshot);
+
                 // (
                 //     ...(args as Parameters<ResolverT>)
                 // );

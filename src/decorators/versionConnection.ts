@@ -8,7 +8,7 @@ import {
     // Unpacked
 } from '../types';
 // import {ConnectionManager, IInputArgs} from 'snpkg-snapi-connections';
-import {ConnectionManager} from 'snpkg-snapi-connections';
+import {ConnectionManager, IInputArgs} from 'snpkg-snapi-connections';
 
 import {setNames} from 'sqlNames';
 import sqlToNode from 'transformers/sqlToNode';
@@ -22,7 +22,7 @@ export interface IVersionConnectionExtractors<Resolver extends (...args: any[]) 
     nodeId?: (...args: ResolverArgs<Resolver>) => string;
 }
 
-export default <ResolverT extends (...args: any[]) => any>(
+export default <ResolverT extends (...args: [any, any, any, any]) => any>(
     extractors: IVersionConnectionExtractors<ResolverT>,
     config?: INamesConfig
 ): MethodDecorator => {
@@ -42,8 +42,17 @@ export default <ResolverT extends (...args: any[]) => any>(
             const node = (await value(parent, ar, ctx, info)) as UnPromisify<ReturnType<ResolverT>>;
 
             // Step 1. Get all versions for the connection
+            console.log('ARRRRR', ar);
+            if (
+                ((ar as IInputArgs).first && ar.first <= 1) ||
+                (ar.first === undefined && ar.last === undefined)
+            ) {
+                return node;
+            }
+            console.log('HEREEE', 'NOT SKIPPING');
+
             const revisionsOfInterest = await getRevisionsOfInterest(
-                ar,
+                ar as any,
                 localKnexClient,
                 nodeToSqlNameMappings,
                 extractors

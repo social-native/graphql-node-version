@@ -248,7 +248,10 @@ decorate(mutation, {
                 args[2],
                 args[3]
             )) as unknown) as IRevisionConnection<typeof query.user>;
-            return r.edges[0] ? r.edges[0].node : undefined;
+            console.log('rrrrr', r);
+            // todo undo when connection is returning right type
+            return r;
+            // return r.edges[0] ? r.edges[0].node : undefined;
         }
     }),
     userUpdate: versionRecorder<MutationUserUpdateResolver>({
@@ -269,7 +272,10 @@ decorate(mutation, {
                 args[2],
                 args[3]
             )) as unknown) as IRevisionConnection<typeof query.user>;
-            return r.edges[0] ? r.edges[0].node : undefined;
+            console.log('rrrrr', r);
+            // todo undo when connection is returning right type
+            return r;
+            // return r.edges[0] ? r.edges[0].node : undefined;
         },
         currentNodeSnapshotFrequency: 5
     })
