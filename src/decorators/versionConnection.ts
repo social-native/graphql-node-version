@@ -11,7 +11,7 @@ import {
 import {ConnectionManager, IInputArgs} from 'snpkg-snapi-connections';
 
 import {setNames} from 'sqlNames';
-import sqlToNode from 'transformers/sqlToNode';
+// import sqlToNode from 'transformers/sqlToNode';
 
 export interface IVersionConnectionExtractors<Resolver extends (...args: any[]) => any> {
     knex: (...args: Parameters<Resolver>) => Knex;
@@ -221,41 +221,52 @@ const getRevisionsOfInterest = async <ResolverT extends (...args: any[]) => any>
                     [`${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.nodeId}`]: nodeId
                 })
                 .select(
-                    `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.revisionId} as revision_id`, // tslint:disable-line
-                    `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.revisionTime} as revision_created_at`, // tslint:disable-line
-                    `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.revisionData} as revision_data`, // tslint:disable-line
-                    `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.nodeName} as node_name`, // tslint:disable-line
-                    `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.nodeSchemaVersion} as node_schema_version`, // tslint:disable-line
-                    `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.nodeId} as node_id`, // tslint:disable-line
-                    `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.resolverName} as resolver_name`, // tslint:disable-line
-                    `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.userId} as user_id`, // tslint:disable-line
+                    `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.revisionId} as revisionId`, // tslint:disable-line
+                    `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.revisionTime} as revisionTime`, // tslint:disable-line
+                    `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.revisionData} as revisionData`, // tslint:disable-line
+                    `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.nodeName} as nodeName`, // tslint:disable-line
+                    `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.nodeSchemaVersion} as nodeSchemaVersion`, // tslint:disable-line
+                    `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.nodeId} as nodeId`, // tslint:disable-line
+                    `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.resolverName} as resolverName`, // tslint:disable-line
+                    `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.userId} as userId`, // tslint:disable-line
 
-                    `${nodeToSqlNameMappings.tableNames.revisionNodeSnapshot}.${nodeToSqlNameMappings.columnNames.snapshotData} as snapshot`, // tslint:disable-line
-                    `${nodeToSqlNameMappings.tableNames.revisionNodeSnapshot}.${nodeToSqlNameMappings.columnNames.revisionTime} as snapshot_created_at` // tslint:disable-line
+                    `${nodeToSqlNameMappings.tableNames.revisionNodeSnapshot}.${nodeToSqlNameMappings.columnNames.snapshotData} as snapshotData`, // tslint:disable-line
+                    `${nodeToSqlNameMappings.tableNames.revisionNodeSnapshot}.${nodeToSqlNameMappings.columnNames.snapshotTime} as snapshotTime` // tslint:disable-line
                 );
 
             nodeConnection.createQuery(queryBuilder).as('main');
         })
         .leftJoin(
             nodeToSqlNameMappings.tableNames.revisionUserRole,
-            `${nodeToSqlNameMappings.tableNames.revisionUserRole}.${nodeToSqlNameMappings.tableNames.revision}_id`,
-            `main.revision_id`
+            `${nodeToSqlNameMappings.tableNames.revisionUserRole}.${nodeToSqlNameMappings.tableNames.revision}_${nodeToSqlNameMappings.columnNames.revisionId}`, // tslint:disable-line
+            `main.revisionId`
         )
         .leftJoin(
             nodeToSqlNameMappings.tableNames.revisionRole,
-            `${nodeToSqlNameMappings.tableNames.revisionUserRole}.${nodeToSqlNameMappings.tableNames.revisionRole}_id`,
-            `${nodeToSqlNameMappings.tableNames.revisionRole}.id`
+            `${nodeToSqlNameMappings.tableNames.revisionUserRole}.${nodeToSqlNameMappings.tableNames.revisionRole}_${nodeToSqlNameMappings.columnNames.roleId}`, // tslint:disable-line
+            `${nodeToSqlNameMappings.tableNames.revisionRole}.${nodeToSqlNameMappings.columnNames.roleId}`
+        )
+        .select(
+            // `main.${nodeToSqlNameMappings.columnNames.id}`,
+            // ...Object.values(selectableAttributes)
+            'revisionId', // tslint:disable-line
+            'revisionTime', // tslint:disable-line
+            'revisionData', // tslint:disable-line
+            'nodeName', // tslint:disable-line
+            'nodeSchemaVersion', // tslint:disable-line
+            'nodeId', // tslint:disable-line
+            'resolverName', // tslint:disable-line
+            'userId', // tslint:disable-line
+            'snapshotData', // tslint:disable-line
+            'snapshotTime', // tslint:disable-line
+            `${nodeToSqlNameMappings.tableNames.revisionRole}.${nodeToSqlNameMappings.columnNames.roleName} as roleName` // tslint:disable-line
         );
-    // .select([
-    //     `main.${nodeToSqlNameMappings.columnNames.id}`,
-    //     ...Object.values(selectableAttributes)
-    // ]);
 
-    const result = await query;
-    console.log('RAW RESULT', result);
-    const nodeResult = result.map(r => sqlToNode(nodeToSqlNameMappings, r)) as ReturnType<
-        ResolverT
-    >;
+    const nodeResult = await query;
+    // console.log('RAW RESULT', result);
+    // const nodeResult = result.map(r => sqlToNode(nodeToSqlNameMappings, r)) as ReturnType<
+    //     ResolverT
+    // >;
     console.log('NODE RESULT', nodeResult);
     const uniqueVersions = aggregateVersionsById(nodeResult);
     console.log('UNIQUE VERSIONS', uniqueVersions);
@@ -271,14 +282,16 @@ const getRevisionsOfInterest = async <ResolverT extends (...args: any[]) => any>
  * each duplicate of a revision.
  */
 const aggregateVersionsById = (
-    nodeVersions: Array<{id: string; roleName: string; revisionData: object}>
+    nodeVersions: Array<{revisionId: string; roleName: string; revisionData: object}>
 ) => {
     // extract all the user roles for the version
     const rolesByRevisionId = nodeVersions.reduce(
-        (rolesObj, {id, roleName}) => {
-            const roleNames = rolesObj[id] || [];
+        (rolesObj, {revisionId, roleName}) => {
+            const roleNames = rolesObj[revisionId] || [];
 
-            rolesObj[id] = roleNames.includes(roleName) ? roleNames : [...roleNames, roleName];
+            rolesObj[revisionId] = roleNames.includes(roleName)
+                ? roleNames
+                : [...roleNames, roleName];
             return rolesObj;
         },
         {} as {[revisionId: string]: string[]}
@@ -290,12 +303,12 @@ const aggregateVersionsById = (
     // - add user roles
     const versions = nodeVersions.reduce(
         (uniqueVersions, version) => {
-            if (uniqueVersions[version.id]) {
+            if (uniqueVersions[version.revisionId]) {
                 return uniqueVersions;
             }
-            uniqueVersions[version.id] = {
+            uniqueVersions[version.revisionId] = {
                 ...version,
-                userRoles: rolesByRevisionId[version.id],
+                userRoles: rolesByRevisionId[version.revisionId],
                 revisionData:
                     typeof version.revisionData === 'string'
                         ? version.revisionData
@@ -303,9 +316,11 @@ const aggregateVersionsById = (
             };
             return uniqueVersions;
         },
-        {} as {[revisionId: string]: {id: string; userRoles: string[]; revisionData: string}}
+        {} as {
+            [revisionId: string]: {revisionId: string; userRoles: string[]; revisionData: string};
+        }
     );
 
     // make sure versions are returned in the same order as they came in
-    return [...new Set(nodeVersions.map(({id}) => id))].map(id => versions[id]);
+    return [...new Set(nodeVersions.map(({revisionId}) => revisionId))].map(id => versions[id]);
 };
