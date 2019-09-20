@@ -8,7 +8,7 @@ import {
     // Unpacked
 } from '../types';
 // import {ConnectionManager, IInputArgs} from 'snpkg-snapi-connections';
-import {ConnectionManager, IInputArgs} from 'snpkg-snapi-connections';
+import {ConnectionManager, IInputArgs} from '@social-native/snpkg-snapi-connections';
 
 import {setNames} from 'sqlNames';
 // import sqlToNode from 'transformers/sqlToNode';

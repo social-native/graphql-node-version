@@ -1,5 +1,7 @@
 import Koa from 'koa';
 import {ApolloServer, gql, IResolvers} from 'apollo-server-koa';
+// import {getSqlDialectTranslator} from '@social-native/snpkg-snapi-ndm';
+
 import knex from 'knex';
 import {
     ConnectionManager,
@@ -7,7 +9,7 @@ import {
     typeDefs as connectionTypeDefs,
     resolvers as connectionResolvers,
     IQueryResult
-} from 'snpkg-snapi-connections';
+} from '@social-native/snpkg-snapi-connections';
 
 import {development as developmentConfig} from '../knexfile.mysql';
 import {Resolver} from './types';
@@ -19,6 +21,16 @@ import {
     IRevisionConnection
 } from '../src/index';
 const knexClient = knex(developmentConfig);
+
+// const getTxInsertId = async (k: knex, tx: knex.Transaction) => {
+//     const sqlTranslator = getSqlDialectTranslator(k);
+
+//     const {id} = await tx
+//         .select(tx.raw(`${sqlTranslator.lastInsertedId} as id`))
+//         .forUpdate()
+//         .first<{id: number | undefined}>();
+//     return id;
+// };
 
 // Construct a schema, using GraphQL schema language
 const typeDefs = gql`
@@ -176,9 +188,12 @@ const mutation: {userCreate: MutationUserCreateResolver; userUpdate: MutationUse
                 .where({id});
             const user = await tx
                 .table('mock')
-                .orderBy('id', 'desc')
+                .where({id})
                 .first();
+            // .orderBy('id', 'desc')
+            // .first();
             await tx.commit();
+            console.log('I AM YOUR USER', user);
             return user as IUserNode;
         } catch (e) {
             await tx.rollback();
