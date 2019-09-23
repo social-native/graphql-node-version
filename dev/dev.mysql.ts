@@ -193,7 +193,7 @@ const mutation: {userCreate: MutationUserCreateResolver; userUpdate: MutationUse
             // .orderBy('id', 'desc')
             // .first();
             await tx.commit();
-            console.log('I AM YOUR USER', user);
+            // console.log('I AM YOUR USER', user);
             return user as IUserNode;
         } catch (e) {
             await tx.rollback();
@@ -306,7 +306,9 @@ const nodeBuilder = (previousModel: object, revisionInfo: Partial<IRevisionInfo>
 decorate(query, {
     user: versionConnection<QueryUserResolver>({
         knex: () => knexClient,
-        nodeBuilder
+        nodeBuilder,
+        nodeId: (_parent, {id}) => id,
+        nodeName: () => 'user'
     })
 });
 

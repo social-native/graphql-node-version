@@ -110,6 +110,26 @@ export interface IRevisionInfo {
     resolverName?: string;
 }
 
+export interface IRevisionQueryResult {
+    revisionId: string;
+    revisionTime: string;
+    revisionData: string;
+
+    nodeName: string;
+    nodeSchemaVersion: string;
+    userId: string;
+    nodeId: string;
+    resolverName: string;
+
+    snapshotTime?: string;
+    snapshotData?: string;
+
+    // roleId?: string;
+    // roleName?: string;
+
+    userRoles?: string[];
+}
+
 export interface ITransformInput {
     columnNames: NonNullable<INamesForTablesAndColumns['columnNames']> & {[column: string]: any};
     columnData: NonNullable<IRevisionInfo> & {[column: string]: any};
