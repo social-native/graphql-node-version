@@ -10,16 +10,7 @@ export type BaseResolver<Node = any, P = undefined, A = undefined, C = {}, I = {
 export interface IRevisionConnection<Node> {
     edges: Array<{
         cursor: string;
-        version: {
-            id?: string;
-            userId?: string;
-            userRoles?: string[];
-            revisionData?: string;
-            createdOn?: string;
-            nodeSchemaVersion?: number;
-            nodeName?: string;
-            nodeId?: string | number;
-        };
+        version: IRevisionInfo;
         node: Node;
     }>;
     pageInfo: {
@@ -98,16 +89,41 @@ export type InfoArgs<T> = T extends (
     ? A
     : undefined;
 
-export interface IRevisionInfo {
+// export interface IVersionInfo {
+//     userId: string;
+//     userRoles: string[];
+//     revisionId: number;
+//     revisionData?: string;
+//     revisionTime: string;
+//     nodeSchemaVersion: number;
+//     resolverName: string;
+//     nodeName: string;
+//     nodeId: string | number;
+// }
+
+export interface IRevisionInput {
     // id: string;
     userId: string;
     userRoles?: string[];
     revisionData: string;
-    revisionTime?: string;
+    revisionTime: string;
     nodeSchemaVersion: number;
+    resolverName: string;
     nodeName: string;
-    nodeId?: string | number;
-    resolverName?: string;
+    nodeId: string | number;
+}
+
+export interface IRevisionInfo {
+    // id: string;
+    userId: string;
+    userRoles?: string[];
+    revisionId: number;
+    revisionData: string;
+    revisionTime: string;
+    nodeSchemaVersion: number;
+    resolverName: string;
+    nodeName: string;
+    nodeId: string;
 }
 
 export interface INodeBuilderRevisionInfo {
@@ -134,9 +150,6 @@ export interface IRevisionQueryResult {
 
     snapshotTime?: string;
     snapshotData?: string;
-
-    // roleId?: string;
-    // roleName?: string;
 
     userRoles?: string[];
 }

@@ -6,12 +6,13 @@ import {
     ResolverArgs,
     IRevisionQueryResult,
     INodeBuilderRevisionInfo
+    // IRevisionInfo
     // Unpacked
 } from '../types';
 // import {ConnectionManager, IInputArgs} from 'snpkg-snapi-connections';
 import {
     ConnectionManager,
-    IInputArgs,
+    // IInputArgs,
     IQueryResult
     // QueryResult
 } from '@social-native/snpkg-snapi-connections';
@@ -52,16 +53,19 @@ export default <ResolverT extends (...args: [any, any, any, any]) => any>(
                 extractors.knex && extractors.knex(...(args as Parameters<ResolverT>));
 
             const [parent, ar, ctx, info] = args;
-            const node = (await value(parent, ar, ctx, info)) as UnPromisify<ReturnType<ResolverT>>;
+            const latestNode = (await value(parent, ar, ctx, info)) as UnPromisify<
+                ReturnType<ResolverT>
+            >;
 
             // Step 1. Get all versions for the connection
             // console.log('ARRRRR', ar);
-            if (
-                ((ar as IInputArgs).first && ar.first <= 1) ||
-                (ar.first === undefined && ar.last === undefined)
-            ) {
-                return node;
-            }
+            // if (
+            //     ((ar as IInputArgs).first && ar.first <= 1) ||
+            //     (ar.first === undefined && ar.last === undefined)
+            // ) {
+            //     console.log('RETURNING PLAIN NODE', '')
+            //     return node;
+            // }
 
             const revisionsOfInterest = await getRevisionsOfInterest(
                 args as any,
@@ -122,8 +126,11 @@ export default <ResolverT extends (...args: [any, any, any, any]) => any>(
                     }
                     return nodes;
                 },
-                {} as {[revisionId: string]: typeof node}
+                {} as {[revisionId: string]: UnPromisify<ReturnType<ResolverT>>}
             );
+
+            const latestCalculatedNode = nodesInRange[nodesInRange.length - 1];
+            console.log('Comparing nodes', latestCalculatedNode, latestNode);
 
             console.log('NODES IN RANGE', nodesInRange);
 
@@ -131,7 +138,7 @@ export default <ResolverT extends (...args: [any, any, any, any]) => any>(
                 const {
                     revisionData,
                     userId,
-                    nodeName,
+                    nodeName: nn,
                     nodeSchemaVersion,
                     resolverName,
                     revisionTime,
@@ -140,7 +147,7 @@ export default <ResolverT extends (...args: [any, any, any, any]) => any>(
                 const version = {
                     revisionData,
                     userId,
-                    nodeName,
+                    nodeName: nn,
                     nodeSchemaVersion,
                     resolverName,
                     revisionTime,
@@ -150,31 +157,6 @@ export default <ResolverT extends (...args: [any, any, any, any]) => any>(
                 return {...edge, node: calculatedNode, version};
             });
             return {pageInfo: revisionsOfInterest.pageInfo, edges: newEdges};
-
-            // const versionEdgesObjByVersionId = versionEdges.reduce(
-            //     (obj, edge) => {
-            //         obj[edge.version.id] = edge;
-            //         return obj;
-            //     },
-            //     {} as {[nodeId: string]: Unpacked<typeof versionEdges>}
-            // );
-
-            // const connectionOfInterest = await getRevisionsOfInterest(
-            //     ar,
-            //     localKnexClient,
-            //     nodeToSqlNameMappings,
-            //     extractors
-            // );
-
-            // const edgesOfInterest = connectionOfInterest.edges.map(edge => {
-            //     return {
-            //         ...edge,
-            //         node: versionEdgesObjByVersionId[edge.node.id].node,
-            //         version: edge.node
-            //     };
-            // });
-
-            // return {...connectionOfInterest, edges: edgesOfInterest};
         }) as ResolverT;
 
         return descriptor;

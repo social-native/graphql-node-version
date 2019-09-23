@@ -1,6 +1,12 @@
 import * as Knex from 'knex';
 
-import {INamesConfig, UnPromisify, IRevisionInfo, INamesForTablesAndColumns} from '../types';
+import {
+    INamesConfig,
+    UnPromisify,
+    // IRevisionInfo,
+    INamesForTablesAndColumns,
+    IRevisionInput
+} from '../types';
 import {setNames} from '../sqlNames';
 import nodeToSql from 'transformers/nodeToSql';
 
@@ -27,7 +33,7 @@ const createRevisionTransaction = (
     config?: ICreateRevisionTransactionConfig & INamesConfig
 ) => async (
     knex: Knex,
-    input: IRevisionInfo
+    input: IRevisionInput
 ): Promise<{transaction: Knex.Transaction; revisionId: number}> => {
     const nodeToSqlNameMappings = setNames(config || {});
 
@@ -125,6 +131,10 @@ export default <ResolverT extends (...args: any[]) => any>(
             const resolverName = extractors.resolverName
                 ? extractors.resolverName(...(args as Parameters<ResolverT>))
                 : property;
+
+            if (nodeId === undefined) {
+                throw new Error('Could not extract node id for version recording');
+            }
 
             const revisionInput = {
                 userId,
