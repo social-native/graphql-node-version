@@ -25,8 +25,8 @@ export interface IVersionConnectionExtractors<Resolver extends (...args: any[]) 
         previousModel: UnPromisify<ReturnType<Resolver>>,
         versionInfo: Partial<IRevisionInfo>
     ) => UnPromisify<ReturnType<Resolver>>;
-    nodeId?: (...args: ResolverArgs<Resolver>) => string;
-    nodeName?: (...args: ResolverArgs<Resolver>) => string;
+    nodeId: (...args: ResolverArgs<Resolver>) => string;
+    nodeName: (...args: ResolverArgs<Resolver>) => string;
 }
 
 /**
@@ -62,10 +62,9 @@ export default <ResolverT extends (...args: [any, any, any, any]) => any>(
             ) {
                 return node;
             }
-            // console.log('HEREEE', 'NOT SKIPPING');
 
             const revisionsOfInterest = await getRevisionsOfInterest(
-                ar as any,
+                args as any,
                 localKnexClient,
                 nodeToSqlNameMappings,
                 extractors
@@ -363,37 +362,27 @@ const getPrecursorRevisions = async (
 // };
 
 const getRevisionsOfInterest = async <ResolverT extends (...args: any[]) => any>(
-    inputArgs: ResolverArgs<ResolverT>,
+    resolverArgs: ResolverArgs<ResolverT>,
     knex: Knex,
     nodeToSqlNameMappings: INamesForTablesAndColumns,
     extractors: IVersionConnectionExtractors<ResolverT>
 ): Promise<IQueryResult<IRevisionQueryResult>> => {
-    // const {
-    //     id: idName,
-    //     nodeId: nodeIdName,
-    //     revisionData: revisionDataName,
-    //     snapshot: snapshotName,
-    //     revisionTime: revisionTimeName
-    // } = nodeToSqlNameMappings.columnNames;
     const attributeMap = {
         ...nodeToSqlNameMappings.columnNames,
         id: `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.revisionId}`,
         revisionTime: `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.revisionTime}`
-
-        // nodeId: `${nodeToSqlNameMappings.tableNames.revision}.${nodeIdName}`,
-        // revisionData: revisionDataName,
-        // snapshot: snapshotName,
-        // revisionTime: `${nodeToSqlNameMappings.tableNames.revision}.${revisionTimeName}`
     };
-    // const attributeMap = nodeToSqlNameMappings.columnNames;
 
     // force orderDir to be 'desc' b/c last is most recent in versions
     // const newInputArgs = {...inputArgs, orderDir: 'desc'};
-    const nodeConnection = new ConnectionManager<typeof attributeMap>(inputArgs, attributeMap);
+    const nodeConnection = new ConnectionManager<typeof attributeMap>(
+        resolverArgs[1],
+        attributeMap
+    );
 
-    const nodeId = extractors.nodeId ? extractors.nodeId(...inputArgs) : inputArgs.id;
+    const nodeId = extractors.nodeId(...resolverArgs);
+    const nodeName = extractors.nodeName(...resolverArgs);
 
-    // const {id, snapshot, revisionTime, ...selectableAttributes} = attributeMap;
     const query = knex
         .queryBuilder()
         .from(function() {
@@ -405,7 +394,8 @@ const getRevisionsOfInterest = async <ResolverT extends (...args: any[]) => any>
                     `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.revisionId}`
                 )
                 .where({
-                    [`${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.nodeId}`]: nodeId
+                    [`${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.nodeId}`]: nodeId, // tslint:disable-line
+                    [`${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.nodeName}`]: nodeName // tslint:disable-line
                 })
                 .select(
                     `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.revisionId} as revisionId`, // tslint:disable-line
@@ -438,8 +428,6 @@ const getRevisionsOfInterest = async <ResolverT extends (...args: any[]) => any>
             `${nodeToSqlNameMappings.tableNames.revisionRole}.${nodeToSqlNameMappings.columnNames.roleId}`
         )
         .select(
-            // `main.${nodeToSqlNameMappings.columnNames.id}`,
-            // ...Object.values(selectableAttributes)
             'revisionId', // tslint:disable-line
             'revisionTime', // tslint:disable-line
             'revisionData', // tslint:disable-line
@@ -454,13 +442,7 @@ const getRevisionsOfInterest = async <ResolverT extends (...args: any[]) => any>
         );
 
     const nodeResult = await query;
-    // console.log('RAW RESULT', result);
-    // const nodeResult = result.map(r => sqlToNode(nodeToSqlNameMappings, r)) as ReturnType<
-    //     ResolverT
-    // >;
-    // console.log('NODE RESULT', nodeResult);
     const uniqueVersions = aggregateVersionsById(nodeResult);
-    // console.log('UNIQUE VERSIONS', uniqueVersions);
 
     nodeConnection.addResult(uniqueVersions);
     const {pageInfo, edges} = nodeConnection;
