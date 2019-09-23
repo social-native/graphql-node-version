@@ -17,8 +17,8 @@ import {
     decorate,
     versionRecorderDecorator as versionRecorder,
     versionConnectionDecorator as versionConnection,
-    IRevisionInfo,
-    IRevisionConnection
+    IRevisionConnection,
+    INodeBuilderRevisionInfo
 } from '../src/index';
 const knexClient = knex(developmentConfig);
 
@@ -296,7 +296,7 @@ decorate(mutation, {
     })
 });
 
-const nodeBuilder = (previousModel: object, revisionInfo: Partial<IRevisionInfo>) => {
+const nodeBuilder = (previousModel: object, revisionInfo: INodeBuilderRevisionInfo) => {
     const {revisionData} = revisionInfo;
     // TODO figure out why this is an object
     const data = revisionData as any;

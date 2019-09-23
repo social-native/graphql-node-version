@@ -1,11 +1,11 @@
 import * as Knex from 'knex';
 import {
     UnPromisify,
-    IRevisionInfo,
     INamesConfig,
     INamesForTablesAndColumns,
     ResolverArgs,
-    IRevisionQueryResult
+    IRevisionQueryResult,
+    INodeBuilderRevisionInfo
     // Unpacked
 } from '../types';
 // import {ConnectionManager, IInputArgs} from 'snpkg-snapi-connections';
@@ -23,7 +23,7 @@ export interface IVersionConnectionExtractors<Resolver extends (...args: any[]) 
     knex: (...args: Parameters<Resolver>) => Knex;
     nodeBuilder: (
         previousModel: UnPromisify<ReturnType<Resolver>>,
-        versionInfo: Partial<IRevisionInfo>
+        versionInfo: INodeBuilderRevisionInfo
     ) => UnPromisify<ReturnType<Resolver>>;
     nodeId: (...args: ResolverArgs<Resolver>) => string;
     nodeName: (...args: ResolverArgs<Resolver>) => string;
@@ -74,31 +74,6 @@ export default <ResolverT extends (...args: [any, any, any, any]) => any>(
             // the `revisionsOfInterest` array.
             console.log('REVISIONS OF INTEREST', revisionsOfInterest.edges);
 
-            // const nodesAndRevisionsOfInterest = revisionsOfInterest.edges.reduce(
-            //     (newEdges, currentEdge, index) => {
-            //         const previousNode = ((currentEdge.node &&
-            //             currentEdge.node.snapshotData &&
-            //             JSON.parse(currentEdge.node.snapshotData)) ||
-            //             (index > 0 && newEdges[index].node)) as UnPromisify<ReturnType<ResolverT>>;
-            //         // const previousNode = ((node.snapshotData && JSON.parse(node.snapshotData)) ||
-            //         //     newEdges[index].node) as UnPromisify<ReturnType<ResolverT>>;
-            //         // if (!previousEdge.cursor === undefined) {
-            //         // console.log('INSIDE', previousNode, currentEdge);
-            //         const newNode = extractors.nodeBuilder(previousNode, node);
-            //         const newEdge = {cursor: currentEdge.cursor, node: newNode, version: node};
-            //         newEdges.push(newEdge);
-            //         return newEdges;
-            //         // } else {
-            //         // }
-            //         // return {cursor, node};
-            //     },
-            //     [] as Array<{
-            //         cursor: string;
-            //         node: UnPromisify<ReturnType<ResolverT>>;
-            //         version: Partial<IRevisionQueryResult>;
-            //     }>
-            // );
-
             // console.log('WAHHTT', nodesAndRevisionsOfInterest);
             const a = await getFirstRevisionNumberWithSnapshot(
                 revisionsOfInterest,
@@ -124,25 +99,33 @@ export default <ResolverT extends (...args: [any, any, any, any]) => any>(
 
             const nodesInRange = revisionsInRange.reduce(
                 (nodes, revision, index) => {
+                    console.log('-----------------------------');
                     const {revisionId, snapshotData, revisionData} = revision;
                     if (index === 0 || snapshotData) {
+                        console.log('Using snapshot for', revisionId);
                         nodes[revisionId] =
                             typeof snapshotData === 'string'
                                 ? JSON.parse(snapshotData)
                                 : snapshotData;
                     } else {
+                        console.log('Calculating node for', revisionId);
+
                         const previousRevision = revisionsInRange[index - 1];
-                        nodes[revisionId] = extractors.nodeBuilder(
+                        const calculatedNode = extractors.nodeBuilder(
                             nodes[previousRevision.revisionId],
-                            revisionData
+                            revision
                         );
+                        console.log('Calculated node', calculatedNode);
+                        console.log('Calculated diff', revisionData);
+
+                        nodes[revisionId] = calculatedNode;
                     }
                     return nodes;
                 },
                 {} as {[revisionId: string]: typeof node}
             );
 
-            console.log('NOD');
+            console.log('NODES IN RANGE', nodesInRange);
 
             const newEdges = revisionsOfInterest.edges.map(edge => {
                 const {
@@ -253,7 +236,7 @@ const getRevisionsInRange = async (
     knex: Knex,
     nodeToSqlNameMappings: INamesForTablesAndColumns
 ) => {
-    const query = knex
+    const query = (await knex
         .queryBuilder()
         .table(nodeToSqlNameMappings.tableNames.revision)
         .leftJoin(
@@ -276,17 +259,22 @@ const getRevisionsInRange = async (
             `${minRevisionNumber} `
         )
         .select(
-            `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.revisionId} as revisionId`, // tslint:disable-line
             `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.revisionData} as revisionData`, // tslint:disable-line
+            `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.revisionTime} as revisionTime`, // tslint:disable-line
             `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.nodeSchemaVersion} as nodeSchemaVersion`, // tslint:disable-line
+            `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.nodeName} as nodeName`, // tslint:disable-line
+            `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.nodeId} as nodeId`, // tslint:disable-line
+            `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.resolverName} as resolverName`, // tslint:disable-line
+
+            `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.revisionId} as revisionId`, // tslint:disable-line
             `${nodeToSqlNameMappings.tableNames.revisionNodeSnapshot}.${nodeToSqlNameMappings.columnNames.snapshotData} as snapshotData` // tslint:disable-line
         )
         .orderBy(
             `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.revisionId}`,
-            'desc'
-        );
+            'asc'
+        )) as INodeBuilderRevisionInfo[];
 
-    return await query;
+    return query;
 };
 
 const getRevisionsOfInterest = async <ResolverT extends (...args: any[]) => any>(

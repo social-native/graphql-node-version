@@ -110,6 +110,17 @@ export interface IRevisionInfo {
     resolverName?: string;
 }
 
+export interface INodeBuilderRevisionInfo {
+    revisionData: string;
+    revisionTime: string;
+    revisionId: string;
+    snapshotData?: string;
+    nodeSchemaVersion: number;
+    nodeName: string;
+    nodeId: string | number;
+    resolverName?: string;
+}
+
 export interface IRevisionQueryResult {
     revisionId: string;
     revisionTime: string;
