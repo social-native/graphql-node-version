@@ -112,7 +112,7 @@ export default <ResolverT extends (...args: [any, any, any, any]) => any>(
             const maxRevisionNumber = revisionsOfInterest.edges[0].node.revisionId;
             const minRevisionNumber = a;
             const {nodeId, nodeName} = revisionsOfInterest.edges[0].node;
-            const b = await getRevisionsInRange(
+            const revisionsInRange = await getRevisionsInRange(
                 maxRevisionNumber,
                 minRevisionNumber,
                 nodeId,
@@ -120,28 +120,53 @@ export default <ResolverT extends (...args: [any, any, any, any]) => any>(
                 localKnexClient,
                 nodeToSqlNameMappings
             );
-            console.log('INNNNN RANGE', b);
-            return revisionsOfInterest;
+            console.log('INNNNN RANGE', revisionsInRange);
 
-            // const versionEdges = revisionsInRange.reduce(
-            //     (edges, version, index) => {
-            //         let edge;
-            //         if (index === 0) {
-            //             edge = {
-            //                 version,
-            //                 node: extractors.nodeBuilder(node, version)
-            //             };
-            //         } else {
-            //             const previousNode = edges[index - 1].node;
-            //             edge = {
-            //                 version,
-            //                 node: extractors.nodeBuilder(previousNode, version)
-            //             };
-            //         }
-            //         return [...edges, edge];
-            //     },
-            //     [] as Array<{node: typeof node; version: Unpacked<typeof revisionsInRange>}>
-            // );
+            const nodesInRange = revisionsInRange.reduce(
+                (nodes, revision, index) => {
+                    const {revisionId, snapshotData, revisionData} = revision;
+                    if (index === 0 || snapshotData) {
+                        nodes[revisionId] =
+                            typeof snapshotData === 'string'
+                                ? JSON.parse(snapshotData)
+                                : snapshotData;
+                    } else {
+                        const previousRevision = revisionsInRange[index - 1];
+                        nodes[revisionId] = extractors.nodeBuilder(
+                            nodes[previousRevision.revisionId],
+                            revisionData
+                        );
+                    }
+                    return nodes;
+                },
+                {} as {[revisionId: string]: typeof node}
+            );
+
+            console.log('NOD');
+
+            const newEdges = revisionsOfInterest.edges.map(edge => {
+                const {
+                    revisionData,
+                    userId,
+                    nodeName,
+                    nodeSchemaVersion,
+                    resolverName,
+                    revisionTime,
+                    userRoles
+                } = edge.node;
+                const version = {
+                    revisionData,
+                    userId,
+                    nodeName,
+                    nodeSchemaVersion,
+                    resolverName,
+                    revisionTime,
+                    userRoles
+                };
+                const calculatedNode = nodesInRange[edge.node.revisionId];
+                return {...edge, node: calculatedNode, version};
+            });
+            return {pageInfo: revisionsOfInterest.pageInfo, edges: newEdges};
 
             // const versionEdgesObjByVersionId = versionEdges.reduce(
             //     (obj, edge) => {
