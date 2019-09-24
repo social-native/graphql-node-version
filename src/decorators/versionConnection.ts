@@ -78,6 +78,9 @@ export default <ResolverT extends (...args: [any, any, any, any]) => any>(
             // the `revisionsOfInterest` array.
             console.log('REVISIONS OF INTEREST', revisionsOfInterest.edges);
 
+            if (revisionsOfInterest.edges.length === 0) {
+                return revisionsOfInterest;
+            }
             // console.log('WAHHTT', nodesAndRevisionsOfInterest);
             const a = await getFirstRevisionNumberWithSnapshot(
                 revisionsOfInterest,
@@ -142,6 +145,7 @@ export default <ResolverT extends (...args: [any, any, any, any]) => any>(
                     nodeSchemaVersion,
                     resolverName,
                     revisionTime,
+                    revisionId,
                     userRoles
                 } = edge.node;
                 const version = {
@@ -151,6 +155,7 @@ export default <ResolverT extends (...args: [any, any, any, any]) => any>(
                     nodeSchemaVersion,
                     resolverName,
                     revisionTime,
+                    revisionId,
                     userRoles
                 };
                 const calculatedNode = nodesInRange[edge.node.revisionId];

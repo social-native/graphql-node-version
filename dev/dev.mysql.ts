@@ -62,6 +62,7 @@ const typeDefs = gql`
     type Version {
         userId: ID!
         userRoles: [String]!
+        revisionId: ID!
         revisionData: String!
         revisionTime: String!
         nodeSchemaVersion: Int!
