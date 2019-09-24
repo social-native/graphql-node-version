@@ -1,6 +1,7 @@
 import Koa from 'koa';
 import {ApolloServer, gql, IResolvers} from 'apollo-server-koa';
 // import {getSqlDialectTranslator} from '@social-native/snpkg-snapi-ndm';
+import unixTimeSec from '@social-native/snpkg-graphql-scalar-unix-time-sec';
 
 import knex from 'knex';
 import {
@@ -64,7 +65,7 @@ const typeDefs = gql`
         userRoles: [String]!
         revisionId: ID!
         revisionData: String!
-        revisionTime: String!
+        revisionTime: ${unixTimeSec.type.name}!
         nodeSchemaVersion: Int!
         nodeName: String!
         resolverName: String!
@@ -117,6 +118,8 @@ const typeDefs = gql`
             haircolor: String
         ): User
     }
+
+    ${unixTimeSec.typedef}
 `;
 
 interface IUserNode {
@@ -318,7 +321,8 @@ decorate(query, {
 const resolvers = {
     Mutation: mutation,
     Query: query,
-    ...connectionResolvers
+    ...connectionResolvers,
+    ...unixTimeSec.resolver
 } as IResolvers;
 
 const allTypeDefs = gql`

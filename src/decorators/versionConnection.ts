@@ -1,11 +1,14 @@
 import * as Knex from 'knex';
+import {DateTime} from 'luxon';
+
 import {
     UnPromisify,
     INamesConfig,
     INamesForTablesAndColumns,
     ResolverArgs,
     IRevisionQueryResult,
-    INodeBuilderRevisionInfo
+    INodeBuilderRevisionInfo,
+    IRevisionQueryResultWithTimeSecs
     // IRevisionInfo
     // Unpacked
 } from '../types';
@@ -13,12 +16,14 @@ import {
 import {
     ConnectionManager,
     // IInputArgs,
-    IQueryResult
+    IQueryResult,
+    IFilter
     // QueryResult
 } from '@social-native/snpkg-snapi-connections';
 
 import {setNames} from 'sqlNames';
 // import sqlToNode from 'transformers/sqlToNode';
+import {unixSecondsToSqlTimestamp} from '@social-native/snpkg-snapi-common';
 
 export interface IVersionConnectionExtractors<Resolver extends (...args: any[]) => any> {
     knex: (...args: Parameters<Resolver>) => Knex;
@@ -173,7 +178,7 @@ export default <ResolverT extends (...args: [any, any, any, any]) => any>(
  * This will be the initial snapshot that full nodes are calculated off of
  */
 const getFirstRevisionNumberWithSnapshot = async (
-    revisionsOfInterest: IQueryResult<IRevisionQueryResult>,
+    revisionsOfInterest: IQueryResult<IRevisionQueryResultWithTimeSecs>,
     knex: Knex,
     nodeToSqlNameMappings: INamesForTablesAndColumns
 ) => {
@@ -264,12 +269,35 @@ const getRevisionsInRange = async (
     return query;
 };
 
+const castUnixToDateTime = (filter: IFilter) => {
+    console.log('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+    if (filter.field === 'revisionTime') {
+        const date = parseInt(filter.value, 10);
+        const value = unixSecondsToSqlTimestamp(date);
+        console.log(`Changing revision time from ${filter.value}, to: ${value}`);
+        return {
+            ...filter,
+            value
+        };
+    }
+    return filter;
+};
+
+const castDateTimeToUnixSecs = (node: any) => {
+    const {revisionTime} = node as IRevisionQueryResult;
+
+    return {
+        ...node,
+        revisionTime: castDateToUTCSeconds(revisionTime)
+    };
+};
+
 const getRevisionsOfInterest = async <ResolverT extends (...args: any[]) => any>(
     resolverArgs: ResolverArgs<ResolverT>,
     knex: Knex,
     nodeToSqlNameMappings: INamesForTablesAndColumns,
     extractors: IVersionConnectionExtractors<ResolverT>
-): Promise<IQueryResult<IRevisionQueryResult>> => {
+): Promise<IQueryResult<IRevisionQueryResultWithTimeSecs>> => {
     const attributeMap = {
         ...nodeToSqlNameMappings.columnNames,
         id: `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.revisionId}`,
@@ -280,9 +308,17 @@ const getRevisionsOfInterest = async <ResolverT extends (...args: any[]) => any>
 
     // force orderDir to be 'desc' b/c last is most recent in versions
     // const newInputArgs = {...inputArgs, orderDir: 'desc'};
-    const nodeConnection = new ConnectionManager<IRevisionQueryResult>(
+    const nodeConnection = new ConnectionManager<IRevisionQueryResultWithTimeSecs>(
         resolverArgs[1],
-        attributeMap
+        attributeMap,
+        {
+            builderOptions: {
+                filterTransformer: castUnixToDateTime
+            },
+            resultOptions: {
+                nodeTransformer: castDateTimeToUnixSecs
+            }
+        }
     );
 
     const nodeId = extractors.nodeId(...resolverArgs);
@@ -411,4 +447,12 @@ const aggregateVersionsById = (
 
     // make sure versions are returned in the same order as they came in
     return [...new Set(nodeVersions.map(({revisionId}) => revisionId))].map(id => versions[id]);
+};
+
+const castDateToUTCSeconds = (date?: Date | string): number | null => {
+    return isDate(date) ? DateTime.fromJSDate(date).toSeconds() : null;
+};
+
+const isDate = (date?: Date | string): date is Date => {
+    return date instanceof Date;
 };

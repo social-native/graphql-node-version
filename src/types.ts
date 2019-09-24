@@ -154,6 +154,23 @@ export interface IRevisionQueryResult {
     userRoles?: string[];
 }
 
+export interface IRevisionQueryResultWithTimeSecs {
+    revisionId: string;
+    revisionTime: number;
+    revisionData: string;
+
+    nodeName: string;
+    nodeSchemaVersion: string;
+    userId: string;
+    nodeId: string;
+    resolverName: string;
+
+    snapshotTime?: string;
+    snapshotData?: string;
+
+    userRoles?: string[];
+}
+
 export interface ITransformInput {
     columnNames: NonNullable<INamesForTablesAndColumns['columnNames']> & {[column: string]: any};
     columnData: NonNullable<IRevisionInfo> & {[column: string]: any};
