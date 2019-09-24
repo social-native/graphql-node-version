@@ -273,12 +273,13 @@ const getRevisionsOfInterest = async <ResolverT extends (...args: any[]) => any>
     const attributeMap = {
         ...nodeToSqlNameMappings.columnNames,
         id: `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.revisionId}`,
-        revisionTime: `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.revisionTime}`
+        revisionTime: `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.revisionTime}`,
+        userRoles: `${nodeToSqlNameMappings.tableNames.revisionRole}.${nodeToSqlNameMappings.columnNames.roleName}`
     };
 
     // force orderDir to be 'desc' b/c last is most recent in versions
     // const newInputArgs = {...inputArgs, orderDir: 'desc'};
-    const nodeConnection = new ConnectionManager<typeof attributeMap>(
+    const nodeConnection = new ConnectionManager<IRevisionQueryResult>(
         resolverArgs[1],
         attributeMap
     );
@@ -295,6 +296,16 @@ const getRevisionsOfInterest = async <ResolverT extends (...args: any[]) => any>
                     nodeToSqlNameMappings.tableNames.revisionNodeSnapshot,
                     `${nodeToSqlNameMappings.tableNames.revisionNodeSnapshot}.${nodeToSqlNameMappings.tableNames.revision}_${nodeToSqlNameMappings.columnNames.revisionId}`, // tslint:disable-line
                     `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.revisionId}`
+                )
+                .leftJoin(
+                    nodeToSqlNameMappings.tableNames.revisionUserRole,
+                    `${nodeToSqlNameMappings.tableNames.revisionUserRole}.${nodeToSqlNameMappings.tableNames.revision}_${nodeToSqlNameMappings.columnNames.revisionId}`, // tslint:disable-line
+                    `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.revisionId}`
+                )
+                .leftJoin(
+                    nodeToSqlNameMappings.tableNames.revisionRole,
+                    `${nodeToSqlNameMappings.tableNames.revisionUserRole}.${nodeToSqlNameMappings.tableNames.revisionRole}_${nodeToSqlNameMappings.columnNames.roleId}`, // tslint:disable-line
+                    `${nodeToSqlNameMappings.tableNames.revisionRole}.${nodeToSqlNameMappings.columnNames.roleId}`
                 )
                 .where({
                     [`${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.nodeId}`]: nodeId, // tslint:disable-line

@@ -273,7 +273,7 @@ decorate(mutation, {
     userUpdate: versionRecorder<MutationUserUpdateResolver>({
         knex: () => knexClient,
         userId: () => '1',
-        userRoles: () => ['operations', 'user', 'billing'],
+        userRoles: () => ['operations', 'user', 'tester'],
         nodeIdUpdate: (_, {id}) => id,
         nodeSchemaVersion: () => 1,
         revisionData: (_parent, args) => JSON.stringify(args),
