@@ -20,11 +20,17 @@ const common = {
         host: MYSQL_DB_HOST,
         database: MYSQL_DB_DATABASE,
         user: MYSQL_DB_USER,
-        password: MYSQL_DB_PASSWORD
+        password: MYSQL_DB_PASSWORD,
+        timezone: '+00:00'
     },
     pool: {
         min: 0,
-        max: MYSQL_DB_POOL_MAX ? parseInt(MYSQL_DB_POOL_MAX, 10) : 15
+        max: MYSQL_DB_POOL_MAX ? parseInt(MYSQL_DB_POOL_MAX, 10) : 15,
+        afterCreate: (connection: any, callback: any) => {
+            connection.query('SET time_zone = "+00:00"', (err: any) => {
+                callback(err, connection);
+            });
+        }
     },
     migrations: {directory: __dirname + '/db/mysql/migrations'},
     seeds: {directory: __dirname + '/db/seeds'}

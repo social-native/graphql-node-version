@@ -66,7 +66,7 @@ const typeDefs = gql`
         revisionId: ID!
         revisionData: String!
         revisionTime: ${unixTimeSec.type.name}!
-        nodeSchemaVersion: Int!
+        nodeSchemaVersion: ID!
         nodeName: String!
         resolverName: String!
     }

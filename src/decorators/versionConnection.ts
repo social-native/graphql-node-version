@@ -23,7 +23,7 @@ import {
 
 import {setNames} from 'sqlNames';
 // import sqlToNode from 'transformers/sqlToNode';
-import {unixSecondsToSqlTimestamp} from '@social-native/snpkg-snapi-common';
+// import {unixSecondsToSqlTimestamp} from '@social-native/snpkg-snapi-common';
 
 export interface IVersionConnectionExtractors<Resolver extends (...args: any[]) => any> {
     knex: (...args: Parameters<Resolver>) => Knex;
@@ -285,10 +285,11 @@ const castUnixToDateTime = (filter: IFilter) => {
 
 const castDateTimeToUnixSecs = (node: any) => {
     const {revisionTime} = node as IRevisionQueryResult;
-
+    const newRevisionTime = castDateToUTCSeconds(revisionTime);
+    console.log('~~~~~~~~~~~', `from: ${revisionTime}`, 'to :', newRevisionTime);
     return {
         ...node,
-        revisionTime: castDateToUTCSeconds(revisionTime)
+        revisionTime: newRevisionTime
     };
 };
 
@@ -367,6 +368,7 @@ const getRevisionsOfInterest = async <ResolverT extends (...args: any[]) => any>
                 );
 
             nodeConnection.createQuery(queryBuilder).as('main');
+            console.log('QUERY', queryBuilder.toSQL());
         })
         .leftJoin(
             nodeToSqlNameMappings.tableNames.revisionUserRole,
@@ -449,10 +451,16 @@ const aggregateVersionsById = (
     return [...new Set(nodeVersions.map(({revisionId}) => revisionId))].map(id => versions[id]);
 };
 
-const castDateToUTCSeconds = (date?: Date | string): number | null => {
-    return isDate(date) ? DateTime.fromJSDate(date).toSeconds() : null;
+const castDateToUTCSeconds = (date: string | Date): number | null => {
+    return isDate(date) ? DateTime.fromJSDate(date, {zone: 'local'}).toSeconds() : null;
 };
 
 const isDate = (date?: Date | string): date is Date => {
     return date instanceof Date;
+};
+
+const unixSecondsToSqlTimestamp = (unixSeconds: number) => {
+    return DateTime.fromSeconds(unixSeconds)
+        .toUTC()
+        .toSQL({includeOffset: true, includeZone: true});
 };
