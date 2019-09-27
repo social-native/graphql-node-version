@@ -98,6 +98,8 @@ const typeDefs = gql`
             filter: Filter
             search: Search
         ): QueryUserConnection
+        todoList(id: ID!): TodoList
+        todoItem(id: ID!): TodoItem
     }
     type Mutation {
         userCreate(
@@ -119,9 +121,32 @@ const typeDefs = gql`
         ): User
     }
 
+    type TodoList {
+        id: ID!
+        usage: String
+        items: [TodoItem]
+    }
+
+    type TodoItem {
+        id: ID!
+        order: Int
+        note: String
+    }
+
     ${unixTimeSec.typedef}
 `;
 
+interface ITodoItem {
+    id: number;
+    order: number;
+    note: string;
+}
+
+interface ITodoList {
+    id: number;
+    usage: string;
+    items: ITodoItem[];
+}
 interface IUserNode {
     id: number;
     username: string;
@@ -164,6 +189,8 @@ type MutationUserUpdateResolver = Resolver<
     IUserUpdateMutationInput & {transaction?: knex.Transaction<any, any>}
 >;
 
+type QueryTodoListResolver = Resolver<ITodoList, undefined, {id: string}>;
+type QueryTodoItemResolver = Resolver<ITodoItem, undefined, {id: string}>;
 type QueryUsersResolver = Resolver<IQueryResult<IUserNode | null>, undefined, IInputArgs>;
 type QueryUserResolver = Resolver<IUserNode, undefined, {id: string}>;
 
@@ -187,11 +214,11 @@ const mutation: {userCreate: MutationUserCreateResolver; userUpdate: MutationUse
         const tx = transaction || (await knexClient.transaction());
         try {
             await tx
-                .table('mock')
+                .table('user')
                 .update(input)
                 .where({id});
             const user = await tx
-                .table('mock')
+                .table('user')
                 .where({id})
                 .first();
             // .orderBy('id', 'desc')
@@ -206,16 +233,45 @@ const mutation: {userCreate: MutationUserCreateResolver; userUpdate: MutationUse
     }
 };
 
-const query: {user: QueryUserResolver; users: QueryUsersResolver} = {
+const query: {
+    todoList: QueryTodoListResolver;
+    todoItem: QueryTodoItemResolver;
+    user: QueryUserResolver;
+    users: QueryUsersResolver;
+} = {
+    async todoList(_, {id}) {
+        const result = (await knexClient
+            .from('todo_list')
+            .leftJoin('todo_item', 'todo_item.todo_list_id', 'todo_list.id')
+            .where({'todo_list.id': id})
+            .select('todo_list.id as id', 'usage', 'note', 'order')) as Array<{
+            id: number;
+            usage: string;
+            note: string;
+            order: number;
+        }>;
+        const {usage, id: listId} = result[0];
+        return {
+            id: listId,
+            usage,
+            items: result
+        };
+    },
+    async todoItem(_, {id}) {
+        return await knexClient
+            .from('todo_item')
+            .where({id})
+            .first();
+    },
     async user(_, {id}) {
-        const queryBuilder = knexClient.from('mock');
+        const queryBuilder = knexClient.from('user');
         return await queryBuilder
-            .table('mock')
+            .table('user')
             .where({id})
             .first();
     },
     async users(_, inputArgs) {
-        const queryBuilder = knexClient.from('mock');
+        const queryBuilder = knexClient.from('user');
         // maps node types to sql column names
         const attributeMap = {
             id: 'id',

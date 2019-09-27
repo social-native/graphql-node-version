@@ -3,7 +3,8 @@
 
 function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'default' in ex) ? ex['default'] : ex; }
 
-require('snpkg-snapi-connections');
+require('luxon');
+require('@social-native/snpkg-snapi-connections');
 var yargs = _interopDefault(require('yargs'));
 var path = _interopDefault(require('path'));
 var tildify = _interopDefault(require('tildify'));
