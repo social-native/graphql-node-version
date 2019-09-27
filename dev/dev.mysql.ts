@@ -2,6 +2,7 @@ import Koa from 'koa';
 import {ApolloServer, gql, IResolvers} from 'apollo-server-koa';
 // import {getSqlDialectTranslator} from '@social-native/snpkg-snapi-ndm';
 import unixTimeSec from '@social-native/snpkg-graphql-scalar-unix-time-sec';
+import {getSqlDialectTranslator} from '@social-native/snpkg-snapi-ndm';
 
 import knex from 'knex';
 import {
@@ -23,16 +24,15 @@ import {
 } from '../src/index';
 const knexClient = knex(developmentConfig);
 
-// const getTxInsertId = async (k: knex, tx: knex.Transaction) => {
-//     const sqlTranslator = getSqlDialectTranslator(k);
+export const getTxInsertId = async (k: knex, tx: knex.Transaction) => {
+    const sqlTranslator = getSqlDialectTranslator(k);
 
-//     const {id} = await tx
-//         .select(tx.raw(`${sqlTranslator.lastInsertedId} as id`))
-//         .forUpdate()
-//         .first<{id: number | undefined}>();
-//     return id;
-// };
-
+    const {id} = await tx
+        .select(tx.raw(`${sqlTranslator.lastInsertedId} as id`))
+        .forUpdate()
+        .first<{id: number | undefined}>();
+    return id;
+};
 // Construct a schema, using GraphQL schema language
 const typeDefs = gql`
     type User {
@@ -102,6 +102,15 @@ const typeDefs = gql`
         todoItem(id: ID!): TodoItem
     }
     type Mutation {
+        todoListCreate(
+            userId: ID!
+            usage: String!
+        ): CreationId
+        todoItemCreate(
+            todoListId: ID!
+            note: String!
+            order: Int!
+        ): CreationId
         userCreate(
             username: String!
             firstname: String!
@@ -133,6 +142,10 @@ const typeDefs = gql`
         note: String
     }
 
+    type CreationId {
+        id: ID!
+    }
+
     ${unixTimeSec.typedef}
 `;
 
@@ -147,6 +160,18 @@ interface ITodoList {
     usage: string;
     items: ITodoItem[];
 }
+
+interface ITodoListCreationMutationInput {
+    userId: number;
+    usage: string;
+}
+
+interface ITodoItemCreationMutationInput {
+    todoListId: number;
+    note: string;
+    order: number;
+}
+
 interface IUserNode {
     id: number;
     username: string;
@@ -178,6 +203,16 @@ interface IUserUpdateMutationInput {
 
 type KnexQueryResult = Array<{[attributeName: string]: any}>;
 
+type MutationTodoListCreate = Resolver<
+    {id: number | undefined},
+    undefined,
+    ITodoListCreationMutationInput & {transaction?: knex.Transaction<any, any>}
+>;
+type MutationTodoItemCreate = Resolver<
+    {id: number | undefined},
+    undefined,
+    ITodoItemCreationMutationInput & {transaction?: knex.Transaction<any, any>}
+>;
 type MutationUserCreateResolver = Resolver<
     IUserNode,
     undefined,
@@ -189,18 +224,48 @@ type MutationUserUpdateResolver = Resolver<
     IUserUpdateMutationInput & {transaction?: knex.Transaction<any, any>}
 >;
 
-type QueryTodoListResolver = Resolver<ITodoList, undefined, {id: string}>;
+type QueryTodoListResolver = Resolver<ITodoList | undefined, undefined, {id: string}>;
 type QueryTodoItemResolver = Resolver<ITodoItem, undefined, {id: string}>;
 type QueryUsersResolver = Resolver<IQueryResult<IUserNode | null>, undefined, IInputArgs>;
 type QueryUserResolver = Resolver<IUserNode, undefined, {id: string}>;
 
-const mutation: {userCreate: MutationUserCreateResolver; userUpdate: MutationUserUpdateResolver} = {
+const mutation: {
+    todoListCreate: MutationTodoListCreate;
+    todoItemCreate: MutationTodoItemCreate;
+    userCreate: MutationUserCreateResolver;
+    userUpdate: MutationUserUpdateResolver;
+} = {
+    todoListCreate: async (_, {transaction, usage, userId}) => {
+        const tx = transaction || (await knexClient.transaction());
+        try {
+            await tx.table('todo_list').insert({usage});
+            const todoListId = await getTxInsertId(knexClient, tx);
+            await tx.table('user_todo_list').insert({user_id: userId, todo_list_id: todoListId});
+            await tx.commit();
+            return {id: todoListId};
+        } catch (e) {
+            await tx.rollback();
+            throw e;
+        }
+    },
+    todoItemCreate: async (_, {transaction, todoListId, order, note}) => {
+        const tx = transaction || (await knexClient.transaction());
+        try {
+            await tx.table('todo_item').insert({order, note, todo_list_id: todoListId});
+            const todoItemId = await getTxInsertId(knexClient, tx);
+            await tx.commit();
+            return {id: todoItemId};
+        } catch (e) {
+            await tx.rollback();
+            throw e;
+        }
+    },
     userCreate: async (_, {transaction, ...input}) => {
         const tx = transaction || (await knexClient.transaction());
         try {
-            await tx.table('mock').insert(input);
+            await tx.table('user').insert(input);
             const user = await tx
-                .table('mock')
+                .table('user')
                 .orderBy('id', 'desc')
                 .first();
             await tx.commit();
@@ -244,18 +309,29 @@ const query: {
             .from('todo_list')
             .leftJoin('todo_item', 'todo_item.todo_list_id', 'todo_list.id')
             .where({'todo_list.id': id})
-            .select('todo_list.id as id', 'usage', 'note', 'order')) as Array<{
+            .select(
+                'todo_list.id as id',
+                'todo_item.id as todoItemId',
+                'usage',
+                'note',
+                'order'
+            )) as Array<{
             id: number;
+            todoItemId: number;
             usage: string;
             note: string;
             order: number;
         }>;
-        const {usage, id: listId} = result[0];
-        return {
-            id: listId,
-            usage,
-            items: result
-        };
+        console.log('INSIDEEEE', result);
+        if (result.length > 0) {
+            const {usage, id: listId} = result[0];
+            return {
+                id: listId,
+                usage,
+                items: result.filter(r => r.note).map(r => ({...r, id: r.todoItemId}))
+            };
+        }
+        return undefined;
     },
     async todoItem(_, {id}) {
         return await knexClient

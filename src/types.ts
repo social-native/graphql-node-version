@@ -110,7 +110,7 @@ export interface IRevisionInput {
     nodeSchemaVersion: number;
     resolverName: string;
     nodeName: string;
-    nodeId: string | number;
+    nodeId?: string | number;
 }
 
 export interface IRevisionInfo {

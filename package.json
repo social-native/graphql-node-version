@@ -106,6 +106,6 @@
         "tsconfig-paths": "^3.8.0",
         "tslint": "^5.13.1",
         "tslint-eslint-rules": "^5.4.0",
-        "typescript": "^3.5.3"
+        "typescript": "~3.5.3"
     }
 }

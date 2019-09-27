@@ -132,9 +132,9 @@ export default <ResolverT extends (...args: any[]) => any>(
                 ? extractors.resolverName(...(args as Parameters<ResolverT>))
                 : property;
 
-            if (nodeId === undefined) {
-                throw new Error('Could not extract node id for version recording');
-            }
+            // if (nodeId === undefined) {
+            //     throw new Error('Could not extract node id for version recording');
+            // }
 
             const revisionInput = {
                 userId,
