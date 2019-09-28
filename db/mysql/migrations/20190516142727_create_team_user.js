@@ -1,5 +1,5 @@
 exports.up = function(knex, Promise) {
-    return knex.schema.createTable('user_team', (t) => {
+    return knex.schema.createTable('team_user', (t) => {
         t.increments('id').unsigned().primary();
         t.timestamp('created_at').defaultTo(knex.fn.now())
         t.timestamp('updated_at').nullable();
@@ -21,5 +21,5 @@ exports.up = function(knex, Promise) {
 
 exports.down = function(knex, Promise) {
     return knex.schema
-        .dropTable('user_team');
+        .dropTable('team_user');
 };

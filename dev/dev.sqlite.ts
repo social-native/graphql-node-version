@@ -6,7 +6,7 @@ import {
     IInputArgs,
     typeDefs as connectionTypeDefs,
     resolvers as connectionResolvers
-} from 'snpkg-snapi-connections';
+} from '@social-native/snpkg-snapi-connections';
 
 import {development as developmentConfig} from '../knexfile.sqlite';
 const knexClient = knex(developmentConfig);

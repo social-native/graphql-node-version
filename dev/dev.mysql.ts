@@ -43,6 +43,7 @@ const typeDefs = gql`
         bio: String
         age: Int
         haircolor: String
+        todos: [TodoList]
     }
 
     type QueryUserConnection implements IConnection {
@@ -100,8 +101,16 @@ const typeDefs = gql`
         ): QueryUserConnection
         todoList(id: ID!): TodoList
         todoItem(id: ID!): TodoItem
+        team(id: ID!): Team
     }
     type Mutation {
+        teamCreate(
+            name: String!
+        ): CreationId
+        teamUserCreate(
+            userId: ID!
+            teamId: ID!
+        ): CreationId
         todoListCreate(
             userId: ID!
             usage: String!
@@ -130,6 +139,12 @@ const typeDefs = gql`
         ): User
     }
 
+    type Team {
+        id: ID!
+        name: String
+        users: [User]
+    }
+
     type TodoList {
         id: ID!
         usage: String
@@ -149,6 +164,10 @@ const typeDefs = gql`
     ${unixTimeSec.typedef}
 `;
 
+interface ITeam {
+    id: number;
+    name: string;
+}
 interface ITodoItem {
     id: number;
     order: number;
@@ -159,6 +178,15 @@ interface ITodoList {
     id: number;
     usage: string;
     items: ITodoItem[];
+}
+
+interface ITeamCreationMutationInput {
+    name: string;
+}
+
+interface ITeamUserCreationMutationInput {
+    userId: number;
+    teamId: number;
 }
 
 interface ITodoListCreationMutationInput {
@@ -203,6 +231,18 @@ interface IUserUpdateMutationInput {
 
 type KnexQueryResult = Array<{[attributeName: string]: any}>;
 
+type MutationTeamCreate = Resolver<
+    {id: number | undefined},
+    undefined,
+    ITeamCreationMutationInput & {transaction?: knex.Transaction<any, any>}
+>;
+
+type MutationTeamUserCreate = Resolver<
+    {id: number | undefined},
+    undefined,
+    ITeamUserCreationMutationInput & {transaction?: knex.Transaction<any, any>}
+>;
+
 type MutationTodoListCreate = Resolver<
     {id: number | undefined},
     undefined,
@@ -224,17 +264,47 @@ type MutationUserUpdateResolver = Resolver<
     IUserUpdateMutationInput & {transaction?: knex.Transaction<any, any>}
 >;
 
+type QueryTeamResolver = Resolver<ITeam | undefined, undefined, {id: string}>;
 type QueryTodoListResolver = Resolver<ITodoList | undefined, undefined, {id: string}>;
 type QueryTodoItemResolver = Resolver<ITodoItem, undefined, {id: string}>;
 type QueryUsersResolver = Resolver<IQueryResult<IUserNode | null>, undefined, IInputArgs>;
 type QueryUserResolver = Resolver<IUserNode, undefined, {id: string}>;
 
+type TeamUsersResolver = Resolver<IUserNode[], {id: string}>;
+type UserTodosResolver = Resolver<ITodoList[] | undefined, {id: string}>;
+
 const mutation: {
+    teamCreate: MutationTeamCreate;
+    teamUserCreate: MutationTeamUserCreate;
     todoListCreate: MutationTodoListCreate;
     todoItemCreate: MutationTodoItemCreate;
     userCreate: MutationUserCreateResolver;
     userUpdate: MutationUserUpdateResolver;
 } = {
+    teamCreate: async (_, {transaction, name}) => {
+        const tx = transaction || (await knexClient.transaction());
+        try {
+            await tx.table('team').insert({name});
+            const teamId = await getTxInsertId(knexClient, tx);
+            await tx.commit();
+            return {id: teamId};
+        } catch (e) {
+            await tx.rollback();
+            throw e;
+        }
+    },
+    teamUserCreate: async (_, {transaction, userId, teamId}) => {
+        const tx = transaction || (await knexClient.transaction());
+        try {
+            await tx.table('team_user').insert({user_id: userId, team_id: teamId});
+            const teamUserId = await getTxInsertId(knexClient, tx);
+            await tx.commit();
+            return {id: teamUserId};
+        } catch (e) {
+            await tx.rollback();
+            throw e;
+        }
+    },
     todoListCreate: async (_, {transaction, usage, userId}) => {
         const tx = transaction || (await knexClient.transaction());
         try {
@@ -299,11 +369,18 @@ const mutation: {
 };
 
 const query: {
+    team: QueryTeamResolver;
     todoList: QueryTodoListResolver;
     todoItem: QueryTodoItemResolver;
     user: QueryUserResolver;
     users: QueryUsersResolver;
 } = {
+    async team(_, {id}) {
+        return (await knexClient
+            .from('team')
+            .where({id})
+            .first()) as {id: number; name: string};
+    },
     async todoList(_, {id}) {
         const result = (await knexClient
             .from('todo_list')
@@ -376,6 +453,70 @@ const query: {
             pageInfo: nodeConnection.pageInfo,
             edges: nodeConnection.edges
         };
+    }
+};
+
+const team: {
+    users: TeamUsersResolver;
+} = {
+    async users({id: teamId}) {
+        return (await knexClient
+            .from('team_user')
+            .leftJoin('user', 'user.id', 'team_user.user_id')
+            .where({'team_user.team_id': teamId})) as IUserNode[];
+    }
+};
+
+const user: {
+    todos: UserTodosResolver;
+} = {
+    async todos({id: userId}) {
+        const result = (await knexClient
+            .from('todo_list')
+            .leftJoin('user_todo_list', 'user_todo_list.user_id', 'todo_list.id')
+            .leftJoin('todo_item', 'todo_item.todo_list_id', 'todo_list.id')
+            .where({'user_todo_list.user_id': userId})
+            .select(
+                'todo_list.id as id',
+                'todo_item.id as todoItemId',
+                'usage',
+                'note',
+                'order'
+            )) as Array<{
+            id: number;
+            todoItemId: number;
+            usage: string;
+            note: string;
+            order: number;
+        }>;
+        if (result.length > 0) {
+            const objOfTodoLists = result.reduce(
+                (acc, todoItem) => {
+                    const oldTodoList = acc[todoItem.id];
+                    if (oldTodoList) {
+                        oldTodoList.usage = todoItem.usage;
+                        if (todoItem.note) {
+                            oldTodoList.items.push(todoItem);
+                        }
+                        acc[todoItem.id] = oldTodoList;
+                    } else {
+                        const newTodoList = {
+                            id: todoItem.id,
+                            usage: todoItem.usage,
+                            items: []
+                        } as ITodoList;
+                        if (todoItem.note) {
+                            newTodoList.items.push(todoItem);
+                        }
+                        acc[todoItem.id] = newTodoList;
+                    }
+                    return acc;
+                },
+                {} as {[todoListId: string]: ITodoList}
+            );
+            return Object.keys(objOfTodoLists).map(id => objOfTodoLists[id]);
+        }
+        return undefined;
     }
 };
 
@@ -453,6 +594,8 @@ decorate(query, {
 const resolvers = {
     Mutation: mutation,
     Query: query,
+    Team: team,
+    User: user,
     ...connectionResolvers,
     ...unixTimeSec.resolver
 } as IResolvers;
