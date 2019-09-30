@@ -70,6 +70,7 @@ export default gql`
         todoItem(id: ID!): TodoItem
         team(id: ID!): Team
     }
+
     type Mutation {
         teamCreate(
             name: String!

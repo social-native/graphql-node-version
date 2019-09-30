@@ -1,16 +1,12 @@
 import {Resolver, ITodoList} from '../types';
-import knex from 'knex';
-
-import {development as developmentConfig} from '../../knexfile.mysql';
-const knexClient = knex(developmentConfig);
 
 type UserTodosResolver = Resolver<ITodoList[] | undefined, {id: string}>;
 
 const user: {
     todos: UserTodosResolver;
 } = {
-    async todos({id: userId}) {
-        const result = (await knexClient
+    async todos({id: userId}, _, {sqlClient}) {
+        const result = (await sqlClient
             .from('todo_list')
             .leftJoin('user_todo_list', 'user_todo_list.todo_list_id', 'todo_list.id')
             .where({'user_todo_list.user_id': userId})

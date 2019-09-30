@@ -1,9 +1,5 @@
 import {Resolver, IUserNode, ITodoItem, ITodoList} from '../types';
-import knex from 'knex';
 import {ConnectionManager, IInputArgs, IQueryResult} from '@social-native/snpkg-snapi-connections';
-
-import {development as developmentConfig} from '../../knexfile.mysql';
-const knexClient = knex(developmentConfig);
 
 import {
     decorate,
@@ -31,14 +27,14 @@ const query: {
     user: QueryUserResolver;
     users: QueryUsersResolver;
 } = {
-    async team(_, {id}) {
-        return (await knexClient
+    async team(_, {id}, {sqlClient}) {
+        return (await sqlClient
             .from('team')
             .where({id})
             .first()) as {id: number; name: string};
     },
-    async todoList(_, {id}) {
-        const result = (await knexClient
+    async todoList(_, {id}, {sqlClient}) {
+        const result = (await sqlClient
             .from('todo_list')
             .leftJoin('todo_item', 'todo_item.todo_list_id', 'todo_list.id')
             .where({'todo_list.id': id})
@@ -65,21 +61,21 @@ const query: {
         }
         return undefined;
     },
-    async todoItem(_, {id}) {
-        return await knexClient
+    async todoItem(_, {id}, {sqlClient}) {
+        return await sqlClient
             .from('todo_item')
             .where({id})
             .first();
     },
-    async user(_, {id}) {
-        const queryBuilder = knexClient.from('user');
+    async user(_, {id}, {sqlClient}) {
+        const queryBuilder = sqlClient.from('user');
         return await queryBuilder
             .table('user')
             .where({id})
             .first();
     },
-    async users(_, inputArgs) {
-        const queryBuilder = knexClient.from('user');
+    async users(_, inputArgs, {sqlClient}) {
+        const queryBuilder = sqlClient.from('user');
         // maps node types to sql column names
         const attributeMap = {
             id: 'id',
@@ -120,7 +116,7 @@ const nodeBuilder = (previousModel: object, revisionInfo: INodeBuilderRevisionIn
 
 decorate(query, {
     user: versionConnection<QueryUserResolver>({
-        knex: () => knexClient,
+        knex: (_, __, {sqlClient}) => sqlClient,
         nodeBuilder,
         nodeId: (_parent, {id}) => id,
         nodeName: () => 'user'
