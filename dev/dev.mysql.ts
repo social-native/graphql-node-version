@@ -111,7 +111,14 @@ const typeDefs = gql`
             id: ID!
             name: String
         ): CreationId
+        teamDelete(
+            id: ID!
+        ): CreationId
         teamUserCreate(
+            userId: ID!
+            teamId: ID!
+        ): CreationId
+        teamUserDelete(
             userId: ID!
             teamId: ID!
         ): CreationId
@@ -141,6 +148,9 @@ const typeDefs = gql`
             age: Int
             haircolor: String
         ): User
+        userDelete(
+            id: ID!
+        ): CreationId
     }
 
     type Team {
@@ -193,7 +203,16 @@ interface ITeamUpdateMutationInput {
     name?: string;
 }
 
+interface ITeamDeleteMutationInput {
+    id: number;
+}
+
 interface ITeamUserCreationMutationInput {
+    userId: number;
+    teamId: number;
+}
+
+interface ITeamUserDeleteMutationInput {
     userId: number;
     teamId: number;
 }
@@ -238,6 +257,10 @@ interface IUserUpdateMutationInput {
     bio?: string;
 }
 
+interface IUserDeleteMutationInput {
+    id: string;
+}
+
 type KnexQueryResult = Array<{[attributeName: string]: any}>;
 
 type MutationTeamCreate = Resolver<
@@ -252,10 +275,22 @@ type MutationTeamUpdate = Resolver<
     ITeamUpdateMutationInput & {transaction?: knex.Transaction<any, any>}
 >;
 
+type MutationTeamDelete = Resolver<
+    {id: number | undefined},
+    undefined,
+    ITeamDeleteMutationInput & {transaction?: knex.Transaction<any, any>}
+>;
+
 type MutationTeamUserCreate = Resolver<
     {id: number | undefined},
     undefined,
     ITeamUserCreationMutationInput & {transaction?: knex.Transaction<any, any>}
+>;
+
+type MutationTeamUserDelete = Resolver<
+    {id: number | undefined},
+    undefined,
+    ITeamUserDeleteMutationInput & {transaction?: knex.Transaction<any, any>}
 >;
 
 type MutationTodoListCreate = Resolver<
@@ -279,6 +314,12 @@ type MutationUserUpdateResolver = Resolver<
     IUserUpdateMutationInput & {transaction?: knex.Transaction<any, any>}
 >;
 
+type MutationUserDeleteResolver = Resolver<
+    {id: number | undefined},
+    undefined,
+    IUserDeleteMutationInput & {transaction?: knex.Transaction<any, any>}
+>;
+
 type QueryTeamResolver = Resolver<ITeam | undefined, undefined, {id: string}>;
 type QueryTodoListResolver = Resolver<ITodoList | undefined, undefined, {id: string}>;
 type QueryTodoItemResolver = Resolver<ITodoItem, undefined, {id: string}>;
@@ -292,11 +333,14 @@ type TodoListTodoItemsResolver = Resolver<ITodoItem[], {id: string}>;
 const mutation: {
     teamCreate: MutationTeamCreate;
     teamUpdate: MutationTeamUpdate;
+    teamDelete: MutationTeamDelete;
     teamUserCreate: MutationTeamUserCreate;
+    teamUserDelete: MutationTeamUserDelete;
     todoListCreate: MutationTodoListCreate;
     todoItemCreate: MutationTodoItemCreate;
     userCreate: MutationUserCreateResolver;
     userUpdate: MutationUserUpdateResolver;
+    userDelete: MutationUserDeleteResolver;
 } = {
     teamCreate: async (_, {transaction, name}) => {
         const tx = transaction || (await knexClient.transaction());
@@ -326,10 +370,40 @@ const mutation: {
             throw e;
         }
     },
+    teamDelete: async (_, {transaction, id}) => {
+        const tx = transaction || (await knexClient.transaction());
+        try {
+            await tx
+                .table('team')
+                .where({id})
+                .del();
+
+            await tx.commit();
+            return {id};
+        } catch (e) {
+            await tx.rollback();
+            throw e;
+        }
+    },
     teamUserCreate: async (_, {transaction, userId, teamId}) => {
         const tx = transaction || (await knexClient.transaction());
         try {
             await tx.table('team_user').insert({user_id: userId, team_id: teamId});
+            const teamUserId = await getTxInsertId(knexClient, tx);
+            await tx.commit();
+            return {id: teamUserId};
+        } catch (e) {
+            await tx.rollback();
+            throw e;
+        }
+    },
+    teamUserDelete: async (_, {transaction, userId, teamId}) => {
+        const tx = transaction || (await knexClient.transaction());
+        try {
+            await tx
+                .table('team_user')
+                .where({user_id: userId, team_id: teamId})
+                .del();
             const teamUserId = await getTxInsertId(knexClient, tx);
             await tx.commit();
             return {id: teamUserId};
@@ -391,6 +465,21 @@ const mutation: {
                 .first();
             await tx.commit();
             return user as IUserNode;
+        } catch (e) {
+            await tx.rollback();
+            throw e;
+        }
+    },
+    userDelete: async (_, {transaction, id}) => {
+        const tx = transaction || (await knexClient.transaction());
+        try {
+            await tx
+                .table('user')
+                .where({id})
+                .del();
+            const userId = await getTxInsertId(knexClient, tx);
+            await tx.commit();
+            return {id: userId};
         } catch (e) {
             await tx.rollback();
             throw e;
