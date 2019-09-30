@@ -5,7 +5,7 @@ import {
     UnPromisify,
     INamesConfig,
     INamesForTablesAndColumns,
-    ResolverArgs,
+    // ResolverArgs,
     IRevisionQueryResult,
     INodeBuilderRevisionInfo,
     IRevisionQueryResultWithTimeSecs
@@ -31,8 +31,8 @@ export interface IVersionConnectionExtractors<Resolver extends (...args: any[]) 
         previousModel: UnPromisify<ReturnType<Resolver>>,
         versionInfo: INodeBuilderRevisionInfo
     ) => UnPromisify<ReturnType<Resolver>>;
-    nodeId: (...args: ResolverArgs<Resolver>) => string;
-    nodeName: (...args: ResolverArgs<Resolver>) => string;
+    nodeId: (...args: Parameters<Resolver>) => string;
+    nodeName: (...args: Parameters<Resolver>) => string;
 }
 
 /**
@@ -294,7 +294,7 @@ const castDateTimeToUnixSecs = (node: any) => {
 };
 
 const getRevisionsOfInterest = async <ResolverT extends (...args: any[]) => any>(
-    resolverArgs: ResolverArgs<ResolverT>,
+    resolverArgs: Parameters<ResolverT>,
     knex: Knex,
     nodeToSqlNameMappings: INamesForTablesAndColumns,
     extractors: IVersionConnectionExtractors<ResolverT>

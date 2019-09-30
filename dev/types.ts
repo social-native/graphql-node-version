@@ -30,6 +30,7 @@ export interface IFragmentResolver<Node, P = undefined, A = undefined> {
 }
 
 // specific - to this service
+
 export interface ISqlClient {
     sqlClient: Knex;
 }

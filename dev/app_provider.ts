@@ -11,18 +11,17 @@ const allTypeDefs = gql`
     ${typeDefs}
     ${connectionTypeDefs}
 `;
-const server = new ApolloServer({
-    typeDefs: allTypeDefs,
-    resolvers
-});
 
 const provider = (knex: Knex) => {
-    const app = new Koa();
-
-    app.use(async (context, next) => {
-        context.sqlClient = knex;
-        await next();
+    const server = new ApolloServer({
+        typeDefs: allTypeDefs,
+        resolvers,
+        context: ctx => {
+            ctx.sqlClient = knex;
+            return ctx;
+        }
     });
+    const app = new Koa();
 
     server.applyMiddleware({app});
 
