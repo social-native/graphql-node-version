@@ -9,13 +9,16 @@ exports.up = function(knex, Promise) {
             .unsigned()
             .notNullable()
             .references('id')
-            .inTable('team');
+            .inTable('team')
+            .onDelete('CASCADE');
+
 
         t.integer('user_id')
             .unsigned()
             .notNullable()
             .references('id')
-            .inTable('user');
+            .inTable('user')
+            .onDelete('CASCADE');
     });
 };
 

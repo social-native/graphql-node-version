@@ -16,7 +16,8 @@ exports.up = function(knex, Promise) {
             .unsigned()
             .notNullable()
             .references('id')
-            .inTable('todo_list');
+            .inTable('todo_list')
+            .onDelete('CASCADE');
     });
 };
 

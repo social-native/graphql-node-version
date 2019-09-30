@@ -107,6 +107,10 @@ const typeDefs = gql`
         teamCreate(
             name: String!
         ): CreationId
+        teamUpdate(
+            id: ID!
+            name: String
+        ): CreationId
         teamUserCreate(
             userId: ID!
             teamId: ID!
@@ -177,11 +181,16 @@ interface ITodoItem {
 interface ITodoList {
     id: number;
     usage: string;
-    items: ITodoItem[];
+    // items: ITodoItem[];
 }
 
 interface ITeamCreationMutationInput {
     name: string;
+}
+
+interface ITeamUpdateMutationInput {
+    id: number;
+    name?: string;
 }
 
 interface ITeamUserCreationMutationInput {
@@ -237,6 +246,12 @@ type MutationTeamCreate = Resolver<
     ITeamCreationMutationInput & {transaction?: knex.Transaction<any, any>}
 >;
 
+type MutationTeamUpdate = Resolver<
+    {id: number | undefined},
+    undefined,
+    ITeamUpdateMutationInput & {transaction?: knex.Transaction<any, any>}
+>;
+
 type MutationTeamUserCreate = Resolver<
     {id: number | undefined},
     undefined,
@@ -272,9 +287,11 @@ type QueryUserResolver = Resolver<IUserNode, undefined, {id: string}>;
 
 type TeamUsersResolver = Resolver<IUserNode[], {id: string}>;
 type UserTodosResolver = Resolver<ITodoList[] | undefined, {id: string}>;
+type TodoListTodoItemsResolver = Resolver<ITodoItem[], {id: string}>;
 
 const mutation: {
     teamCreate: MutationTeamCreate;
+    teamUpdate: MutationTeamUpdate;
     teamUserCreate: MutationTeamUserCreate;
     todoListCreate: MutationTodoListCreate;
     todoItemCreate: MutationTodoItemCreate;
@@ -288,6 +305,22 @@ const mutation: {
             const teamId = await getTxInsertId(knexClient, tx);
             await tx.commit();
             return {id: teamId};
+        } catch (e) {
+            await tx.rollback();
+            throw e;
+        }
+    },
+    teamUpdate: async (_, {transaction, id, ...updates}) => {
+        const tx = transaction || (await knexClient.transaction());
+        try {
+            if (updates.name) {
+                await tx
+                    .table('team')
+                    .update({name: updates.name})
+                    .where({id});
+            }
+            await tx.commit();
+            return {id};
         } catch (e) {
             await tx.rollback();
             throw e;
@@ -356,10 +389,7 @@ const mutation: {
                 .table('user')
                 .where({id})
                 .first();
-            // .orderBy('id', 'desc')
-            // .first();
             await tx.commit();
-            // console.log('I AM YOUR USER', user);
             return user as IUserNode;
         } catch (e) {
             await tx.rollback();
@@ -467,54 +497,36 @@ const team: {
     }
 };
 
+const todoList: {
+    items: TodoListTodoItemsResolver;
+} = {
+    async items({id: todoListId}) {
+        const result = (await knexClient
+            .from('todo_item')
+            .where({'todo_item.todo_list_id': todoListId})
+            .select('id', 'note', 'order')) as Array<{
+            id: number;
+            note: string;
+            order: number;
+        }>;
+        return result;
+    }
+};
+
 const user: {
     todos: UserTodosResolver;
 } = {
     async todos({id: userId}) {
         const result = (await knexClient
             .from('todo_list')
-            .leftJoin('user_todo_list', 'user_todo_list.user_id', 'todo_list.id')
-            .leftJoin('todo_item', 'todo_item.todo_list_id', 'todo_list.id')
+            .leftJoin('user_todo_list', 'user_todo_list.todo_list_id', 'todo_list.id')
             .where({'user_todo_list.user_id': userId})
-            .select(
-                'todo_list.id as id',
-                'todo_item.id as todoItemId',
-                'usage',
-                'note',
-                'order'
-            )) as Array<{
+            .select('todo_list.id as id', 'usage')) as Array<{
             id: number;
-            todoItemId: number;
             usage: string;
-            note: string;
-            order: number;
         }>;
         if (result.length > 0) {
-            const objOfTodoLists = result.reduce(
-                (acc, todoItem) => {
-                    const oldTodoList = acc[todoItem.id];
-                    if (oldTodoList) {
-                        oldTodoList.usage = todoItem.usage;
-                        if (todoItem.note) {
-                            oldTodoList.items.push(todoItem);
-                        }
-                        acc[todoItem.id] = oldTodoList;
-                    } else {
-                        const newTodoList = {
-                            id: todoItem.id,
-                            usage: todoItem.usage,
-                            items: []
-                        } as ITodoList;
-                        if (todoItem.note) {
-                            newTodoList.items.push(todoItem);
-                        }
-                        acc[todoItem.id] = newTodoList;
-                    }
-                    return acc;
-                },
-                {} as {[todoListId: string]: ITodoList}
-            );
-            return Object.keys(objOfTodoLists).map(id => objOfTodoLists[id]);
+            return result;
         }
         return undefined;
     }
@@ -564,7 +576,6 @@ decorate(mutation, {
                 args[2],
                 args[3]
             )) as unknown) as IRevisionConnection<typeof query.user>;
-            console.log('rrrrr', r);
             // todo undo when connection is returning right type
             return r;
             // return r.edges[0] ? r.edges[0].node : undefined;
@@ -596,6 +607,7 @@ const resolvers = {
     Query: query,
     Team: team,
     User: user,
+    TodoList: todoList,
     ...connectionResolvers,
     ...unixTimeSec.resolver
 } as IResolvers;
