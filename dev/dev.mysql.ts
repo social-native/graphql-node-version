@@ -126,6 +126,13 @@ const typeDefs = gql`
             userId: ID!
             usage: String!
         ): CreationId
+        todoListUpdate(
+            id: ID!
+            usage: String
+        ): CreationId
+        todoListDelete(
+            id: ID!
+        ): CreationId
         todoItemCreate(
             todoListId: ID!
             note: String!
@@ -221,7 +228,13 @@ interface ITodoListCreationMutationInput {
     userId: number;
     usage: string;
 }
-
+interface ITodoListUpdateMutationInput {
+    id: number;
+    usage: string;
+}
+interface ITodoListDeleteMutationInput {
+    id: number;
+}
 interface ITodoItemCreationMutationInput {
     todoListId: number;
     note: string;
@@ -298,6 +311,16 @@ type MutationTodoListCreate = Resolver<
     undefined,
     ITodoListCreationMutationInput & {transaction?: knex.Transaction<any, any>}
 >;
+type MutationTodoListUpdate = Resolver<
+    {id: number | undefined},
+    undefined,
+    ITodoListUpdateMutationInput & {transaction?: knex.Transaction<any, any>}
+>;
+type MutationTodoListDelete = Resolver<
+    {id: number | undefined},
+    undefined,
+    ITodoListDeleteMutationInput & {transaction?: knex.Transaction<any, any>}
+>;
 type MutationTodoItemCreate = Resolver<
     {id: number | undefined},
     undefined,
@@ -337,6 +360,8 @@ const mutation: {
     teamUserCreate: MutationTeamUserCreate;
     teamUserDelete: MutationTeamUserDelete;
     todoListCreate: MutationTodoListCreate;
+    todoListUpdate: MutationTodoListUpdate;
+    todoListDelete: MutationTodoListDelete;
     todoItemCreate: MutationTodoItemCreate;
     userCreate: MutationUserCreateResolver;
     userUpdate: MutationUserUpdateResolver;
@@ -420,6 +445,33 @@ const mutation: {
             await tx.table('user_todo_list').insert({user_id: userId, todo_list_id: todoListId});
             await tx.commit();
             return {id: todoListId};
+        } catch (e) {
+            await tx.rollback();
+            throw e;
+        }
+    },
+    todoListUpdate: async (_, {transaction, id, ...updates}) => {
+        const tx = transaction || (await knexClient.transaction());
+        try {
+            if (updates.usage) {
+                await tx.table('todo_list').update({usage: updates.usage});
+            }
+            await tx.commit();
+            return {id};
+        } catch (e) {
+            await tx.rollback();
+            throw e;
+        }
+    },
+    todoListDelete: async (_, {transaction, id}) => {
+        const tx = transaction || (await knexClient.transaction());
+        try {
+            await tx
+                .table('todo_list')
+                .where({id})
+                .del();
+            await tx.commit();
+            return {id};
         } catch (e) {
             await tx.rollback();
             throw e;
