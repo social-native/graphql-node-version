@@ -9,6 +9,7 @@ import {
     versionRecorderDecorator as versionRecorder,
     IRevisionConnection
 } from '../../src/index';
+import {IVersionRecorderExtractors} from '../../src/decorators/versionRecorder';
 
 interface ITeamCreationMutationInput {
     name: string;
@@ -380,16 +381,21 @@ const mutation: {
     }
 };
 
+const commonDecoratorConfig = <T extends (...args: any[]) => any>() =>
+    ({
+        knex: (_, __, {sqlClient}) => sqlClient,
+        userId: () => '1',
+        userRoles: () => ['operations', 'user', 'billing']
+    } as Pick<IVersionRecorderExtractors<T>, 'knex' | 'userId' | 'userRoles'>);
+
 decorate(mutation, {
     // TODO add ability to differentiate between additions and deletions in revision data
     userCreate: versionRecorder<MutationUserCreateResolver>({
-        knex: (_, __, {sqlClient}) => sqlClient,
-        userId: () => '1',
-        userRoles: () => ['operations', 'user', 'billing'],
-        nodeIdCreate: ({id}) => id,
+        ...commonDecoratorConfig<MutationUserCreateResolver>(),
+        nodeId: ({id}) => id,
         nodeSchemaVersion: () => 1,
         revisionData: (_parent, args) => JSON.stringify(args),
-        resolverName: () => 'create',
+        resolverOperation: () => 'create',
         nodeName: () => 'user',
         currentNodeSnapshot: async (nodeId, args) => {
             // TODO remind users in readme that the resolver type changes and
@@ -406,13 +412,11 @@ decorate(mutation, {
         }
     }),
     userUpdate: versionRecorder<MutationUserUpdateResolver>({
-        knex: (_, __, {sqlClient}) => sqlClient,
-        userId: () => '1',
-        userRoles: () => ['operations', 'user', 'tester'],
-        nodeIdUpdate: (_, {id}) => id,
+        ...commonDecoratorConfig<MutationUserUpdateResolver>(),
         nodeSchemaVersion: () => 1,
+        nodeId: (_, __, {id}) => id,
         revisionData: (_parent, args) => JSON.stringify(args),
-        resolverName: () => 'update',
+        resolverOperation: () => 'update',
         nodeName: () => 'user',
         currentNodeSnapshot: async (nodeId, args) => {
             // TODO remind users in readme that the resolver type changes and

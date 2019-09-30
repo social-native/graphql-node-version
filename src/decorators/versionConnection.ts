@@ -148,7 +148,7 @@ export default <ResolverT extends (...args: [any, any, any, any]) => any>(
                     userId,
                     nodeName: nn,
                     nodeSchemaVersion,
-                    resolverName,
+                    resolverOperation,
                     revisionTime,
                     revisionId,
                     userRoles
@@ -158,7 +158,7 @@ export default <ResolverT extends (...args: [any, any, any, any]) => any>(
                     userId,
                     nodeName: nn,
                     nodeSchemaVersion,
-                    resolverName,
+                    resolverOperation,
                     revisionTime,
                     revisionId,
                     userRoles
@@ -256,7 +256,7 @@ const getRevisionsInRange = async (
             `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.nodeSchemaVersion} as nodeSchemaVersion`, // tslint:disable-line
             `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.nodeName} as nodeName`, // tslint:disable-line
             `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.nodeId} as nodeId`, // tslint:disable-line
-            `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.resolverName} as resolverName`, // tslint:disable-line
+            `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.resolverOperation} as resolverOperation`, // tslint:disable-line
 
             `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.revisionId} as revisionId`, // tslint:disable-line
             `${nodeToSqlNameMappings.tableNames.revisionNodeSnapshot}.${nodeToSqlNameMappings.columnNames.snapshotData} as snapshotData` // tslint:disable-line
@@ -356,7 +356,7 @@ const getRevisionsOfInterest = async <ResolverT extends (...args: any[]) => any>
                     `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.nodeName} as nodeName`, // tslint:disable-line
                     `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.nodeSchemaVersion} as nodeSchemaVersion`, // tslint:disable-line
                     `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.nodeId} as nodeId`, // tslint:disable-line
-                    `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.resolverName} as resolverName`, // tslint:disable-line
+                    `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.resolverOperation} as resolverOperation`, // tslint:disable-line
                     `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.userId} as userId`, // tslint:disable-line
 
                     `${nodeToSqlNameMappings.tableNames.revisionNodeSnapshot}.${nodeToSqlNameMappings.columnNames.snapshotData} as snapshotData`, // tslint:disable-line
@@ -387,7 +387,7 @@ const getRevisionsOfInterest = async <ResolverT extends (...args: any[]) => any>
             'nodeName', // tslint:disable-line
             'nodeSchemaVersion', // tslint:disable-line
             'nodeId', // tslint:disable-line
-            'resolverName', // tslint:disable-line
+            'resolverOperation', // tslint:disable-line
             'userId', // tslint:disable-line
             'snapshotData', // tslint:disable-line
             'snapshotTime', // tslint:disable-line

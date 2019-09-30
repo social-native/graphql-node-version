@@ -47,7 +47,7 @@ export interface INamesConfig {
         nodeName?: string;
         nodeSchemaVersion?: string;
         nodeId?: string;
-        resolverName?: string;
+        resolverOperation?: string;
 
         snapshotId?: string;
         snapshotTime?: string;
@@ -96,7 +96,7 @@ export type InfoArgs<T> = T extends (
 //     revisionData?: string;
 //     revisionTime: string;
 //     nodeSchemaVersion: number;
-//     resolverName: string;
+//     resolverOperation: string;
 //     nodeName: string;
 //     nodeId: string | number;
 // }
@@ -108,7 +108,7 @@ export interface IRevisionInput {
     revisionData: string;
     revisionTime: string;
     nodeSchemaVersion: number;
-    resolverName: string;
+    resolverOperation: string;
     nodeName: string;
     nodeId?: string | number;
 }
@@ -121,7 +121,7 @@ export interface IRevisionInfo {
     revisionData: string;
     revisionTime: string;
     nodeSchemaVersion: number;
-    resolverName: string;
+    resolverOperation: string;
     nodeName: string;
     nodeId: string;
 }
@@ -134,7 +134,7 @@ export interface INodeBuilderRevisionInfo {
     nodeSchemaVersion: number;
     nodeName: string;
     nodeId: string | number;
-    resolverName?: string;
+    resolverOperation?: string;
 }
 
 export interface IRevisionQueryResult {
@@ -146,7 +146,7 @@ export interface IRevisionQueryResult {
     nodeSchemaVersion: string;
     userId: string;
     nodeId: string;
-    resolverName: string;
+    resolverOperation: string;
 
     snapshotTime?: string;
     snapshotData?: string;
@@ -163,7 +163,7 @@ export interface IRevisionQueryResultWithTimeSecs {
     nodeSchemaVersion: string;
     userId: string;
     nodeId: string;
-    resolverName: string;
+    resolverOperation: string;
 
     snapshotTime?: string;
     snapshotData?: string;

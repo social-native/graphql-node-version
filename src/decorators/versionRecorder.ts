@@ -18,11 +18,16 @@ export interface IVersionRecorderExtractors<Resolver extends (...args: any[]) =>
     nodeSchemaVersion: (...args: Parameters<Resolver>) => number;
     nodeName: (...args: Parameters<Resolver>) => string;
     knex: (...args: Parameters<Resolver>) => Knex;
-    resolverName?: (...args: Parameters<Resolver>) => string;
-    nodeIdUpdate?: (...args: Parameters<Resolver>) => string | number;
-    nodeIdCreate?: (node: UnPromisify<ReturnType<Resolver>>) => string | number; // tslint:disable-line
+    resolverOperation?: (...args: Parameters<Resolver>) => string;
+    // nodeIdUpdate?: (...args: Parameters<Resolver>) => string | number;
+    nodeId?: (
+        node: UnPromisify<ReturnType<Resolver>>,
+        ...args: Parameters<Resolver>
+    ) => string | number; // tslint:disable-line
     currentNodeSnapshot: (nodeId: string | number, resolverArgs: Parameters<Resolver>) => any; // tslint:disable-line
     currentNodeSnapshotFrequency?: number;
+    parentNode?: (...args: Parameters<Resolver>) => {nodeId: string | number; nodeName: string};
+    edges?: (...args: Parameters<Resolver>) => Array<{nodeId: string | number; nodeName: string}>;
 }
 
 interface ICreateRevisionTransactionConfig extends INamesConfig {
@@ -128,8 +133,8 @@ export default <ResolverT extends (...args: any[]) => any>(
             let nodeId = extractors.nodeIdUpdate
                 ? extractors.nodeIdUpdate(...(args as Parameters<ResolverT>))
                 : undefined;
-            const resolverName = extractors.resolverName
-                ? extractors.resolverName(...(args as Parameters<ResolverT>))
+            const resolverOperation = extractors.resolverOperation
+                ? extractors.resolverOperation(...(args as Parameters<ResolverT>))
                 : property;
 
             // if (nodeId === undefined) {
@@ -144,8 +149,10 @@ export default <ResolverT extends (...args: any[]) => any>(
                 nodeSchemaVersion,
                 nodeName,
                 nodeId,
-                resolverName:
-                    typeof resolverName === 'symbol' ? resolverName.toString() : resolverName
+                resolverOperation:
+                    typeof resolverOperation === 'symbol'
+                        ? resolverOperation.toString()
+                        : resolverOperation
             };
 
             console.log('CREATING TRANSACTION');
