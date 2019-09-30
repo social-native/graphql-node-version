@@ -43,3 +43,24 @@ export interface IAggregateInput {
     since?: number;
     until?: number;
 }
+
+export interface IUserNode {
+    id: number;
+    username: string;
+    firstname: string;
+    lastname: string;
+    age: number;
+    haircolor: string;
+    bio: string;
+}
+
+export interface ITodoList {
+    id: number;
+    usage: string;
+}
+
+export interface ITodoItem {
+    id: number;
+    order: number;
+    note: string;
+}
