@@ -16,6 +16,8 @@ var DEFAULT_TABLE_NAMES;
     DEFAULT_TABLE_NAMES["revisionRole"] = "revision_role";
     DEFAULT_TABLE_NAMES["revisionUserRole"] = "revision_user_roles";
     DEFAULT_TABLE_NAMES["revisionNodeSnapshot"] = "revision_node_snapshot";
+    DEFAULT_TABLE_NAMES["revisionEdge"] = "revision_edge";
+    DEFAULT_TABLE_NAMES["revisionFragment"] = "revision_fragment";
 })(DEFAULT_TABLE_NAMES || (DEFAULT_TABLE_NAMES = {}));
 var DEFAULT_COLUMN_NAMES;
 (function (DEFAULT_COLUMN_NAMES) {
@@ -37,6 +39,18 @@ var DEFAULT_COLUMN_NAMES;
     DEFAULT_COLUMN_NAMES["roleName"] = "role_name";
     // revision user roles
     DEFAULT_COLUMN_NAMES["userRoleId"] = "id";
+    // revision edge
+    DEFAULT_COLUMN_NAMES["revisionEdgeId"] = "id";
+    DEFAULT_COLUMN_NAMES["revisionEdgeTime"] = "created_at";
+    DEFAULT_COLUMN_NAMES["edgeNodeNameA"] = "node_name_a";
+    DEFAULT_COLUMN_NAMES["edgeNodeIdA"] = "node_id_a";
+    DEFAULT_COLUMN_NAMES["edgeNodeNameB"] = "node_name_b";
+    DEFAULT_COLUMN_NAMES["edgeNodeIdB"] = "node_id_b";
+    // revision fragment
+    DEFAULT_COLUMN_NAMES["revisionFragmentId"] = "id";
+    DEFAULT_COLUMN_NAMES["revisionFragmentTime"] = "created_at";
+    DEFAULT_COLUMN_NAMES["fragmentParentNodeId"] = "parent_node_id";
+    DEFAULT_COLUMN_NAMES["fragmentParentNodeName"] = "parent_node_name";
 })(DEFAULT_COLUMN_NAMES || (DEFAULT_COLUMN_NAMES = {}));
 const setNames = ({ tableNames, columnNames }) => ({
     tableNames: {
@@ -48,6 +62,7 @@ const setNames = ({ tableNames, columnNames }) => ({
         ...columnNames
     }
 });
+//# sourceMappingURL=sqlNames.js.map
 
 /**
  * Logic:
@@ -329,6 +344,7 @@ const unixSecondsToSqlTimestamp = (unixSeconds) => {
         .toUTC()
         .toSQL({ includeOffset: true, includeZone: true });
 };
+//# sourceMappingURL=versionConnection.js.map
 
 var nodeToSql = (nodeToSqlNameMappings, nodeData) => {
     const { columnNames } = nodeToSqlNameMappings;
@@ -342,6 +358,7 @@ var nodeToSql = (nodeToSqlNameMappings, nodeData) => {
         return sqlData;
     }, {});
 };
+//# sourceMappingURL=nodeToSql.js.map
 
 const findOrCreateKnexTransaction = async (knex) => {
     return await knex.transaction();
@@ -411,7 +428,13 @@ var versionRecorder = (extractors, config) => {
                 : property;
             const transaction = await findOrCreateKnexTransaction(localKnexClient);
             const [parent, ar, ctx, info] = args;
-            const newArgs = { ...ar, transaction };
+            let newArgs = {};
+            if (extractors.passThroughTransaction && extractors.passThroughTransaction === true) {
+                newArgs = { ...ar, transaction };
+            }
+            else {
+                newArgs = { ...ar };
+            }
             const node = (await value(parent, newArgs, ctx, info));
             const nodeId = extractors.nodeId(node, args[0], args[1], args[2], args[3]);
             if (nodeId === undefined) {
@@ -431,11 +454,7 @@ var versionRecorder = (extractors, config) => {
             };
             const revTxFn = createRevisionTransaction(config);
             const revisionId = await revTxFn(transaction, revisionInput);
-            // await localKnexClient
-            //     .table(tableNames.revision)
-            //     .update({[columnNames.nodeId]: nodeId})
-            //     .where({id: revisionId});
-            const shouldStoreSnapshot = await findIfShouldStoreSnapshot({ tableNames, columnNames }, snapshotFrequency, localKnexClient, nodeId, nodeName, nodeSchemaVersion);
+            const shouldStoreSnapshot = await findIfShouldStoreSnapshot({ tableNames, columnNames }, snapshotFrequency, transaction, nodeId, nodeName, nodeSchemaVersion);
             if (shouldStoreSnapshot) {
                 let currentNodeSnapshot;
                 try {
@@ -444,8 +463,9 @@ var versionRecorder = (extractors, config) => {
                 catch (e) {
                     console.log('EERRRROR', e);
                 }
-                await storeCurrentNodeSnapshot({ tableNames, columnNames }, currentNodeSnapshot, revisionId, localKnexClient);
+                await storeCurrentNodeSnapshot({ tableNames, columnNames }, currentNodeSnapshot, revisionId, transaction);
             }
+            await transaction.commit();
             return node;
         });
         return descriptor;
@@ -454,8 +474,8 @@ var versionRecorder = (extractors, config) => {
 /**
  * Write the node snapshot to the database
  */
-const storeCurrentNodeSnapshot = async ({ tableNames, columnNames }, currentNodeSnapshot, revisionId, localKnexClient) => {
-    await localKnexClient.table(tableNames.revisionNodeSnapshot).insert({
+const storeCurrentNodeSnapshot = async ({ tableNames, columnNames }, currentNodeSnapshot, revisionId, transaction) => {
+    await transaction.table(tableNames.revisionNodeSnapshot).insert({
         [`${tableNames.revision}_${columnNames.revisionId}`]: revisionId,
         [columnNames.snapshotData]: JSON.stringify(currentNodeSnapshot) // tslint:disable-line
     });
@@ -464,8 +484,8 @@ const storeCurrentNodeSnapshot = async ({ tableNames, columnNames }, currentNode
  * Fetch the number of full node snapshots for the node id and node schema version
  * If a snapshot exists within the expected snapshot frequency, then we don't need to take another snapshot
  */
-const findIfShouldStoreSnapshot = async ({ tableNames, columnNames }, snapshotFrequency, localKnexClient, nodeId, nodeName, mostRecentNodeSchemaVersion) => {
-    const sql = localKnexClient
+const findIfShouldStoreSnapshot = async ({ tableNames, columnNames }, snapshotFrequency, transaction, nodeId, nodeName, mostRecentNodeSchemaVersion) => {
+    const sql = transaction
         .table(tableNames.revision)
         .leftJoin(tableNames.revisionNodeSnapshot, `${tableNames.revision}.${columnNames.revisionId}`, `${tableNames.revisionNodeSnapshot}.${tableNames.revision}_${columnNames.revisionId}`)
         .where({
@@ -480,6 +500,7 @@ const findIfShouldStoreSnapshot = async ({ tableNames, columnNames }, snapshotFr
     const snapshotWithinFrequencyRange = !!snapshots.find(data => data.snapshot_creation);
     return !snapshotWithinFrequencyRange;
 };
+//# sourceMappingURL=versionRecorder.js.map
 
 var generator = (config) => {
     const { tableNames, columnNames } = setNames(config || {});
@@ -507,6 +528,30 @@ var generator = (config) => {
                 .references(columnNames.revisionId)
                 .inTable(tableNames.revision);
             t.json(columnNames.snapshotData);
+        });
+        await knex.schema.createTable(tableNames.revisionEdge, t => {
+            t.increments(columnNames.revisionEdgeId)
+                .unsigned()
+                .primary();
+            t.timestamp(columnNames.revisionEdgeTime).defaultTo(knex.fn.now());
+            t.integer(columnNames.edgeNodeIdA);
+            t.string(columnNames.edgeNodeNameA);
+            t.integer(columnNames.edgeNodeIdB);
+            t.string(columnNames.edgeNodeNameB);
+            t.string(columnNames.resolverOperation);
+        });
+        await knex.schema.createTable(tableNames.revisionFragment, t => {
+            t.increments(columnNames.revisionFragmentId)
+                .unsigned()
+                .primary();
+            t.timestamp(columnNames.revisionFragmentTime).defaultTo(knex.fn.now());
+            t.integer(columnNames.fragmentParentNodeId);
+            t.string(columnNames.fragmentParentNodeName);
+            t.integer(`${tableNames.revision}_${columnNames.revisionId}`)
+                .unsigned()
+                .notNullable()
+                .references(columnNames.revisionId)
+                .inTable(tableNames.revision);
         });
         if (tableNames.revisionRole && tableNames.revisionUserRole) {
             await knex.schema.createTable(tableNames.revisionRole, t => {
@@ -541,12 +586,15 @@ var generator = (config) => {
         if (tableNames.revisionRole && tableNames.revisionUserRole) {
             await knex.schema.dropTable(tableNames.revisionUserRole);
             await knex.schema.dropTable(tableNames.revisionRole);
+            await knex.schema.dropTable(tableNames.revisionEdge);
+            await knex.schema.dropTable(tableNames.revisionFragment);
         }
         await knex.schema.dropTable(tableNames.revisionNodeSnapshot);
         return await knex.schema.dropTable(tableNames.revision);
     };
     return { up, down };
 };
+//# sourceMappingURL=generator.js.map
 
 // tslint:disable
 /**
@@ -598,6 +646,7 @@ function decorate(thing, decorators) {
 function isDecoratorArray(decorator) {
     return decorator !== undefined && Array.isArray(decorator);
 }
+//# sourceMappingURL=decorate.js.map
 
 exports.createRevisionMigrations = generator;
 exports.decorate = decorate;

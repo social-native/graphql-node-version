@@ -24,6 +24,8 @@ var DEFAULT_TABLE_NAMES;
     DEFAULT_TABLE_NAMES["revisionRole"] = "revision_role";
     DEFAULT_TABLE_NAMES["revisionUserRole"] = "revision_user_roles";
     DEFAULT_TABLE_NAMES["revisionNodeSnapshot"] = "revision_node_snapshot";
+    DEFAULT_TABLE_NAMES["revisionEdge"] = "revision_edge";
+    DEFAULT_TABLE_NAMES["revisionFragment"] = "revision_fragment";
 })(DEFAULT_TABLE_NAMES || (DEFAULT_TABLE_NAMES = {}));
 var DEFAULT_COLUMN_NAMES;
 (function (DEFAULT_COLUMN_NAMES) {
@@ -45,6 +47,18 @@ var DEFAULT_COLUMN_NAMES;
     DEFAULT_COLUMN_NAMES["roleName"] = "role_name";
     // revision user roles
     DEFAULT_COLUMN_NAMES["userRoleId"] = "id";
+    // revision edge
+    DEFAULT_COLUMN_NAMES["revisionEdgeId"] = "id";
+    DEFAULT_COLUMN_NAMES["revisionEdgeTime"] = "created_at";
+    DEFAULT_COLUMN_NAMES["edgeNodeNameA"] = "node_name_a";
+    DEFAULT_COLUMN_NAMES["edgeNodeIdA"] = "node_id_a";
+    DEFAULT_COLUMN_NAMES["edgeNodeNameB"] = "node_name_b";
+    DEFAULT_COLUMN_NAMES["edgeNodeIdB"] = "node_id_b";
+    // revision fragment
+    DEFAULT_COLUMN_NAMES["revisionFragmentId"] = "id";
+    DEFAULT_COLUMN_NAMES["revisionFragmentTime"] = "created_at";
+    DEFAULT_COLUMN_NAMES["fragmentParentNodeId"] = "parent_node_id";
+    DEFAULT_COLUMN_NAMES["fragmentParentNodeName"] = "parent_node_name";
 })(DEFAULT_COLUMN_NAMES || (DEFAULT_COLUMN_NAMES = {}));
 const setNames = ({ tableNames, columnNames }) => ({
     tableNames: {
@@ -56,6 +70,7 @@ const setNames = ({ tableNames, columnNames }) => ({
         ...columnNames
     }
 });
+//# sourceMappingURL=sqlNames.js.map
 
 var createRevisionMigrations = (config) => {
     const { tableNames, columnNames } = setNames(config || {});
@@ -83,6 +98,30 @@ var createRevisionMigrations = (config) => {
                 .references(columnNames.revisionId)
                 .inTable(tableNames.revision);
             t.json(columnNames.snapshotData);
+        });
+        await knex.schema.createTable(tableNames.revisionEdge, t => {
+            t.increments(columnNames.revisionEdgeId)
+                .unsigned()
+                .primary();
+            t.timestamp(columnNames.revisionEdgeTime).defaultTo(knex.fn.now());
+            t.integer(columnNames.edgeNodeIdA);
+            t.string(columnNames.edgeNodeNameA);
+            t.integer(columnNames.edgeNodeIdB);
+            t.string(columnNames.edgeNodeNameB);
+            t.string(columnNames.resolverOperation);
+        });
+        await knex.schema.createTable(tableNames.revisionFragment, t => {
+            t.increments(columnNames.revisionFragmentId)
+                .unsigned()
+                .primary();
+            t.timestamp(columnNames.revisionFragmentTime).defaultTo(knex.fn.now());
+            t.integer(columnNames.fragmentParentNodeId);
+            t.string(columnNames.fragmentParentNodeName);
+            t.integer(`${tableNames.revision}_${columnNames.revisionId}`)
+                .unsigned()
+                .notNullable()
+                .references(columnNames.revisionId)
+                .inTable(tableNames.revision);
         });
         if (tableNames.revisionRole && tableNames.revisionUserRole) {
             await knex.schema.createTable(tableNames.revisionRole, t => {
@@ -117,12 +156,15 @@ var createRevisionMigrations = (config) => {
         if (tableNames.revisionRole && tableNames.revisionUserRole) {
             await knex.schema.dropTable(tableNames.revisionUserRole);
             await knex.schema.dropTable(tableNames.revisionRole);
+            await knex.schema.dropTable(tableNames.revisionEdge);
+            await knex.schema.dropTable(tableNames.revisionFragment);
         }
         await knex.schema.dropTable(tableNames.revisionNodeSnapshot);
         return await knex.schema.dropTable(tableNames.revision);
     };
     return { up, down };
 };
+//# sourceMappingURL=generator.js.map
 
 const { keys } = lodash;
 
@@ -469,3 +511,4 @@ yargs.command({
 // run!
 // tslint:disable-next-line
 yargs.help().argv;
+//# sourceMappingURL=bin.js.map

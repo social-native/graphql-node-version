@@ -10,7 +10,9 @@ enum DEFAULT_TABLE_NAMES {
     revision = 'revision',
     revisionRole = 'revision_role',
     revisionUserRole = 'revision_user_roles',
-    revisionNodeSnapshot = 'revision_node_snapshot'
+    revisionNodeSnapshot = 'revision_node_snapshot',
+    revisionEdge = 'revision_edge',
+    revisionFragment = 'revision_fragment'
 }
 
 enum DEFAULT_COLUMN_NAMES {
@@ -34,7 +36,21 @@ enum DEFAULT_COLUMN_NAMES {
     roleName = 'role_name',
 
     // revision user roles
-    userRoleId = 'id'
+    userRoleId = 'id',
+
+    // revision edge
+    revisionEdgeId = 'id',
+    revisionEdgeTime = 'created_at',
+    edgeNodeNameA = 'node_name_a',
+    edgeNodeIdA = 'node_id_a',
+    edgeNodeNameB = 'node_name_b',
+    edgeNodeIdB = 'node_id_b',
+
+    // revision fragment
+    revisionFragmentId = 'id',
+    revisionFragmentTime = 'created_at',
+    fragmentParentNodeId = 'parent_node_id',
+    fragmentParentNodeName = 'parent_node_name'
 }
 
 export const setNames = ({tableNames, columnNames}: INamesConfig): INamesForTablesAndColumns => ({

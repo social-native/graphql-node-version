@@ -38,6 +38,8 @@ export interface INamesConfig {
         revisionRole?: string;
         revisionUserRole?: string;
         revisionNodeSnapshot?: string;
+        revisionEdge?: string;
+        revisionFragment?: string;
     };
     columnNames?: {
         revisionId?: string;
@@ -57,6 +59,20 @@ export interface INamesConfig {
         roleName?: string;
 
         userRoleId?: string;
+
+        revisionEdgeId?: string;
+        revisionEdgeTime?: string;
+        edgeNodeNameA: string;
+        edgeNodeIdA: string;
+        edgeNodeNameB: string;
+        edgeNodeIdB: string;
+
+        revisionFragmentId?: string;
+        revisionFragmentTime?: string;
+        fragmentParentNodeId: string;
+        fragmentParentNodeName: string;
+        // fragmentChildNodeId: string;
+        // fragmentChildNodeName: string;
     };
 }
 

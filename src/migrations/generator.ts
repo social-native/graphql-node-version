@@ -43,6 +43,34 @@ export default (config?: IConfig) => {
             t.json(columnNames.snapshotData);
         });
 
+        await knex.schema.createTable(tableNames.revisionEdge, t => {
+            t.increments(columnNames.revisionEdgeId)
+                .unsigned()
+                .primary();
+
+            t.timestamp(columnNames.revisionEdgeTime).defaultTo(knex.fn.now());
+            t.integer(columnNames.edgeNodeIdA);
+            t.string(columnNames.edgeNodeNameA);
+            t.integer(columnNames.edgeNodeIdB);
+            t.string(columnNames.edgeNodeNameB);
+            t.string(columnNames.resolverOperation);
+        });
+
+        await knex.schema.createTable(tableNames.revisionFragment, t => {
+            t.increments(columnNames.revisionFragmentId)
+                .unsigned()
+                .primary();
+
+            t.timestamp(columnNames.revisionFragmentTime).defaultTo(knex.fn.now());
+            t.integer(columnNames.fragmentParentNodeId);
+            t.string(columnNames.fragmentParentNodeName);
+            t.integer(`${tableNames.revision}_${columnNames.revisionId}`)
+                .unsigned()
+                .notNullable()
+                .references(columnNames.revisionId)
+                .inTable(tableNames.revision);
+        });
+
         if (tableNames.revisionRole && tableNames.revisionUserRole) {
             await knex.schema.createTable(tableNames.revisionRole, t => {
                 t.increments(columnNames.roleId)
@@ -77,6 +105,8 @@ export default (config?: IConfig) => {
         if (tableNames.revisionRole && tableNames.revisionUserRole) {
             await knex.schema.dropTable(tableNames.revisionUserRole);
             await knex.schema.dropTable(tableNames.revisionRole);
+            await knex.schema.dropTable(tableNames.revisionEdge);
+            await knex.schema.dropTable(tableNames.revisionFragment);
         }
         await knex.schema.dropTable(tableNames.revisionNodeSnapshot);
         return await knex.schema.dropTable(tableNames.revision);

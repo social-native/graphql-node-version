@@ -441,6 +441,38 @@ decorate(mutation, {
         currentNodeSnapshot: async (nodeId, args) => {
             return await query.user(undefined, {id: nodeId as string}, args[2], args[3]);
         }
+    }),
+    userDelete: versionRecorder<MutationUserDeleteResolver>({
+        ...commonDecoratorConfig<MutationUserDeleteResolver>(),
+        nodeName: 'user',
+        resolverOperation: 'delete',
+        nodeId: (_, __, {id}) => id,
+        nodeSchemaVersion: 1,
+        currentNodeSnapshot: async (nodeId, args) => {
+            return await query.user(undefined, {id: nodeId as string}, args[2], args[3]);
+        }
+    }),
+    teamUserCreate: versionRecorder<MutationTeamUserCreate>({
+        ...commonDecoratorConfig<MutationTeamUserCreate>(),
+        nodeName: 'user',
+        resolverOperation: 'edgeCreate',
+        nodeId: (_, __, {userId}) => userId,
+        nodeSchemaVersion: 1,
+        currentNodeSnapshot: async (nodeId, args) => {
+            return await query.user(undefined, {id: nodeId as string}, args[2], args[3]);
+        },
+        edges: (_, __, {teamId}) => [{nodeId: teamId, nodeName: 'team'}]
+    }),
+    teamUserDelete: versionRecorder<MutationTeamUserDelete>({
+        ...commonDecoratorConfig<MutationTeamUserDelete>(),
+        nodeName: 'user',
+        resolverOperation: 'edgeDelete',
+        nodeId: (_, __, {userId}) => userId,
+        nodeSchemaVersion: 1,
+        currentNodeSnapshot: async (nodeId, args) => {
+            return await query.user(undefined, {id: nodeId as string}, args[2], args[3]);
+        },
+        edges: (_, __, {teamId}) => [{nodeId: teamId, nodeName: 'team'}]
     })
 });
 
