@@ -5,7 +5,7 @@ import knex from 'knex';
 import query from './query';
 
 import {decorate, versionRecorderDecorator as versionRecorder} from '../../src/index';
-import {IVersionRecorderExtractors} from '../../src/decorators/versionRecorder';
+import {IVersionRecorderExtractors} from '../../src/decorators/version_recorder/types';
 
 interface ITeamCreationMutationInput {
     name: string;

@@ -21,17 +21,6 @@ export interface IRevisionConnection<Node> {
     };
 }
 
-// type ColumnNames =
-//     | 'userId'
-//     | 'userRoles'
-//     | 'revisionData'
-//     | 'revisionTime'
-//     | 'nodeSchemaVersion'
-//     | 'nodeName'
-//     | 'nodeId';
-
-// type TableNames = 'revision' | 'revisionRole' | 'revisionUserRole';
-
 export interface INamesConfig {
     tableNames?: {
         revision?: string;
@@ -71,8 +60,6 @@ export interface INamesConfig {
         revisionFragmentTime?: string;
         fragmentParentNodeId: string;
         fragmentParentNodeName: string;
-        // fragmentChildNodeId: string;
-        // fragmentChildNodeName: string;
     };
 }
 
