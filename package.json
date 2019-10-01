@@ -63,6 +63,7 @@
         "@social-native/snpkg-snapi-authorization": "^2.1.0",
         "@social-native/snpkg-snapi-common": "^2.4.6",
         "@social-native/snpkg-snapi-connections": "^5.0.1",
+        "bluebird": "^3.7.0",
         "colorette": "^1.1.0",
         "getopts": "^2.2.5",
         "knex": "^0.19.4",

@@ -5,6 +5,7 @@ function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'defau
 
 require('luxon');
 require('@social-native/snpkg-snapi-connections');
+require('bluebird');
 var yargs = _interopDefault(require('yargs'));
 var path = _interopDefault(require('path'));
 var tildify = _interopDefault(require('tildify'));

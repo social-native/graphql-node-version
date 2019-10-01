@@ -2,8 +2,11 @@
 
 Object.defineProperty(exports, '__esModule', { value: true });
 
+function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'default' in ex) ? ex['default'] : ex; }
+
 var luxon = require('luxon');
 var snpkgSnapiConnections = require('@social-native/snpkg-snapi-connections');
+var Bluebird = _interopDefault(require('bluebird'));
 
 /**
  * Sets the names for tables and columns that revisions will be stored in
@@ -397,6 +400,14 @@ const createRevisionTransaction = (config) => async (transaction, input) => {
     }, ((config && config.transactionTimeoutSeconds) || 10) * 1000);
     return revisionId;
 };
+const getResolverOperation = (extractors, property) => {
+    const rawResolverOperation = extractors.resolverOperation
+        ? extractors.resolverOperation
+        : property;
+    return typeof rawResolverOperation === 'symbol'
+        ? rawResolverOperation.toString()
+        : rawResolverOperation;
+};
 var versionRecorder = (extractors, config) => {
     return (_target, property, descriptor) => {
         const { tableNames, columnNames } = setNames(config || {});
@@ -423,9 +434,10 @@ var versionRecorder = (extractors, config) => {
                     .toISOString()
                     .split('Z')
                     .join('');
-            const resolverOperation = extractors.resolverOperation
-                ? extractors.resolverOperation
-                : property;
+            const resolverOperation = getResolverOperation(extractors, property);
+            const edgesToRecord = extractors.edges
+                ? extractors.edges(args[0], args[1], args[2], args[3])
+                : undefined;
             const transaction = await findOrCreateKnexTransaction(localKnexClient);
             const [parent, ar, ctx, info] = args;
             let newArgs = {};
@@ -448,9 +460,7 @@ var versionRecorder = (extractors, config) => {
                 nodeSchemaVersion,
                 nodeName,
                 nodeId,
-                resolverOperation: typeof resolverOperation === 'symbol'
-                    ? resolverOperation.toString()
-                    : resolverOperation
+                resolverOperation
             };
             const revTxFn = createRevisionTransaction(config);
             const revisionId = await revTxFn(transaction, revisionInput);
@@ -465,11 +475,37 @@ var versionRecorder = (extractors, config) => {
                 }
                 await storeCurrentNodeSnapshot({ tableNames, columnNames }, currentNodeSnapshot, revisionId, transaction);
             }
+            if (edgesToRecord) {
+                await Bluebird.each(edgesToRecord, async (edge) => {
+                    return await storeEdge({ tableNames, columnNames }, edge, revisionInput, transaction);
+                });
+            }
             await transaction.commit();
             return node;
         });
         return descriptor;
     };
+};
+const storeEdge = async ({ tableNames, columnNames }, edgesToRecord, revisionInput, transaction) => {
+    const inputFirst = {
+        [columnNames.revisionEdgeTime]: revisionInput.revisionTime,
+        [columnNames.resolverOperation]: revisionInput.resolverOperation,
+        [columnNames.edgeNodeIdA]: revisionInput.nodeId,
+        [columnNames.edgeNodeNameA]: revisionInput.nodeName,
+        [columnNames.edgeNodeIdB]: edgesToRecord.nodeId,
+        [columnNames.edgeNodeNameB]: edgesToRecord.nodeName
+    };
+    // switch A and B nodes for faster sql querying
+    const inputSecond = {
+        [columnNames.revisionEdgeTime]: revisionInput.revisionTime,
+        [columnNames.resolverOperation]: revisionInput.resolverOperation,
+        [columnNames.edgeNodeIdB]: revisionInput.nodeId,
+        [columnNames.edgeNodeNameB]: revisionInput.nodeName,
+        [columnNames.edgeNodeIdA]: edgesToRecord.nodeId,
+        [columnNames.edgeNodeNameA]: edgesToRecord.nodeName
+    };
+    await transaction.table(tableNames.revisionEdge).insert(inputFirst);
+    await transaction.table(tableNames.revisionEdge).insert(inputSecond);
 };
 /**
  * Write the node snapshot to the database

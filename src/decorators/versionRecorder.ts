@@ -1,4 +1,5 @@
 import * as Knex from 'knex';
+import Bluebird from 'bluebird';
 
 import {INamesConfig, UnPromisify, INamesForTablesAndColumns, IRevisionInput} from '../types';
 import {setNames} from '../sqlNames';
@@ -48,8 +49,18 @@ export interface IVersionRecorderExtractors<Resolver extends (...args: any[]) =>
     passThroughTransaction?: boolean;
     currentNodeSnapshot: (nodeId: string | number, resolverArgs: Parameters<Resolver>) => any; // tslint:disable-line
     currentNodeSnapshotFrequency?: number;
-    parentNode?: (...args: Parameters<Resolver>) => {nodeId: string | number; nodeName: string};
-    edges?: (...args: Parameters<Resolver>) => Array<{nodeId: string | number; nodeName: string}>;
+    parentNode?: (
+        parent: Parameters<Resolver>[0],
+        args: Parameters<Resolver>[1],
+        ctx: Parameters<Resolver>[2],
+        info: Parameters<Resolver>[3]
+    ) => {nodeId: string | number; nodeName: string};
+    edges?: (
+        parent: Parameters<Resolver>[0],
+        args: Parameters<Resolver>[1],
+        ctx: Parameters<Resolver>[2],
+        info: Parameters<Resolver>[3]
+    ) => Array<{nodeId: string | number; nodeName: string}>;
 }
 
 interface ICreateRevisionTransactionConfig extends INamesConfig {
@@ -112,6 +123,19 @@ const createRevisionTransaction = (
     return revisionId;
 };
 
+const getResolverOperation = <T extends (...args: any[]) => any>(
+    extractors: IVersionRecorderExtractors<T>,
+    property: string | symbol
+) => {
+    const rawResolverOperation = extractors.resolverOperation
+        ? extractors.resolverOperation
+        : property;
+
+    return typeof rawResolverOperation === 'symbol'
+        ? rawResolverOperation.toString()
+        : rawResolverOperation;
+};
+
 export default <ResolverT extends (...args: any[]) => any>(
     extractors: IVersionRecorderExtractors<ResolverT>,
     config?: ICreateRevisionTransactionConfig & INamesConfig
@@ -144,9 +168,11 @@ export default <ResolverT extends (...args: any[]) => any>(
                       .split('Z')
                       .join('');
 
-            const resolverOperation = extractors.resolverOperation
-                ? extractors.resolverOperation
-                : property;
+            const resolverOperation = getResolverOperation(extractors, property);
+
+            const edgesToRecord = extractors.edges
+                ? extractors.edges(args[0], args[1], args[2], args[3])
+                : undefined;
 
             const transaction = await findOrCreateKnexTransaction(localKnexClient);
 
@@ -176,10 +202,7 @@ export default <ResolverT extends (...args: any[]) => any>(
                 nodeSchemaVersion,
                 nodeName,
                 nodeId,
-                resolverOperation:
-                    typeof resolverOperation === 'symbol'
-                        ? resolverOperation.toString()
-                        : resolverOperation
+                resolverOperation
             };
 
             const revTxFn = createRevisionTransaction(config);
@@ -212,6 +235,17 @@ export default <ResolverT extends (...args: any[]) => any>(
                     transaction
                 );
             }
+
+            if (edgesToRecord) {
+                await Bluebird.each(edgesToRecord, async edge => {
+                    return await storeEdge(
+                        {tableNames, columnNames},
+                        edge,
+                        revisionInput,
+                        transaction
+                    );
+                });
+            }
             await transaction.commit();
 
             return node;
@@ -221,6 +255,34 @@ export default <ResolverT extends (...args: any[]) => any>(
     };
 };
 
+const storeEdge = async (
+    {tableNames, columnNames}: INamesForTablesAndColumns,
+    edgesToRecord: {nodeId: string | number; nodeName: string},
+    revisionInput: IRevisionInput,
+    transaction: Knex.Transaction
+) => {
+    const inputFirst = {
+        [columnNames.revisionEdgeTime]: revisionInput.revisionTime,
+        [columnNames.resolverOperation]: revisionInput.resolverOperation,
+        [columnNames.edgeNodeIdA]: revisionInput.nodeId,
+        [columnNames.edgeNodeNameA]: revisionInput.nodeName,
+        [columnNames.edgeNodeIdB]: edgesToRecord.nodeId,
+        [columnNames.edgeNodeNameB]: edgesToRecord.nodeName
+    };
+
+    // switch A and B nodes for faster sql querying
+    const inputSecond = {
+        [columnNames.revisionEdgeTime]: revisionInput.revisionTime,
+        [columnNames.resolverOperation]: revisionInput.resolverOperation,
+        [columnNames.edgeNodeIdB]: revisionInput.nodeId,
+        [columnNames.edgeNodeNameB]: revisionInput.nodeName,
+        [columnNames.edgeNodeIdA]: edgesToRecord.nodeId,
+        [columnNames.edgeNodeNameA]: edgesToRecord.nodeName
+    };
+
+    await transaction.table(tableNames.revisionEdge).insert(inputFirst);
+    await transaction.table(tableNames.revisionEdge).insert(inputSecond);
+};
 /**
  * Write the node snapshot to the database
  */
