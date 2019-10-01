@@ -38,25 +38,25 @@ export interface IVersionRecorderExtractors<Resolver extends (...args: any[]) =>
         args: Parameters<Resolver>[1],
         ctx: Parameters<Resolver>[2],
         info: Parameters<Resolver>[3]
-    ) => string | number | undefined; // tslint:disable-line
+    ) => INode['nodeId'] | undefined; // tslint:disable-line
     nodeSchemaVersion: number;
     nodeName: string;
     resolverOperation?: string;
     passThroughTransaction?: boolean;
-    currentNodeSnapshot: (nodeId: string | number, resolverArgs: Parameters<Resolver>) => any; // tslint:disable-line
+    currentNodeSnapshot: (nodeId: INode['nodeId'], resolverArgs: Parameters<Resolver>) => any; // tslint:disable-line
     currentNodeSnapshotFrequency?: number;
     parentNode?: (
         parent: Parameters<Resolver>[0],
         args: Parameters<Resolver>[1],
         ctx: Parameters<Resolver>[2],
         info: Parameters<Resolver>[3]
-    ) => {nodeId: string | number; nodeName: string};
+    ) => INode;
     edges?: (
         parent: Parameters<Resolver>[0],
         args: Parameters<Resolver>[1],
         ctx: Parameters<Resolver>[2],
         info: Parameters<Resolver>[3]
-    ) => Array<{nodeId: string | number; nodeName: string}>;
+    ) => INode[];
 }
 
 export interface ICreateRevisionTransactionConfig extends INamesConfig {
@@ -70,6 +70,12 @@ export interface IRevisionInfo {
     revisionTime: string;
     nodeSchemaVersion: number;
     nodeName: string;
-    edgesToRecord: Array<{nodeId: number | string; nodeName: string}> | undefined;
+    edgesToRecord: INode[] | undefined;
+    fragmentToRecord: INode | undefined;
     snapshotFrequency: number;
+}
+
+export interface INode {
+    nodeId: number | string;
+    nodeName: string;
 }

@@ -76,6 +76,8 @@ export default <ResolverT extends (...args: any[]) => any>(
                     );
                 });
             }
+            await storeFragment(transaction, nodeToSqlNameMappings, revisionInfo, revisionId);
+
             await transaction.commit();
 
             return node;
@@ -181,6 +183,7 @@ const extractRevisionInfo = <ResolverT extends (...args: any[]) => any>(
     args: Parameters<ResolverT>,
     extractors: IVersionRecorderExtractors<ResolverT>
 ): IRevisionInfo => {
+    // tslint:disable-next-line
     const userId = extractors.userId(args[0], args[1], args[2], args[3]);
     const revisionData = extractors.revisionData(args[0], args[1], args[2], args[3]);
     const nodeSchemaVersion = extractors.nodeSchemaVersion;
@@ -201,11 +204,15 @@ const extractRevisionInfo = <ResolverT extends (...args: any[]) => any>(
         ? extractors.edges(args[0], args[1], args[2], args[3])
         : undefined;
 
+    const fragmentToRecord = extractors.parentNode
+        ? extractors.parentNode(args[0], args[1], args[2], args[3])
+        : undefined;
+
     const snapshotFrequency = extractors.currentNodeSnapshotFrequency
         ? extractors.currentNodeSnapshotFrequency
         : 1;
 
-    const revisionInfo = {
+    return {
         userId,
         userRoles,
         revisionData,
@@ -213,11 +220,29 @@ const extractRevisionInfo = <ResolverT extends (...args: any[]) => any>(
         nodeSchemaVersion,
         nodeName,
         edgesToRecord,
+        fragmentToRecord,
         snapshotFrequency
     };
-
-    return revisionInfo;
 };
+
+const storeFragment = async (
+    transaction: Knex.Transaction,
+    {tableNames, columnNames}: INamesForTablesAndColumns,
+    revisionInfo: IRevisionInfo,
+    revisionId: number
+) => {
+    if (revisionInfo.fragmentToRecord) {
+        const fragment = {
+            [columnNames.revisionEdgeTime]: revisionInfo.revisionTime,
+            [columnNames.fragmentParentNodeId]: revisionInfo.fragmentToRecord.nodeId,
+            [columnNames.fragmentParentNodeName]: revisionInfo.fragmentToRecord.nodeName,
+            [columnNames.revisionId]: revisionId
+        };
+
+        await transaction.table(tableNames.revisionFragment).insert(fragment);
+    }
+};
+
 const storeEdge = async (
     transaction: Knex.Transaction,
     {tableNames, columnNames}: INamesForTablesAndColumns,
