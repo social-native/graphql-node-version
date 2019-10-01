@@ -22,7 +22,7 @@ enum DEFAULT_COLUMN_NAMES {
     nodeName = 'node_name',
     nodeSchemaVersion = 'node_schema_version',
     nodeId = 'node_id',
-    resolverName = 'resolver_name',
+    resolverOperation = 'resolver_operation',
 
     // revision node snapshot table
     snapshotId = 'id',

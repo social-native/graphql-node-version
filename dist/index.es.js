@@ -23,7 +23,7 @@ var DEFAULT_COLUMN_NAMES;
     DEFAULT_COLUMN_NAMES["nodeName"] = "node_name";
     DEFAULT_COLUMN_NAMES["nodeSchemaVersion"] = "node_schema_version";
     DEFAULT_COLUMN_NAMES["nodeId"] = "node_id";
-    DEFAULT_COLUMN_NAMES["resolverName"] = "resolver_name";
+    DEFAULT_COLUMN_NAMES["resolverOperation"] = "resolver_operation";
     // revision node snapshot table
     DEFAULT_COLUMN_NAMES["snapshotId"] = "id";
     DEFAULT_COLUMN_NAMES["snapshotTime"] = "snapshot_created_at";
@@ -115,13 +115,13 @@ var versionConnection = (extractors, config) => {
             console.log('Comparing nodes', latestCalculatedNode, latestNode);
             console.log('NODES IN RANGE', nodesInRange);
             const newEdges = revisionsOfInterest.edges.map(edge => {
-                const { revisionData, userId, nodeName: nn, nodeSchemaVersion, resolverName, revisionTime, revisionId, userRoles } = edge.node;
+                const { revisionData, userId, nodeName: nn, nodeSchemaVersion, resolverOperation, revisionTime, revisionId, userRoles } = edge.node;
                 const version = {
                     revisionData,
                     userId,
                     nodeName: nn,
                     nodeSchemaVersion,
-                    resolverName,
+                    resolverOperation,
                     revisionTime,
                     revisionId,
                     userRoles
@@ -179,7 +179,7 @@ const getRevisionsInRange = async (maxRevisionNumber, minRevisionNumber, nodeId,
     `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.nodeSchemaVersion} as nodeSchemaVersion`, // tslint:disable-line
     `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.nodeName} as nodeName`, // tslint:disable-line
     `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.nodeId} as nodeId`, // tslint:disable-line
-    `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.resolverName} as resolverName`, // tslint:disable-line
+    `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.resolverOperation} as resolverOperation`, // tslint:disable-line
     `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.revisionId} as revisionId`, // tslint:disable-line
     `${nodeToSqlNameMappings.tableNames.revisionNodeSnapshot}.${nodeToSqlNameMappings.columnNames.snapshotData} as snapshotData` // tslint:disable-line
     )
@@ -249,7 +249,7 @@ const getRevisionsOfInterest = async (resolverArgs, knex, nodeToSqlNameMappings,
         `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.nodeName} as nodeName`, // tslint:disable-line
         `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.nodeSchemaVersion} as nodeSchemaVersion`, // tslint:disable-line
         `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.nodeId} as nodeId`, // tslint:disable-line
-        `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.resolverName} as resolverName`, // tslint:disable-line
+        `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.resolverOperation} as resolverOperation`, // tslint:disable-line
         `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.userId} as userId`, // tslint:disable-line
         `${nodeToSqlNameMappings.tableNames.revisionNodeSnapshot}.${nodeToSqlNameMappings.columnNames.snapshotData} as snapshotData`, // tslint:disable-line
         `${nodeToSqlNameMappings.tableNames.revisionNodeSnapshot}.${nodeToSqlNameMappings.columnNames.snapshotTime} as snapshotTime` // tslint:disable-line
@@ -268,7 +268,7 @@ const getRevisionsOfInterest = async (resolverArgs, knex, nodeToSqlNameMappings,
     'nodeName', // tslint:disable-line
     'nodeSchemaVersion', // tslint:disable-line
     'nodeId', // tslint:disable-line
-    'resolverName', // tslint:disable-line
+    'resolverOperation', // tslint:disable-line
     'userId', // tslint:disable-line
     'snapshotData', // tslint:disable-line
     'snapshotTime', // tslint:disable-line
@@ -339,11 +339,13 @@ var nodeToSql = (nodeToSqlNameMappings, nodeData) => {
     }, {});
 };
 
-const createRevisionTransaction = (config) => async (knex, input) => {
+const findOrCreateKnexTransaction = async (knex) => {
+    return await knex.transaction();
+};
+const createRevisionTransaction = (config) => async (transaction, input) => {
     const nodeToSqlNameMappings = setNames(config || {});
     const { userRoles, ...mainTableInput } = input;
     const sqlData = nodeToSql(nodeToSqlNameMappings, mainTableInput);
-    const transaction = await knex.transaction();
     const revisionId = (await transaction
         .table(nodeToSqlNameMappings.tableNames.revision)
         .insert(sqlData)
@@ -372,7 +374,7 @@ const createRevisionTransaction = (config) => async (knex, input) => {
         await transaction.rollback();
         // throw new Error('Detected an orphaned transaction');
     }, ((config && config.transactionTimeoutSeconds) || 10) * 1000);
-    return { transaction, revisionId };
+    return revisionId;
 };
 var versionRecorder = (extractors, config) => {
     return (_target, property, descriptor) => {
@@ -381,38 +383,35 @@ var versionRecorder = (extractors, config) => {
         if (typeof value !== 'function') {
             throw new TypeError('Only functions can be decorated.');
         }
-        if (!extractors.nodeIdCreate && !extractors.nodeIdUpdate) {
-            throw new Error(
-            // tslint:disable-next-line
-            'No node id extractor specified in the config. You need to specify either a `nodeIdUpdate` or `nodeIdCreate` extractor');
-        }
         // tslint:disable-next-line
         descriptor.value = (async (...args) => {
-            const localKnexClient = extractors.knex(...args);
-            const userId = extractors.userId(...args);
-            const revisionData = extractors.revisionData(...args);
-            const nodeSchemaVersion = extractors.nodeSchemaVersion(...args);
-            const nodeName = extractors.nodeName(...args);
+            const localKnexClient = extractors.knex(args[0], args[1], args[2], args[3]);
+            const userId = extractors.userId(args[0], args[1], args[2], args[3]);
+            const revisionData = extractors.revisionData(args[0], args[1], args[2], args[3]);
+            const nodeSchemaVersion = extractors.nodeSchemaVersion;
+            const nodeName = extractors.nodeName;
             const snapshotFrequency = extractors.currentNodeSnapshotFrequency
                 ? extractors.currentNodeSnapshotFrequency
                 : 1;
             const userRoles = extractors.userRoles
-                ? extractors.userRoles(...args)
+                ? extractors.userRoles(args[0], args[1], args[2], args[3])
                 : [];
             const revisionTime = extractors.revisionTime
-                ? extractors.revisionTime(...args)
+                ? extractors.revisionTime(args[0], args[1], args[2], args[3])
                 : new Date()
                     .toISOString()
                     .split('Z')
                     .join('');
-            let nodeId = extractors.nodeIdUpdate
-                ? extractors.nodeIdUpdate(...args)
-                : undefined;
-            const resolverName = extractors.resolverName
-                ? extractors.resolverName(...args)
+            const resolverOperation = extractors.resolverOperation
+                ? extractors.resolverOperation
                 : property;
+            const transaction = await findOrCreateKnexTransaction(localKnexClient);
+            const [parent, ar, ctx, info] = args;
+            const newArgs = { ...ar, transaction };
+            const node = (await value(parent, newArgs, ctx, info));
+            const nodeId = extractors.nodeId(node, args[0], args[1], args[2], args[3]);
             if (nodeId === undefined) {
-                throw new Error('Could not extract node id for version recording');
+                throw new Error(`Unable to extract node id in version recorder for node ${nodeName}`);
             }
             const revisionInput = {
                 userId,
@@ -422,30 +421,18 @@ var versionRecorder = (extractors, config) => {
                 nodeSchemaVersion,
                 nodeName,
                 nodeId,
-                resolverName: typeof resolverName === 'symbol' ? resolverName.toString() : resolverName
+                resolverOperation: typeof resolverOperation === 'symbol'
+                    ? resolverOperation.toString()
+                    : resolverOperation
             };
-            console.log('CREATING TRANSACTION');
             const revTxFn = createRevisionTransaction(config);
-            const { transaction, revisionId } = await revTxFn(localKnexClient, revisionInput);
-            const [parent, ar, ctx, info] = args;
-            const newArgs = { ...ar, transaction };
-            const node = (await value(parent, newArgs, ctx, info));
-            console.log('NODE', node);
-            if (!nodeId) {
-                nodeId = extractors.nodeIdCreate ? extractors.nodeIdCreate(node) : undefined;
-                if (nodeId === undefined) {
-                    throw new Error(`Unable to extract node id in version recorder for node ${nodeName}`);
-                }
-                await localKnexClient
-                    .table(tableNames.revision)
-                    .update({ [columnNames.nodeId]: nodeId })
-                    .where({ id: revisionId });
-            }
+            const revisionId = await revTxFn(transaction, revisionInput);
+            // await localKnexClient
+            //     .table(tableNames.revision)
+            //     .update({[columnNames.nodeId]: nodeId})
+            //     .where({id: revisionId});
             const shouldStoreSnapshot = await findIfShouldStoreSnapshot({ tableNames, columnNames }, snapshotFrequency, localKnexClient, nodeId, nodeName, nodeSchemaVersion);
-            console.log('SHOUOLD STORE SNAPSHOT', shouldStoreSnapshot);
-            console.log('NODE ID', nodeId);
             if (shouldStoreSnapshot) {
-                // console.log('THESE ARGS', args);
                 let currentNodeSnapshot;
                 try {
                     currentNodeSnapshot = await extractors.currentNodeSnapshot(nodeId, args);
@@ -453,10 +440,6 @@ var versionRecorder = (extractors, config) => {
                 catch (e) {
                     console.log('EERRRROR', e);
                 }
-                console.log('CURRENT NODE SNAPSHOT', currentNodeSnapshot);
-                // (
-                //     ...(args as Parameters<ResolverT>)
-                // );
                 await storeCurrentNodeSnapshot({ tableNames, columnNames }, currentNodeSnapshot, revisionId, localKnexClient);
             }
             return node;
@@ -507,7 +490,7 @@ var generator = (config) => {
             t.string(columnNames.nodeName);
             t.integer(columnNames.nodeSchemaVersion);
             t.integer(columnNames.nodeId);
-            t.string(columnNames.resolverName);
+            t.string(columnNames.resolverOperation);
         });
         await knex.schema.createTable(tableNames.revisionNodeSnapshot, t => {
             t.increments(columnNames.snapshotId)

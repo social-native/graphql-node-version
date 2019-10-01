@@ -35,7 +35,7 @@ var DEFAULT_COLUMN_NAMES;
     DEFAULT_COLUMN_NAMES["nodeName"] = "node_name";
     DEFAULT_COLUMN_NAMES["nodeSchemaVersion"] = "node_schema_version";
     DEFAULT_COLUMN_NAMES["nodeId"] = "node_id";
-    DEFAULT_COLUMN_NAMES["resolverName"] = "resolver_name";
+    DEFAULT_COLUMN_NAMES["resolverOperation"] = "resolver_operation";
     // revision node snapshot table
     DEFAULT_COLUMN_NAMES["snapshotId"] = "id";
     DEFAULT_COLUMN_NAMES["snapshotTime"] = "snapshot_created_at";
@@ -70,7 +70,7 @@ var createRevisionMigrations = (config) => {
             t.string(columnNames.nodeName);
             t.integer(columnNames.nodeSchemaVersion);
             t.integer(columnNames.nodeId);
-            t.string(columnNames.resolverName);
+            t.string(columnNames.resolverOperation);
         });
         await knex.schema.createTable(tableNames.revisionNodeSnapshot, t => {
             t.increments(columnNames.snapshotId)

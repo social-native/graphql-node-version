@@ -25,7 +25,7 @@ export default (config?: IConfig) => {
             t.string(columnNames.nodeName);
             t.integer(columnNames.nodeSchemaVersion);
             t.integer(columnNames.nodeId);
-            t.string(columnNames.resolverName);
+            t.string(columnNames.resolverOperation);
         });
 
         await knex.schema.createTable(tableNames.revisionNodeSnapshot, t => {

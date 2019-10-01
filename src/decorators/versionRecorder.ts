@@ -1,29 +1,51 @@
 import * as Knex from 'knex';
 
-import {
-    INamesConfig,
-    UnPromisify,
-    // IRevisionInfo,
-    INamesForTablesAndColumns,
-    IRevisionInput
-} from '../types';
+import {INamesConfig, UnPromisify, INamesForTablesAndColumns, IRevisionInput} from '../types';
 import {setNames} from '../sqlNames';
 import nodeToSql from 'transformers/nodeToSql';
 
 export interface IVersionRecorderExtractors<Resolver extends (...args: any[]) => any> {
-    userId: (...args: Parameters<Resolver>) => string;
-    userRoles: (...args: Parameters<Resolver>) => string[];
-    revisionData: (...args: Parameters<Resolver>) => string;
-    revisionTime?: (...args: Parameters<Resolver>) => string;
-    nodeSchemaVersion: (...args: Parameters<Resolver>) => number;
-    nodeName: (...args: Parameters<Resolver>) => string;
-    knex: (...args: Parameters<Resolver>) => Knex;
-    resolverOperation?: (...args: Parameters<Resolver>) => string;
-    // nodeIdUpdate?: (...args: Parameters<Resolver>) => string | number;
-    nodeId?: (
+    userId: (
+        parent: Parameters<Resolver>[0],
+        args: Parameters<Resolver>[1],
+        ctx: Parameters<Resolver>[2],
+        info: Parameters<Resolver>[3]
+    ) => string;
+    userRoles: (
+        parent: Parameters<Resolver>[0],
+        args: Parameters<Resolver>[1],
+        ctx: Parameters<Resolver>[2],
+        info: Parameters<Resolver>[3]
+    ) => string[];
+    revisionData: (
+        parent: Parameters<Resolver>[0],
+        args: Parameters<Resolver>[1],
+        ctx: Parameters<Resolver>[2],
+        info: Parameters<Resolver>[3]
+    ) => string;
+    revisionTime?: (
+        parent: Parameters<Resolver>[0],
+        args: Parameters<Resolver>[1],
+        ctx: Parameters<Resolver>[2],
+        info: Parameters<Resolver>[3]
+    ) => string;
+    knex: (
+        parent: Parameters<Resolver>[0],
+        args: Parameters<Resolver>[1],
+        ctx: Parameters<Resolver>[2],
+        info: Parameters<Resolver>[3]
+    ) => Knex;
+    nodeId: (
         node: UnPromisify<ReturnType<Resolver>>,
-        ...args: Parameters<Resolver>
-    ) => string | number; // tslint:disable-line
+        parent: Parameters<Resolver>[0],
+        args: Parameters<Resolver>[1],
+        ctx: Parameters<Resolver>[2],
+        info: Parameters<Resolver>[3]
+    ) => string | number | undefined; // tslint:disable-line
+    nodeSchemaVersion: number;
+    nodeName: string;
+    resolverOperation?: string;
+    passThroughTransaction?: boolean;
     currentNodeSnapshot: (nodeId: string | number, resolverArgs: Parameters<Resolver>) => any; // tslint:disable-line
     currentNodeSnapshotFrequency?: number;
     parentNode?: (...args: Parameters<Resolver>) => {nodeId: string | number; nodeName: string};
@@ -34,18 +56,18 @@ interface ICreateRevisionTransactionConfig extends INamesConfig {
     transactionTimeoutSeconds: number;
 }
 
+const findOrCreateKnexTransaction = async (knex: Knex) => {
+    return await knex.transaction();
+};
+
 const createRevisionTransaction = (
     config?: ICreateRevisionTransactionConfig & INamesConfig
-) => async (
-    knex: Knex,
-    input: IRevisionInput
-): Promise<{transaction: Knex.Transaction; revisionId: number}> => {
+) => async (transaction: Knex.Transaction, input: IRevisionInput) => {
     const nodeToSqlNameMappings = setNames(config || {});
 
     const {userRoles, ...mainTableInput} = input;
     const sqlData = nodeToSql(nodeToSqlNameMappings, mainTableInput);
 
-    const transaction = await knex.transaction();
     const revisionId = ((await transaction
         .table(nodeToSqlNameMappings.tableNames.revision)
         .insert(sqlData)
@@ -87,7 +109,7 @@ const createRevisionTransaction = (
         // throw new Error('Detected an orphaned transaction');
     }, ((config && config.transactionTimeoutSeconds) || 10) * 1000);
 
-    return {transaction, revisionId};
+    return revisionId;
 };
 
 export default <ResolverT extends (...args: any[]) => any>(
@@ -101,45 +123,50 @@ export default <ResolverT extends (...args: any[]) => any>(
             throw new TypeError('Only functions can be decorated.');
         }
 
-        if (!extractors.nodeIdCreate && !extractors.nodeIdUpdate) {
-            throw new Error(
-                // tslint:disable-next-line
-                'No node id extractor specified in the config. You need to specify either a `nodeIdUpdate` or `nodeIdCreate` extractor'
-            );
-        }
-
         // tslint:disable-next-line
-        descriptor.value = (async (...args) => {
-            const localKnexClient = extractors.knex(...(args as Parameters<ResolverT>));
-            const userId = extractors.userId(...(args as Parameters<ResolverT>));
-            const revisionData = extractors.revisionData(...(args as Parameters<ResolverT>));
-            const nodeSchemaVersion = extractors.nodeSchemaVersion(
-                ...(args as Parameters<ResolverT>)
-            );
-            const nodeName = extractors.nodeName(...(args as Parameters<ResolverT>));
+        descriptor.value = (async (...args: Parameters<ResolverT>) => {
+            const localKnexClient = extractors.knex(args[0], args[1], args[2], args[3]);
+            const userId = extractors.userId(args[0], args[1], args[2], args[3]);
+            const revisionData = extractors.revisionData(args[0], args[1], args[2], args[3]);
+            const nodeSchemaVersion = extractors.nodeSchemaVersion;
+            const nodeName = extractors.nodeName;
             const snapshotFrequency = extractors.currentNodeSnapshotFrequency
                 ? extractors.currentNodeSnapshotFrequency
                 : 1;
 
             const userRoles = extractors.userRoles
-                ? extractors.userRoles(...(args as Parameters<ResolverT>))
+                ? extractors.userRoles(args[0], args[1], args[2], args[3])
                 : [];
             const revisionTime = extractors.revisionTime
-                ? extractors.revisionTime(...(args as Parameters<ResolverT>))
+                ? extractors.revisionTime(args[0], args[1], args[2], args[3])
                 : new Date()
                       .toISOString()
                       .split('Z')
                       .join('');
-            let nodeId = extractors.nodeIdUpdate
-                ? extractors.nodeIdUpdate(...(args as Parameters<ResolverT>))
-                : undefined;
+
             const resolverOperation = extractors.resolverOperation
-                ? extractors.resolverOperation(...(args as Parameters<ResolverT>))
+                ? extractors.resolverOperation
                 : property;
 
-            // if (nodeId === undefined) {
-            //     throw new Error('Could not extract node id for version recording');
-            // }
+            const transaction = await findOrCreateKnexTransaction(localKnexClient);
+
+            const [parent, ar, ctx, info] = args;
+            let newArgs = {};
+            if (extractors.passThroughTransaction && extractors.passThroughTransaction === true) {
+                newArgs = {...ar, transaction};
+            } else {
+                newArgs = {...ar};
+            }
+            const node = (await value(parent, newArgs, ctx, info)) as UnPromisify<
+                ReturnType<ResolverT>
+            >;
+
+            const nodeId = extractors.nodeId(node, args[0], args[1], args[2], args[3]);
+            if (nodeId === undefined) {
+                throw new Error(
+                    `Unable to extract node id in version recorder for node ${nodeName}`
+                );
+            }
 
             const revisionInput = {
                 userId,
@@ -155,43 +182,19 @@ export default <ResolverT extends (...args: any[]) => any>(
                         : resolverOperation
             };
 
-            console.log('CREATING TRANSACTION');
             const revTxFn = createRevisionTransaction(config);
-            const {transaction, revisionId} = await revTxFn(localKnexClient, revisionInput);
+            const revisionId = await revTxFn(transaction, revisionInput);
 
-            const [parent, ar, ctx, info] = args;
-            const newArgs = {...ar, transaction};
-            const node = (await value(parent, newArgs, ctx, info)) as UnPromisify<
-                ReturnType<ResolverT>
-            >;
-            console.log('NODE', node);
-
-            if (!nodeId) {
-                nodeId = extractors.nodeIdCreate ? extractors.nodeIdCreate(node) : undefined;
-
-                if (nodeId === undefined) {
-                    throw new Error(
-                        `Unable to extract node id in version recorder for node ${nodeName}`
-                    );
-                }
-                await localKnexClient
-                    .table(tableNames.revision)
-                    .update({[columnNames.nodeId]: nodeId})
-                    .where({id: revisionId});
-            }
             const shouldStoreSnapshot = await findIfShouldStoreSnapshot(
                 {tableNames, columnNames},
                 snapshotFrequency,
-                localKnexClient,
+                transaction,
                 nodeId,
                 nodeName,
                 nodeSchemaVersion
             );
-            console.log('SHOUOLD STORE SNAPSHOT', shouldStoreSnapshot);
-            console.log('NODE ID', nodeId);
 
             if (shouldStoreSnapshot) {
-                // console.log('THESE ARGS', args);
                 let currentNodeSnapshot;
                 try {
                     currentNodeSnapshot = await extractors.currentNodeSnapshot(
@@ -201,19 +204,16 @@ export default <ResolverT extends (...args: any[]) => any>(
                 } catch (e) {
                     console.log('EERRRROR', e);
                 }
-                console.log('CURRENT NODE SNAPSHOT', currentNodeSnapshot);
-
-                // (
-                //     ...(args as Parameters<ResolverT>)
-                // );
 
                 await storeCurrentNodeSnapshot(
                     {tableNames, columnNames},
                     currentNodeSnapshot,
                     revisionId,
-                    localKnexClient
+                    transaction
                 );
             }
+            await transaction.commit();
+
             return node;
         }) as ResolverT;
 
@@ -228,9 +228,9 @@ const storeCurrentNodeSnapshot = async (
     {tableNames, columnNames}: INamesForTablesAndColumns,
     currentNodeSnapshot: any,
     revisionId: string | number,
-    localKnexClient: Knex
+    transaction: Knex.Transaction
 ) => {
-    await localKnexClient.table(tableNames.revisionNodeSnapshot).insert({
+    await transaction.table(tableNames.revisionNodeSnapshot).insert({
         [`${tableNames.revision}_${columnNames.revisionId}`]: revisionId,
         [columnNames.snapshotData]: JSON.stringify(currentNodeSnapshot) // tslint:disable-line
     });
@@ -243,12 +243,12 @@ const storeCurrentNodeSnapshot = async (
 const findIfShouldStoreSnapshot = async (
     {tableNames, columnNames}: INamesForTablesAndColumns,
     snapshotFrequency: number,
-    localKnexClient: Knex,
+    transaction: Knex.Transaction,
     nodeId: number | string,
     nodeName: string,
     mostRecentNodeSchemaVersion: number
 ) => {
-    const sql = localKnexClient
+    const sql = transaction
         .table(tableNames.revision)
         .leftJoin(
             tableNames.revisionNodeSnapshot,

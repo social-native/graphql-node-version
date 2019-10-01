@@ -36,7 +36,7 @@ export default gql`
         revisionTime: ${unixTimeSec.type.name}!
         nodeSchemaVersion: ID!
         nodeName: String!
-        resolverName: String!
+        resolverOperation: String!
     }
 
     type QueryUserVersionEdge implements IEdge {

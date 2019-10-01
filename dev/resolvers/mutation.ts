@@ -4,11 +4,7 @@ import knex from 'knex';
 
 import query from './query';
 
-import {
-    decorate,
-    versionRecorderDecorator as versionRecorder,
-    IRevisionConnection
-} from '../../src/index';
+import {decorate, versionRecorderDecorator as versionRecorder} from '../../src/index';
 import {IVersionRecorderExtractors} from '../../src/decorators/versionRecorder';
 
 interface ITeamCreationMutationInput {
@@ -381,57 +377,70 @@ const mutation: {
     }
 };
 
-const commonDecoratorConfig = <T extends (...args: any[]) => any>() =>
+const commonDecoratorConfig = <T extends Resolver<any, any, any>>() =>
     ({
         knex: (_, __, {sqlClient}) => sqlClient,
         userId: () => '1',
-        userRoles: () => ['operations', 'user', 'billing']
-    } as Pick<IVersionRecorderExtractors<T>, 'knex' | 'userId' | 'userRoles'>);
+        userRoles: () => ['operations', 'user', 'billing'],
+        revisionData: (_, args) => JSON.stringify(args),
+        currentNodeSnapshotFrequency: 5
+    } as Pick<
+        IVersionRecorderExtractors<T>,
+        'knex' | 'userId' | 'userRoles' | 'revisionData' | 'currentNodeSnapshotFrequency'
+    >);
 
 decorate(mutation, {
-    // TODO add ability to differentiate between additions and deletions in revision data
+    teamCreate: versionRecorder<MutationTeamCreate>({
+        ...commonDecoratorConfig<MutationTeamCreate>(),
+        nodeName: 'team',
+        resolverOperation: 'create',
+        nodeId: ({id}) => id,
+        nodeSchemaVersion: 1,
+        currentNodeSnapshot: async (nodeId, args) => {
+            return await query.team(undefined, {id: nodeId as string}, args[2], args[3]);
+        }
+    }),
+    teamUpdate: versionRecorder<MutationTeamUpdate>({
+        ...commonDecoratorConfig<MutationTeamUpdate>(),
+        nodeName: 'team',
+        resolverOperation: 'update',
+        nodeId: (_, __, {id}) => id,
+        nodeSchemaVersion: 1,
+        currentNodeSnapshot: async (nodeId, args) => {
+            return await query.team(undefined, {id: nodeId as string}, args[2], args[3]);
+        }
+    }),
+    teamDelete: versionRecorder<MutationTeamCreate>({
+        ...commonDecoratorConfig<MutationTeamCreate>(),
+        nodeName: 'team',
+        resolverOperation: 'delete',
+        nodeId: ({id}) => id,
+        nodeSchemaVersion: 1,
+        currentNodeSnapshot: async (nodeId, args) => {
+            return await query.team(undefined, {id: nodeId as string}, args[2], args[3]);
+        }
+    }),
     userCreate: versionRecorder<MutationUserCreateResolver>({
         ...commonDecoratorConfig<MutationUserCreateResolver>(),
+        nodeName: 'user',
+        resolverOperation: 'create',
         nodeId: ({id}) => id,
-        nodeSchemaVersion: () => 1,
-        revisionData: (_parent, args) => JSON.stringify(args),
-        resolverOperation: () => 'create',
-        nodeName: () => 'user',
+        nodeSchemaVersion: 1,
+        // TODO remind users in readme that the resolver type changes and
+        // they need to cast it to IRevisionConnection<Node>
         currentNodeSnapshot: async (nodeId, args) => {
-            // TODO remind users in readme that the resolver type changes and
-            // they need to cast it to IRevisionConnection<Node>
-            const r = ((await query.user(
-                undefined,
-                {id: nodeId as string},
-                args[2],
-                args[3]
-            )) as unknown) as IRevisionConnection<typeof query.user>;
-            // todo undo when connection is returning right type
-            return r;
-            // return r.edges[0] ? r.edges[0].node : undefined;
+            return await query.user(undefined, {id: nodeId as string}, args[2], args[3]);
         }
     }),
     userUpdate: versionRecorder<MutationUserUpdateResolver>({
         ...commonDecoratorConfig<MutationUserUpdateResolver>(),
-        nodeSchemaVersion: () => 1,
+        nodeName: 'user',
+        resolverOperation: 'update',
         nodeId: (_, __, {id}) => id,
-        revisionData: (_parent, args) => JSON.stringify(args),
-        resolverOperation: () => 'update',
-        nodeName: () => 'user',
+        nodeSchemaVersion: 1,
         currentNodeSnapshot: async (nodeId, args) => {
-            // TODO remind users in readme that the resolver type changes and
-            // they need to cast it to IRevisionConnection<Node>
-            const r = ((await query.user(
-                undefined,
-                {id: nodeId as string},
-                args[2],
-                args[3]
-            )) as unknown) as IRevisionConnection<typeof query.user>;
-            // todo undo when connection is returning right type
-            return r;
-            // return r.edges[0] ? r.edges[0].node : undefined;
-        },
-        currentNodeSnapshotFrequency: 5
+            return await query.user(undefined, {id: nodeId as string}, args[2], args[3]);
+        }
     })
 });
 
