@@ -22,8 +22,9 @@ export default <ResolverT extends (...args: any[]) => any>(
             const localKnexClient = extractors.knex(args[0], args[1], args[2], args[3]);
             const transaction = await findOrCreateKnexTransaction(localKnexClient, config);
             const resolverOperation = getResolverOperation(extractors, property);
-            const node = await callDecoratedNode(transaction, value, args, extractors);
             const revisionInfo = extractRevisionInfo(args, extractors);
+
+            const node = await callDecoratedNode(transaction, value, args, extractors);
 
             const nodeId = extractors.nodeId(node, args[0], args[1], args[2], args[3]);
             if (nodeId === undefined) {
