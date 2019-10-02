@@ -461,7 +461,7 @@ decorate(mutation, {
         currentNodeSnapshot: async (nodeId, args) => {
             return await query.user(undefined, {id: nodeId as string}, args[2], args[3]);
         },
-        edges: (_, __, {teamId}) => [{nodeId: teamId, nodeName: 'team'}]
+        edges: (_, {teamId}) => [{nodeId: teamId, nodeName: 'team'}]
     }),
     teamUserDelete: versionRecorder<MutationTeamUserDelete>({
         ...commonDecoratorConfig<MutationTeamUserDelete>(),
@@ -472,7 +472,69 @@ decorate(mutation, {
         currentNodeSnapshot: async (nodeId, args) => {
             return await query.user(undefined, {id: nodeId as string}, args[2], args[3]);
         },
-        edges: (_, __, {teamId}) => [{nodeId: teamId, nodeName: 'team'}]
+        edges: (_, {teamId}) => [{nodeId: teamId, nodeName: 'team'}]
+    }),
+    todoListCreate: versionRecorder<MutationTodoListCreate>({
+        ...commonDecoratorConfig<MutationTodoListCreate>(),
+        nodeName: 'todoList',
+        resolverOperation: 'create',
+        nodeId: ({id}) => id,
+        nodeSchemaVersion: 1,
+        currentNodeSnapshot: async (nodeId, args) => {
+            return await query.todoList(undefined, {id: nodeId as string}, args[2], args[3]);
+        },
+        edges: (_, {userId}) => [{nodeId: userId, nodeName: 'user'}]
+    }),
+    todoListUpdate: versionRecorder<MutationTodoListUpdate>({
+        ...commonDecoratorConfig<MutationTodoListUpdate>(),
+        nodeName: 'todoList',
+        resolverOperation: 'update',
+        nodeId: (_, __, {id}) => id,
+        nodeSchemaVersion: 1,
+        currentNodeSnapshot: async (nodeId, args) => {
+            return await query.todoList(undefined, {id: nodeId as string}, args[2], args[3]);
+        }
+    }),
+    todoListDelete: versionRecorder<MutationTodoListDelete>({
+        ...commonDecoratorConfig<MutationTodoListDelete>(),
+        nodeName: 'todoList',
+        resolverOperation: 'delete',
+        nodeId: (_, __, {id}) => id,
+        nodeSchemaVersion: 1,
+        currentNodeSnapshot: async (nodeId, args) => {
+            return await query.todoList(undefined, {id: nodeId as string}, args[2], args[3]);
+        }
+    }),
+    todoItemCreate: versionRecorder<MutationTodoItemCreate>({
+        ...commonDecoratorConfig<MutationTodoItemCreate>(),
+        nodeName: 'todoItem',
+        resolverOperation: 'create',
+        nodeId: ({id}) => id,
+        nodeSchemaVersion: 1,
+        currentNodeSnapshot: async (nodeId, args) => {
+            return await query.todoItem(undefined, {id: nodeId as string}, args[2], args[3]);
+        },
+        parentNode: (_, {todoListId}) => ({nodeName: 'todoList', nodeId: todoListId})
+    }),
+    todoItemUpdate: versionRecorder<MutationTodoItemUpdate>({
+        ...commonDecoratorConfig<MutationTodoItemUpdate>(),
+        nodeName: 'todoItem',
+        resolverOperation: 'update',
+        nodeId: (_, __, {id}) => id,
+        nodeSchemaVersion: 1,
+        currentNodeSnapshot: async (nodeId, args) => {
+            return await query.todoItem(undefined, {id: nodeId as string}, args[2], args[3]);
+        }
+    }),
+    todoItemDelete: versionRecorder<MutationTodoItemDelete>({
+        ...commonDecoratorConfig<MutationTodoItemDelete>(),
+        nodeName: 'todoItem',
+        resolverOperation: 'delete',
+        nodeId: (_, __, {id}) => id,
+        nodeSchemaVersion: 1,
+        currentNodeSnapshot: async (nodeId, args) => {
+            return await query.todoList(undefined, {id: nodeId as string}, args[2], args[3]);
+        }
     })
 });
 

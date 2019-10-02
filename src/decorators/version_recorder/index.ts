@@ -4,7 +4,12 @@ import Bluebird from 'bluebird';
 import {INamesConfig, UnPromisify, INamesForTablesAndColumns} from '../../types';
 import {setNames} from '../../sqlNames';
 import nodeToSql from '../../transformers/nodeToSql';
-import {ICreateRevisionTransactionConfig, IVersionRecorderExtractors, IRevisionInfo} from './types';
+import {
+    ICreateRevisionTransactionConfig,
+    IVersionRecorderExtractors,
+    IRevisionInfo,
+    INode
+} from './types';
 
 export default <ResolverT extends (...args: any[]) => any>(
     extractors: IVersionRecorderExtractors<ResolverT>,
@@ -36,7 +41,9 @@ export default <ResolverT extends (...args: any[]) => any>(
             const revisionId = await storeRevision(
                 transaction,
                 nodeToSqlNameMappings,
-                revisionInfo
+                revisionInfo,
+                nodeId,
+                resolverOperation
             );
 
             const shouldStoreSnapshot = await findIfShouldStoreSnapshot(
@@ -105,10 +112,16 @@ const findOrCreateKnexTransaction = async (
 const storeRevision = async (
     transaction: Knex.Transaction,
     nodeToSqlNameMappings: INamesForTablesAndColumns,
-    revisionInfo: IRevisionInfo
+    revisionInfo: IRevisionInfo,
+    nodeId: INode['nodeId'],
+    resolverOperation: string
 ) => {
     const {userRoles, ...mainTableInput} = revisionInfo;
-    const sqlData = nodeToSql(nodeToSqlNameMappings, mainTableInput);
+    const sqlData = nodeToSql(nodeToSqlNameMappings, {
+        ...mainTableInput,
+        nodeId,
+        resolverOperation
+    });
 
     const revisionId = ((await transaction
         .table(nodeToSqlNameMappings.tableNames.revision)
@@ -205,9 +218,29 @@ const extractRevisionInfo = <ResolverT extends (...args: any[]) => any>(
         ? extractors.edges(args[0], args[1], args[2], args[3])
         : undefined;
 
+    const edgesToRecordErrors = edgesToRecord
+        ? edgesToRecord.filter(node => node.nodeId === undefined || node.nodeName === undefined)
+        : [];
+
+    if (edgesToRecordErrors.length > 0) {
+        throw new Error(
+            `Missing info found in edgesToRecord ${JSON.stringify(edgesToRecordErrors)}`
+        );
+    }
+
     const fragmentToRecord = extractors.parentNode
         ? extractors.parentNode(args[0], args[1], args[2], args[3])
         : undefined;
+
+    const fragmentToRecordHasAnError =
+        fragmentToRecord &&
+        (fragmentToRecord.nodeId === undefined || fragmentToRecord.nodeName === undefined);
+
+    if (fragmentToRecordHasAnError) {
+        throw new Error(
+            `Missing info found in fragmentToRecord ${JSON.stringify(fragmentToRecord)}`
+        );
+    }
 
     const snapshotFrequency = extractors.currentNodeSnapshotFrequency
         ? extractors.currentNodeSnapshotFrequency
@@ -237,7 +270,7 @@ const storeFragment = async (
             [columnNames.revisionEdgeTime]: revisionInfo.revisionTime,
             [columnNames.fragmentParentNodeId]: revisionInfo.fragmentToRecord.nodeId,
             [columnNames.fragmentParentNodeName]: revisionInfo.fragmentToRecord.nodeName,
-            [columnNames.revisionId]: revisionId
+            [`${tableNames.revision}_${columnNames.revisionId}`]: revisionId
         };
 
         await transaction.table(tableNames.revisionFragment).insert(fragment);

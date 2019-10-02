@@ -65,7 +65,6 @@ const setNames = ({ tableNames, columnNames }) => ({
         ...columnNames
     }
 });
-//# sourceMappingURL=sqlNames.js.map
 
 /**
  * Logic:
@@ -347,7 +346,6 @@ const unixSecondsToSqlTimestamp = (unixSeconds) => {
         .toUTC()
         .toSQL({ includeOffset: true, includeZone: true });
 };
-//# sourceMappingURL=versionConnection.js.map
 
 var nodeToSql = (nodeToSqlNameMappings, nodeData) => {
     const { columnNames } = nodeToSqlNameMappings;
@@ -361,14 +359,59 @@ var nodeToSql = (nodeToSqlNameMappings, nodeData) => {
         return sqlData;
     }, {});
 };
-//# sourceMappingURL=nodeToSql.js.map
 
-const findOrCreateKnexTransaction = async (knex) => {
-    return await knex.transaction();
+var index = (extractors, config) => {
+    return (_target, property, descriptor) => {
+        const nodeToSqlNameMappings = setNames(config || {});
+        const { value } = descriptor;
+        if (typeof value !== 'function') {
+            throw new TypeError('Only functions can be decorated.');
+        }
+        // tslint:disable-next-line
+        descriptor.value = (async (...args) => {
+            const localKnexClient = extractors.knex(args[0], args[1], args[2], args[3]);
+            const transaction = await findOrCreateKnexTransaction(localKnexClient, config);
+            const resolverOperation = getResolverOperation(extractors, property);
+            const revisionInfo = extractRevisionInfo(args, extractors);
+            const node = await callDecoratedNode(transaction, value, args, extractors);
+            const nodeId = extractors.nodeId(node, args[0], args[1], args[2], args[3]);
+            if (nodeId === undefined) {
+                throw new Error(`Unable to extract node id in version recorder for node ${revisionInfo.nodeName}`);
+            }
+            const revisionId = await storeRevision(transaction, nodeToSqlNameMappings, revisionInfo);
+            const shouldStoreSnapshot = await findIfShouldStoreSnapshot(transaction, nodeToSqlNameMappings, revisionInfo, nodeId);
+            if (shouldStoreSnapshot) {
+                let currentNodeSnapshot;
+                try {
+                    currentNodeSnapshot = await extractors.currentNodeSnapshot(nodeId, args);
+                }
+                catch (e) {
+                    console.log('EERRRROR', e);
+                }
+                await storeCurrentNodeSnapshot(transaction, nodeToSqlNameMappings, currentNodeSnapshot, revisionId);
+            }
+            if (revisionInfo.edgesToRecord) {
+                await Bluebird.each(revisionInfo.edgesToRecord, async (edge) => {
+                    return await storeEdge(transaction, nodeToSqlNameMappings, revisionInfo, nodeId, resolverOperation, edge);
+                });
+            }
+            await storeFragment(transaction, nodeToSqlNameMappings, revisionInfo, revisionId);
+            await transaction.commit();
+            return node;
+        });
+        return descriptor;
+    };
 };
-const createRevisionTransaction = (config) => async (transaction, input) => {
-    const nodeToSqlNameMappings = setNames(config || {});
-    const { userRoles, ...mainTableInput } = input;
+const findOrCreateKnexTransaction = async (knex, config) => {
+    const transaction = await knex.transaction();
+    setTimeout(async () => {
+        await transaction.rollback();
+        // throw new Error('Detected an orphaned transaction');
+    }, ((config && config.transactionTimeoutSeconds) || 10) * 1000);
+    return transaction;
+};
+const storeRevision = async (transaction, nodeToSqlNameMappings, revisionInfo) => {
+    const { userRoles, ...mainTableInput } = revisionInfo;
     const sqlData = nodeToSql(nodeToSqlNameMappings, mainTableInput);
     const revisionId = (await transaction
         .table(nodeToSqlNameMappings.tableNames.revision)
@@ -394,10 +437,6 @@ const createRevisionTransaction = (config) => async (transaction, input) => {
         [`${nodeToSqlNameMappings.tableNames.revisionRole}_id`]: id,
         [`${nodeToSqlNameMappings.tableNames.revision}_id`]: revisionId
     })));
-    setTimeout(async () => {
-        await transaction.rollback();
-        // throw new Error('Detected an orphaned transaction');
-    }, ((config && config.transactionTimeoutSeconds) || 10) * 1000);
     return revisionId;
 };
 const getResolverOperation = (extractors, property) => {
@@ -408,99 +447,80 @@ const getResolverOperation = (extractors, property) => {
         ? rawResolverOperation.toString()
         : rawResolverOperation;
 };
-var versionRecorder = (extractors, config) => {
-    return (_target, property, descriptor) => {
-        const { tableNames, columnNames } = setNames(config || {});
-        const { value } = descriptor;
-        if (typeof value !== 'function') {
-            throw new TypeError('Only functions can be decorated.');
-        }
-        // tslint:disable-next-line
-        descriptor.value = (async (...args) => {
-            const localKnexClient = extractors.knex(args[0], args[1], args[2], args[3]);
-            const userId = extractors.userId(args[0], args[1], args[2], args[3]);
-            const revisionData = extractors.revisionData(args[0], args[1], args[2], args[3]);
-            const nodeSchemaVersion = extractors.nodeSchemaVersion;
-            const nodeName = extractors.nodeName;
-            const snapshotFrequency = extractors.currentNodeSnapshotFrequency
-                ? extractors.currentNodeSnapshotFrequency
-                : 1;
-            const userRoles = extractors.userRoles
-                ? extractors.userRoles(args[0], args[1], args[2], args[3])
-                : [];
-            const revisionTime = extractors.revisionTime
-                ? extractors.revisionTime(args[0], args[1], args[2], args[3])
-                : new Date()
-                    .toISOString()
-                    .split('Z')
-                    .join('');
-            const resolverOperation = getResolverOperation(extractors, property);
-            const edgesToRecord = extractors.edges
-                ? extractors.edges(args[0], args[1], args[2], args[3])
-                : undefined;
-            const transaction = await findOrCreateKnexTransaction(localKnexClient);
-            const [parent, ar, ctx, info] = args;
-            let newArgs = {};
-            if (extractors.passThroughTransaction && extractors.passThroughTransaction === true) {
-                newArgs = { ...ar, transaction };
-            }
-            else {
-                newArgs = { ...ar };
-            }
-            const node = (await value(parent, newArgs, ctx, info));
-            const nodeId = extractors.nodeId(node, args[0], args[1], args[2], args[3]);
-            if (nodeId === undefined) {
-                throw new Error(`Unable to extract node id in version recorder for node ${nodeName}`);
-            }
-            const revisionInput = {
-                userId,
-                userRoles,
-                revisionData,
-                revisionTime,
-                nodeSchemaVersion,
-                nodeName,
-                nodeId,
-                resolverOperation
-            };
-            const revTxFn = createRevisionTransaction(config);
-            const revisionId = await revTxFn(transaction, revisionInput);
-            const shouldStoreSnapshot = await findIfShouldStoreSnapshot({ tableNames, columnNames }, snapshotFrequency, transaction, nodeId, nodeName, nodeSchemaVersion);
-            if (shouldStoreSnapshot) {
-                let currentNodeSnapshot;
-                try {
-                    currentNodeSnapshot = await extractors.currentNodeSnapshot(nodeId, args);
-                }
-                catch (e) {
-                    console.log('EERRRROR', e);
-                }
-                await storeCurrentNodeSnapshot({ tableNames, columnNames }, currentNodeSnapshot, revisionId, transaction);
-            }
-            if (edgesToRecord) {
-                await Bluebird.each(edgesToRecord, async (edge) => {
-                    return await storeEdge({ tableNames, columnNames }, edge, revisionInput, transaction);
-                });
-            }
-            await transaction.commit();
-            return node;
-        });
-        return descriptor;
+const callDecoratedNode = async (transaction, value, args, extractors) => {
+    const [parent, ar, ctx, info] = args;
+    let newArgs = {};
+    if (extractors.passThroughTransaction && extractors.passThroughTransaction === true) {
+        newArgs = { ...ar, transaction };
+    }
+    else {
+        newArgs = { ...ar };
+    }
+    const node = await value(parent, newArgs, ctx, info);
+    return node;
+};
+const extractRevisionInfo = (args, extractors) => {
+    // tslint:disable-next-line
+    const userId = extractors.userId(args[0], args[1], args[2], args[3]);
+    const revisionData = extractors.revisionData(args[0], args[1], args[2], args[3]);
+    const nodeSchemaVersion = extractors.nodeSchemaVersion;
+    const nodeName = extractors.nodeName;
+    const userRoles = extractors.userRoles
+        ? extractors.userRoles(args[0], args[1], args[2], args[3])
+        : [];
+    const revisionTime = extractors.revisionTime
+        ? extractors.revisionTime(args[0], args[1], args[2], args[3])
+        : new Date()
+            .toISOString()
+            .split('Z')
+            .join('');
+    const edgesToRecord = extractors.edges
+        ? extractors.edges(args[0], args[1], args[2], args[3])
+        : undefined;
+    const fragmentToRecord = extractors.parentNode
+        ? extractors.parentNode(args[0], args[1], args[2], args[3])
+        : undefined;
+    const snapshotFrequency = extractors.currentNodeSnapshotFrequency
+        ? extractors.currentNodeSnapshotFrequency
+        : 1;
+    return {
+        userId,
+        userRoles,
+        revisionData,
+        revisionTime,
+        nodeSchemaVersion,
+        nodeName,
+        edgesToRecord,
+        fragmentToRecord,
+        snapshotFrequency
     };
 };
-const storeEdge = async ({ tableNames, columnNames }, edgesToRecord, revisionInput, transaction) => {
+const storeFragment = async (transaction, { tableNames, columnNames }, revisionInfo, revisionId) => {
+    if (revisionInfo.fragmentToRecord) {
+        const fragment = {
+            [columnNames.revisionEdgeTime]: revisionInfo.revisionTime,
+            [columnNames.fragmentParentNodeId]: revisionInfo.fragmentToRecord.nodeId,
+            [columnNames.fragmentParentNodeName]: revisionInfo.fragmentToRecord.nodeName,
+            [columnNames.revisionId]: revisionId
+        };
+        await transaction.table(tableNames.revisionFragment).insert(fragment);
+    }
+};
+const storeEdge = async (transaction, { tableNames, columnNames }, revisionInfo, nodeId, resolverOperation, edgesToRecord) => {
     const inputFirst = {
-        [columnNames.revisionEdgeTime]: revisionInput.revisionTime,
-        [columnNames.resolverOperation]: revisionInput.resolverOperation,
-        [columnNames.edgeNodeIdA]: revisionInput.nodeId,
-        [columnNames.edgeNodeNameA]: revisionInput.nodeName,
+        [columnNames.revisionEdgeTime]: revisionInfo.revisionTime,
+        [columnNames.resolverOperation]: resolverOperation,
+        [columnNames.edgeNodeIdA]: nodeId,
+        [columnNames.edgeNodeNameA]: revisionInfo.nodeName,
         [columnNames.edgeNodeIdB]: edgesToRecord.nodeId,
         [columnNames.edgeNodeNameB]: edgesToRecord.nodeName
     };
     // switch A and B nodes for faster sql querying
     const inputSecond = {
-        [columnNames.revisionEdgeTime]: revisionInput.revisionTime,
-        [columnNames.resolverOperation]: revisionInput.resolverOperation,
-        [columnNames.edgeNodeIdB]: revisionInput.nodeId,
-        [columnNames.edgeNodeNameB]: revisionInput.nodeName,
+        [columnNames.revisionEdgeTime]: revisionInfo.revisionTime,
+        [columnNames.resolverOperation]: resolverOperation,
+        [columnNames.edgeNodeIdB]: nodeId,
+        [columnNames.edgeNodeNameB]: revisionInfo.nodeName,
         [columnNames.edgeNodeIdA]: edgesToRecord.nodeId,
         [columnNames.edgeNodeNameA]: edgesToRecord.nodeName
     };
@@ -510,7 +530,7 @@ const storeEdge = async ({ tableNames, columnNames }, edgesToRecord, revisionInp
 /**
  * Write the node snapshot to the database
  */
-const storeCurrentNodeSnapshot = async ({ tableNames, columnNames }, currentNodeSnapshot, revisionId, transaction) => {
+const storeCurrentNodeSnapshot = async (transaction, { tableNames, columnNames }, currentNodeSnapshot, revisionId) => {
     await transaction.table(tableNames.revisionNodeSnapshot).insert({
         [`${tableNames.revision}_${columnNames.revisionId}`]: revisionId,
         [columnNames.snapshotData]: JSON.stringify(currentNodeSnapshot) // tslint:disable-line
@@ -520,23 +540,22 @@ const storeCurrentNodeSnapshot = async ({ tableNames, columnNames }, currentNode
  * Fetch the number of full node snapshots for the node id and node schema version
  * If a snapshot exists within the expected snapshot frequency, then we don't need to take another snapshot
  */
-const findIfShouldStoreSnapshot = async ({ tableNames, columnNames }, snapshotFrequency, transaction, nodeId, nodeName, mostRecentNodeSchemaVersion) => {
+const findIfShouldStoreSnapshot = async (transaction, { tableNames, columnNames }, revisionInfo, nodeId) => {
     const sql = transaction
         .table(tableNames.revision)
         .leftJoin(tableNames.revisionNodeSnapshot, `${tableNames.revision}.${columnNames.revisionId}`, `${tableNames.revisionNodeSnapshot}.${tableNames.revision}_${columnNames.revisionId}`)
         .where({
-        [`${tableNames.revision}.${columnNames.nodeName}`]: nodeName,
+        [`${tableNames.revision}.${columnNames.nodeName}`]: revisionInfo.nodeName,
         [`${tableNames.revision}.${columnNames.nodeId}`]: nodeId,
-        [`${tableNames.revision}.${columnNames.nodeSchemaVersion}`]: mostRecentNodeSchemaVersion
+        [`${tableNames.revision}.${columnNames.nodeSchemaVersion}`]: revisionInfo.nodeSchemaVersion
     })
         .orderBy(`${tableNames.revision}.${columnNames.revisionTime}`, 'desc')
-        .limit(snapshotFrequency)
+        .limit(revisionInfo.snapshotFrequency)
         .select(`${tableNames.revision}.${columnNames.revisionTime} as revision_creation`, `${tableNames.revisionNodeSnapshot}.${columnNames.snapshotTime} as snapshot_creation`);
     const snapshots = (await sql);
     const snapshotWithinFrequencyRange = !!snapshots.find(data => data.snapshot_creation);
     return !snapshotWithinFrequencyRange;
 };
-//# sourceMappingURL=versionRecorder.js.map
 
 var generator = (config) => {
     const { tableNames, columnNames } = setNames(config || {});
@@ -630,7 +649,6 @@ var generator = (config) => {
     };
     return { up, down };
 };
-//# sourceMappingURL=generator.js.map
 
 // tslint:disable
 /**
@@ -682,9 +700,8 @@ function decorate(thing, decorators) {
 function isDecoratorArray(decorator) {
     return decorator !== undefined && Array.isArray(decorator);
 }
-//# sourceMappingURL=decorate.js.map
 
 exports.createRevisionMigrations = generator;
 exports.decorate = decorate;
 exports.versionConnectionDecorator = versionConnection;
-exports.versionRecorderDecorator = versionRecorder;
+exports.versionRecorderDecorator = index;
