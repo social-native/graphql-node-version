@@ -74,86 +74,80 @@ const setNames = ({ tableNames, columnNames }) => ({
  */
 var versionConnection = (extractors, config) => {
     return (_target, _property, descriptor) => {
-        const nodeToSqlNameMappings = setNames(config || {});
         const { value } = descriptor;
         if (typeof value !== 'function') {
             throw new TypeError('Only functions can be decorated.');
         }
         // tslint:disable-next-line
         descriptor.value = (async (...args) => {
-            const localKnexClient = extractors.knex && extractors.knex(...args);
-            const [parent, ar, ctx, info] = args;
-            const latestNode = (await value(parent, ar, ctx, info));
-            // Step 1. Get all versions for the connection
-            // console.log('ARRRRR', ar);
-            // if (
-            //     ((ar as IInputArgs).first && ar.first <= 1) ||
-            //     (ar.first === undefined && ar.last === undefined)
-            // ) {
-            //     console.log('RETURNING PLAIN NODE', '')
-            //     return node;
-            // }
-            const revisionsOfInterest = await getRevisionsOfInterest(args, localKnexClient, nodeToSqlNameMappings, extractors);
-            // Step 2. Get all the revisions + snapshots used to calculate the oldest revision in
-            // the `revisionsOfInterest` array.
-            console.log('REVISIONS OF INTEREST', revisionsOfInterest.edges);
-            if (revisionsOfInterest.edges.length === 0) {
-                return revisionsOfInterest;
-            }
-            // console.log('WAHHTT', nodesAndRevisionsOfInterest);
-            const a = await getFirstRevisionNumberWithSnapshot(revisionsOfInterest, 
-            // ar,
-            localKnexClient, nodeToSqlNameMappings
-            // extractors
-            );
-            console.log('hi', a);
-            const maxRevisionNumber = revisionsOfInterest.edges[0].node.revisionId;
-            const minRevisionNumber = a;
-            const { nodeId, nodeName } = revisionsOfInterest.edges[0].node;
-            const revisionsInRange = await getRevisionsInRange(maxRevisionNumber, minRevisionNumber, nodeId, nodeName, localKnexClient, nodeToSqlNameMappings);
-            console.log('INNNNN RANGE', revisionsInRange);
-            const nodesInRange = revisionsInRange.reduce((nodes, revision, index) => {
-                console.log('-----------------------------');
-                const { revisionId, snapshotData, revisionData } = revision;
-                if (index === 0 || snapshotData) {
-                    console.log('Using snapshot for', revisionId);
-                    nodes[revisionId] =
-                        typeof snapshotData === 'string'
-                            ? JSON.parse(snapshotData)
-                            : snapshotData;
-                }
-                else {
-                    console.log('Calculating node for', revisionId);
-                    const previousRevision = revisionsInRange[index - 1];
-                    const calculatedNode = extractors.nodeBuilder(nodes[previousRevision.revisionId], revision);
-                    console.log('Calculated node', calculatedNode);
-                    console.log('Calculated diff', revisionData);
-                    nodes[revisionId] = calculatedNode;
-                }
-                return nodes;
-            }, {});
-            const latestCalculatedNode = nodesInRange[nodesInRange.length - 1];
-            console.log('Comparing nodes', latestCalculatedNode, latestNode);
-            console.log('NODES IN RANGE', nodesInRange);
-            const newEdges = revisionsOfInterest.edges.map(edge => {
-                const { revisionData, userId, nodeName: nn, nodeSchemaVersion, resolverOperation, revisionTime, revisionId, userRoles } = edge.node;
-                const version = {
-                    revisionData,
-                    userId,
-                    nodeName: nn,
-                    nodeSchemaVersion,
-                    resolverOperation,
-                    revisionTime,
-                    revisionId,
-                    userRoles
-                };
-                const calculatedNode = nodesInRange[edge.node.revisionId];
-                return { ...edge, node: calculatedNode, version };
-            });
-            return { pageInfo: revisionsOfInterest.pageInfo, edges: newEdges };
+            const latestNode = (await value(args[0], args[1], args[2], args[3]));
+            return createRevisionConnection(latestNode, args, extractors, config);
         });
         return descriptor;
     };
+};
+const createRevisionConnection = async (currentVersionNode, resolverArgs, extractors, config) => {
+    console.log(currentVersionNode);
+    const knex = extractors.knex &&
+        extractors.knex(resolverArgs[0], resolverArgs[1], resolverArgs[2], resolverArgs[3]);
+    const nodeToSqlNameMappings = setNames(config || {});
+    // Step 1. Get all revisions in the connection
+    const revisionsOfInterest = await getRevisionsOfInterest(resolverArgs, knex, nodeToSqlNameMappings, extractors);
+    // Step 2. If there are no revisions in the connection, return with no edges
+    // if (revisionsOfInterest.edges.length === 0) {
+    //     return revisionsOfInterest;
+    // }
+    // Step 3. Determine the oldest revision with a full node snapshot
+    const minRevisionNumber = await getFirstRevisionNumberWithSnapshot(revisionsOfInterest, knex, nodeToSqlNameMappings);
+    // Step 4. Get all revisions in range from the newest revision of interest to the
+    //   oldest revision with a snapshot
+    const maxRevisionNumber = revisionsOfInterest.edges[0].node.revisionId;
+    const { nodeId, nodeName } = revisionsOfInterest.edges[0].node;
+    const revisionsInRange = await getRevisionsInRange(maxRevisionNumber, minRevisionNumber, nodeId, nodeName, knex, nodeToSqlNameMappings);
+    // Step 5. Calculate nodes by applying revision diffs to previous node snapshots
+    const nodesInRange = calculateNodesInRangeOfInterest(revisionsInRange, extractors);
+    // const latestCalculatedNode = nodesInRange[nodesInRange.length - 1];
+    // Step 6. Build the versioned edges using the full nodes and the desired revisions
+    const newEdges = calculateEdgesInRangeOfInterest(revisionsOfInterest, nodesInRange);
+    // Step 7. Build the connection
+    return { pageInfo: revisionsOfInterest.pageInfo, edges: newEdges };
+};
+const calculateEdgesInRangeOfInterest = (revisionsOfInterest, nodesInRange) => {
+    return revisionsOfInterest.edges.map(edge => {
+        const { revisionData, userId, nodeName: nn, nodeSchemaVersion, resolverOperation, revisionTime, revisionId, userRoles } = edge.node;
+        const version = {
+            revisionData,
+            userId,
+            nodeName: nn,
+            nodeSchemaVersion,
+            resolverOperation,
+            revisionTime,
+            revisionId,
+            userRoles
+        };
+        const calculatedNode = nodesInRange[edge.node.revisionId];
+        return { ...edge, node: calculatedNode, version };
+    });
+};
+const calculateNodesInRangeOfInterest = (revisionsInRange, extractors) => {
+    return revisionsInRange.reduce((nodes, revision, index) => {
+        console.log('-----------------------------');
+        const { revisionId, snapshotData, revisionData } = revision;
+        if (index === 0 || snapshotData) {
+            console.log('Using snapshot for', revisionId);
+            nodes[revisionId] =
+                typeof snapshotData === 'string' ? JSON.parse(snapshotData) : snapshotData;
+        }
+        else {
+            console.log('Calculating node for', revisionId);
+            const previousRevision = revisionsInRange[index - 1];
+            const calculatedNode = extractors.nodeBuilder(nodes[previousRevision.revisionId], revision);
+            console.log('Calculated node', calculatedNode);
+            console.log('Calculated diff', revisionData);
+            nodes[revisionId] = calculatedNode;
+        }
+        return nodes;
+    }, {});
 };
 /**
  * Gets the closest revision with a snapshot to the oldest revision of interest
@@ -247,8 +241,8 @@ const getRevisionsOfInterest = async (resolverArgs, knex, nodeToSqlNameMappings,
             nodeTransformer: castDateTimeToUnixSecs
         }
     });
-    const nodeId = extractors.nodeId(...resolverArgs);
-    const nodeName = extractors.nodeName(...resolverArgs);
+    const nodeId = extractors.nodeId(resolverArgs[0], resolverArgs[1], resolverArgs[2], resolverArgs[3]);
+    const nodeName = extractors.nodeName(resolverArgs[0], resolverArgs[1], resolverArgs[2], resolverArgs[3]);
     const query = knex
         .queryBuilder()
         .from(function () {
@@ -378,7 +372,7 @@ var index = (extractors, config) => {
             if (nodeId === undefined) {
                 throw new Error(`Unable to extract node id in version recorder for node ${revisionInfo.nodeName}`);
             }
-            const revisionId = await storeRevision(transaction, nodeToSqlNameMappings, revisionInfo);
+            const revisionId = await storeRevision(transaction, nodeToSqlNameMappings, revisionInfo, nodeId, resolverOperation);
             const shouldStoreSnapshot = await findIfShouldStoreSnapshot(transaction, nodeToSqlNameMappings, revisionInfo, nodeId);
             if (shouldStoreSnapshot) {
                 let currentNodeSnapshot;
@@ -410,9 +404,13 @@ const findOrCreateKnexTransaction = async (knex, config) => {
     }, ((config && config.transactionTimeoutSeconds) || 10) * 1000);
     return transaction;
 };
-const storeRevision = async (transaction, nodeToSqlNameMappings, revisionInfo) => {
+const storeRevision = async (transaction, nodeToSqlNameMappings, revisionInfo, nodeId, resolverOperation) => {
     const { userRoles, ...mainTableInput } = revisionInfo;
-    const sqlData = nodeToSql(nodeToSqlNameMappings, mainTableInput);
+    const sqlData = nodeToSql(nodeToSqlNameMappings, {
+        ...mainTableInput,
+        nodeId,
+        resolverOperation
+    });
     const revisionId = (await transaction
         .table(nodeToSqlNameMappings.tableNames.revision)
         .insert(sqlData)
@@ -477,9 +475,20 @@ const extractRevisionInfo = (args, extractors) => {
     const edgesToRecord = extractors.edges
         ? extractors.edges(args[0], args[1], args[2], args[3])
         : undefined;
+    const edgesToRecordErrors = edgesToRecord
+        ? edgesToRecord.filter(node => node.nodeId === undefined || node.nodeName === undefined)
+        : [];
+    if (edgesToRecordErrors.length > 0) {
+        throw new Error(`Missing info found in edgesToRecord ${JSON.stringify(edgesToRecordErrors)}`);
+    }
     const fragmentToRecord = extractors.parentNode
         ? extractors.parentNode(args[0], args[1], args[2], args[3])
         : undefined;
+    const fragmentToRecordHasAnError = fragmentToRecord &&
+        (fragmentToRecord.nodeId === undefined || fragmentToRecord.nodeName === undefined);
+    if (fragmentToRecordHasAnError) {
+        throw new Error(`Missing info found in fragmentToRecord ${JSON.stringify(fragmentToRecord)}`);
+    }
     const snapshotFrequency = extractors.currentNodeSnapshotFrequency
         ? extractors.currentNodeSnapshotFrequency
         : 1;
@@ -501,7 +510,7 @@ const storeFragment = async (transaction, { tableNames, columnNames }, revisionI
             [columnNames.revisionEdgeTime]: revisionInfo.revisionTime,
             [columnNames.fragmentParentNodeId]: revisionInfo.fragmentToRecord.nodeId,
             [columnNames.fragmentParentNodeName]: revisionInfo.fragmentToRecord.nodeName,
-            [columnNames.revisionId]: revisionId
+            [`${tableNames.revision}_${columnNames.revisionId}`]: revisionId
         };
         await transaction.table(tableNames.revisionFragment).insert(fragment);
     }
@@ -701,6 +710,7 @@ function isDecoratorArray(decorator) {
     return decorator !== undefined && Array.isArray(decorator);
 }
 
+exports.createRevisionConnection = createRevisionConnection;
 exports.createRevisionMigrations = generator;
 exports.decorate = decorate;
 exports.versionConnectionDecorator = versionConnection;

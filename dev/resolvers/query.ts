@@ -4,7 +4,9 @@ import {ConnectionManager, IInputArgs, IQueryResult} from '@social-native/snpkg-
 import {
     decorate,
     versionConnectionDecorator as versionConnection,
-    INodeBuilderRevisionInfo
+    INodeBuilderRevisionInfo,
+    IRevisionConnection,
+    createRevisionConnection
 } from '../../src/index';
 
 interface ITeam {
@@ -17,6 +19,11 @@ type QueryTodoListResolver = Resolver<ITodoList | undefined, undefined, {id: str
 type QueryTodoItemResolver = Resolver<ITodoItem, undefined, {id: string}>;
 type QueryUsersResolver = Resolver<IQueryResult<IUserNode | null>, undefined, IInputArgs>;
 type QueryUserResolver = Resolver<IUserNode, undefined, {id: string}>;
+type QueryUserVersionResolver = Resolver<
+    IRevisionConnection<IUserNode | null>,
+    undefined,
+    {id: string} & IInputArgs
+>;
 
 type KnexQueryResult = Array<{[attributeName: string]: any}>;
 
@@ -107,6 +114,20 @@ const query: {
     }
 };
 
+const proxiedResolvers: {
+    userVersion: QueryUserVersionResolver;
+} = {
+    async userVersion(parent, args, ctx, info) {
+        const currentNode = query.user(parent, {id: args.id}, ctx, info);
+        return await createRevisionConnection(currentNode, [parent, args, ctx, info], {
+            knex: (_, __, {sqlClient}) => sqlClient,
+            nodeBuilder,
+            nodeId: (_parent, {id}) => id,
+            nodeName: () => 'user'
+        });
+    }
+};
+
 const nodeBuilder = (previousModel: object, revisionInfo: INodeBuilderRevisionInfo) => {
     const {revisionData} = revisionInfo;
     // TODO figure out why this is an object
@@ -123,4 +144,4 @@ decorate(query, {
     })
 });
 
-export default query;
+export default {...query, ...proxiedResolvers};

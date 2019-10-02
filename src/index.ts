@@ -25,7 +25,10 @@
 // tslint:disable
 
 // export {createRevisionMigrations, createRevisionTransaction, versionRecorderDecorator};
-export {default as versionConnectionDecorator} from './decorators/versionConnection';
+export {
+    default as versionConnectionDecorator,
+    createRevisionConnection
+} from './decorators/versionConnection';
 export {default as versionRecorderDecorator} from './decorators/version_recorder/index';
 export {default as createRevisionMigrations} from './migrations/generator';
 export {default as decorate} from './lib/mobx/decorate';

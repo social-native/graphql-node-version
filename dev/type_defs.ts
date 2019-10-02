@@ -46,7 +46,8 @@ export default gql`
     }
 
     type Query {
-        user(
+        user(id: ID!): User
+        userVersion(
             id: ID!
             first: First
             last: Last

@@ -118,7 +118,7 @@ export interface IRevisionInput {
 
 export interface IRevisionInfo {
     // id: string;
-    userId: string;
+    userId: number;
     userRoles?: string[];
     revisionId: number;
     revisionData: string;
@@ -126,13 +126,24 @@ export interface IRevisionInfo {
     nodeSchemaVersion: number;
     resolverOperation: string;
     nodeName: string;
-    nodeId: string;
+    // nodeId: string;
+
+    // version: {
+    //     revisionData: string;
+    //     userId: string;
+    //     nodeName: string;
+    //     nodeSchemaVersion: number;
+    //     resolverOperation: string;
+    //     revisionTime: number;
+    //     revisionId: number;
+    //     userRoles: string[];
+    // };
 }
 
 export interface INodeBuilderRevisionInfo {
     revisionData: string;
     revisionTime: string;
-    revisionId: string;
+    revisionId: number;
     snapshotData?: string;
     nodeSchemaVersion: number;
     nodeName: string;
@@ -141,14 +152,14 @@ export interface INodeBuilderRevisionInfo {
 }
 
 export interface IRevisionQueryResult {
-    revisionId: string;
+    revisionId: number;
     revisionTime: string;
     revisionData: string;
 
     nodeName: string;
-    nodeSchemaVersion: string;
-    userId: string;
-    nodeId: string;
+    nodeSchemaVersion: number;
+    userId: number;
+    nodeId: string | number;
     resolverOperation: string;
 
     snapshotTime?: string;
@@ -158,14 +169,14 @@ export interface IRevisionQueryResult {
 }
 
 export interface IRevisionQueryResultWithTimeSecs {
-    revisionId: string;
-    revisionTime: number;
+    revisionId: number;
+    revisionTime: string;
     revisionData: string;
 
     nodeName: string;
-    nodeSchemaVersion: string;
-    userId: string;
-    nodeId: string;
+    nodeSchemaVersion: number;
+    userId: number;
+    nodeId: string | number;
     resolverOperation: string;
 
     snapshotTime?: string;
