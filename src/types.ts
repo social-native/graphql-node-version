@@ -10,7 +10,7 @@ export type BaseResolver<Node = any, P = undefined, A = undefined, C = {}, I = {
 export interface IRevisionConnection<Node> {
     edges: Array<{
         cursor: string;
-        version: IRevisionInfo;
+        version?: IRevisionInfo;
         node: Node;
     }>;
     pageInfo: {

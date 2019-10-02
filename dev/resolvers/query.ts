@@ -2,8 +2,8 @@ import {Resolver, IUserNode, ITodoItem, ITodoList} from '../types';
 import {ConnectionManager, IInputArgs, IQueryResult} from '@social-native/snpkg-snapi-connections';
 
 import {
-    decorate,
-    versionConnectionDecorator as versionConnection,
+    // decorate,
+    // versionConnectionDecorator as versionConnection,
     INodeBuilderRevisionInfo,
     IRevisionConnection,
     createRevisionConnection
@@ -18,8 +18,8 @@ type QueryTeamResolver = Resolver<ITeam | undefined, undefined, {id: string}>;
 type QueryTodoListResolver = Resolver<ITodoList | undefined, undefined, {id: string}>;
 type QueryTodoItemResolver = Resolver<ITodoItem, undefined, {id: string}>;
 type QueryUsersResolver = Resolver<IQueryResult<IUserNode | null>, undefined, IInputArgs>;
-type QueryUserResolver = Resolver<IUserNode, undefined, {id: string}>;
-type QueryUserVersionResolver = Resolver<
+// type QueryUserResolver = Resolver<IUserNode, undefined, {id: string}>;
+type QueryUserResolver = Resolver<
     IRevisionConnection<IUserNode | null>,
     undefined,
     {id: string} & IInputArgs
@@ -74,12 +74,18 @@ const query: {
             .where({id})
             .first();
     },
-    async user(_, {id}, {sqlClient}) {
-        const queryBuilder = sqlClient.from('user');
-        return await queryBuilder
+    async user(parent, args, ctx, info) {
+        const currentNode = await ctx.sqlClient
             .table('user')
-            .where({id})
+            .where({id: args.id})
             .first();
+
+        return await createRevisionConnection(currentNode, [parent, args, ctx, info], {
+            knex: ctx.sqlClient,
+            nodeBuilder,
+            nodeId: args.id,
+            nodeName: 'user'
+        });
     },
     async users(_, inputArgs, {sqlClient}) {
         const queryBuilder = sqlClient.from('user');
@@ -114,19 +120,19 @@ const query: {
     }
 };
 
-const proxiedResolvers: {
-    userVersion: QueryUserVersionResolver;
-} = {
-    async userVersion(parent, args, ctx, info) {
-        const currentNode = query.user(parent, {id: args.id}, ctx, info);
-        return await createRevisionConnection(currentNode, [parent, args, ctx, info], {
-            knex: (_, __, {sqlClient}) => sqlClient,
-            nodeBuilder,
-            nodeId: (_parent, {id}) => id,
-            nodeName: () => 'user'
-        });
-    }
-};
+// const proxiedResolvers: {
+//     userVersion: QueryUserVersionResolver;
+// } = {
+//     async userVersion(parent, args, ctx, info) {
+//         const currentNode = query.user(parent, {id: args.id}, ctx, info);
+//         return await createRevisionConnection(currentNode, [parent, args, ctx, info], {
+//             knex: ctx.sqlClient,
+//             nodeBuilder,
+//             nodeId: args.id,
+//             nodeName: 'user'
+//         });
+//     }
+// };
 
 const nodeBuilder = (previousModel: object, revisionInfo: INodeBuilderRevisionInfo) => {
     const {revisionData} = revisionInfo;
@@ -135,13 +141,14 @@ const nodeBuilder = (previousModel: object, revisionInfo: INodeBuilderRevisionIn
     return {...previousModel, ...data};
 };
 
-decorate(query, {
-    user: versionConnection<QueryUserResolver>({
-        knex: (_, __, {sqlClient}) => sqlClient,
-        nodeBuilder,
-        nodeId: (_parent, {id}) => id,
-        nodeName: () => 'user'
-    })
-});
+// decorate(query, {
+//     user: versionConnection<QueryUserResolver>({
+//         knex: (_, __, {sqlClient}) => sqlClient,
+//         nodeBuilder,
+//         nodeId: (_parent, {id}) => id,
+//         nodeName: () => 'user'
+//     })
+// });
 
-export default {...query, ...proxiedResolvers};
+// export default {...query, ...proxiedResolvers};
+export default query;
