@@ -7,10 +7,18 @@ export type BaseResolver<Node = any, P = undefined, A = undefined, C = {}, I = {
 
 // TODO add permissions for campaign users to get the name of other campaign users for their campaign
 
+export interface INodeEdge {
+    edgeNodeId: number;
+    edgeNodeName: string;
+    resolverOperation: string;
+    revisionTime: number;
+}
+
 export interface IRevisionConnection<Node> {
     edges: Array<{
         cursor: string;
         version?: IRevisionInfo;
+        versionEdge?: INodeEdge;
         node: Node;
     }>;
     pageInfo: {
@@ -19,6 +27,12 @@ export interface IRevisionConnection<Node> {
         startCursor: string;
         endCursor: string;
     };
+}
+
+export interface IRevisionEdge<Node> {
+    cursor: string;
+    version: IRevisionInfo;
+    node: Node;
 }
 
 export interface INamesConfig {

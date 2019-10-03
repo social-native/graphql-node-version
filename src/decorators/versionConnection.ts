@@ -7,7 +7,11 @@ import {
     INamesForTablesAndColumns,
     // IRevisionQueryResult,
     INodeBuilderRevisionInfo,
-    IRevisionQueryResultWithTimeSecs
+    IRevisionQueryResultWithTimeSecs,
+    // IRevisionConnection,
+    IRevisionEdge,
+    INodeEdge,
+    IRevisionConnection
 } from '../types';
 import {ConnectionManager, IQueryResult, IFilter} from '@social-native/snpkg-snapi-connections';
 
@@ -173,14 +177,60 @@ export const createRevisionConnection = async <
     // Step 7. Build the versioned edges using the full nodes and the desired revisions
     const newEdges = calculateEdgesInRangeOfInterest(revisionsOfInterest, nodesInRange);
 
+    const mergedEdges = mergeNodeEdgesWithEdgesInRangeOfInterest(nodeEdgesOfVersions, newEdges);
+    console.log('MERGED EDGESSSSSSS', mergedEdges);
     console.log('8. BUILD CONNECTION');
     // Step 8. Build the connection
-    return {pageInfo: revisionsOfInterest.pageInfo, edges: newEdges};
+    return {pageInfo: revisionsOfInterest.pageInfo, edges: mergedEdges};
 };
 
 export interface INodesOfInterest<ResolverT extends (...args: any[]) => any> {
     [revisionId: string]: UnPromisify<ReturnType<ResolverT>>;
 }
+
+const mergeNodeEdgesWithEdgesInRangeOfInterest = <ResolverT extends (...args: any[]) => any>(
+    nodeEdgesOfVersions: INodeEdge[],
+    edgesInRangeOfInterest: Array<IRevisionEdge<UnPromisify<ReturnType<ResolverT>>>>
+) => {
+    // tslint:disable-next-line
+    const joinedEdges = [...nodeEdgesOfVersions, ...edgesInRangeOfInterest].sort((edgeA, edgeB) => {
+        const revisionTimeA = isRevisionEdge(edgeA)
+            ? edgeA.revisionTime
+            : edgeA.version && edgeA.version.revisionTime;
+        const revisionTimeB = isRevisionEdge(edgeB)
+            ? edgeB.revisionTime
+            : edgeB.version && edgeB.version.revisionTime;
+
+        return revisionTimeA > revisionTimeB ? 0 : -1;
+    });
+
+    // return joinedEdges;
+    const newVersions = joinedEdges
+        .reduce(
+            (allEdges, edge, index) => {
+                if (isRevisionEdge(edge) && index === 0) {
+                    throw new Error(
+                        'The first edge should be a revision not a record of edge creation'
+                    );
+                }
+                if (isRevisionEdge(edge)) {
+                    const lastEdge = allEdges[index - 1] || {};
+                    const newEdge = {...lastEdge, version: undefined, versionEdge: edge};
+                    allEdges.push(newEdge);
+                } else {
+                    allEdges.push({...edge, versionEdge: undefined} as any);
+                }
+                return allEdges;
+            },
+            [] as IRevisionConnection<UnPromisify<ReturnType<ResolverT>>>['edges']
+        )
+        .reverse();
+    return newVersions;
+};
+
+const isRevisionEdge = (edge: INodeEdge | any): edge is INodeEdge => {
+    return typeof edge.revisionTime === 'number';
+};
 
 const calculateEdgesInRangeOfInterest = <ResolverT extends (...args: any[]) => any>(
     revisionsOfInterest: IQueryResult<IRevisionQueryResultWithTimeSecs>,
@@ -254,7 +304,7 @@ const getNodeEdgesInRangeOfInterest = async (
     minRevisionTimeInUnixSecs: number,
     nodeName: string,
     nodeId: number | string
-) => {
+): Promise<INodeEdge[]> => {
     const result = (await knex
         .queryBuilder()
         .from(nodeToSqlNameMappings.tableNames.revisionEdge)

@@ -36,6 +36,13 @@ export default gql`
         resolverOperation: String!
     }
 
+    type VersionEdge {
+        edgeNodeId: Int!
+        edgeNodeName: String!
+        resolverOperation: String!
+        revisionTime: Int!
+    }
+
     type QueryUserVersionConnection implements IConnection {
         pageInfo: PageInfo!
         edges: [QueryUserVersionEdge]!
@@ -45,6 +52,7 @@ export default gql`
         cursor: String!
         node: User
         version: Version
+        versionEdge: VersionEdge
     }
 
     type QueryTeamVersionConnection implements IConnection {
@@ -56,6 +64,7 @@ export default gql`
         cursor: String!
         node: Team
         version: Version
+        versionEdge: VersionEdge
     }
 
     type Query {
