@@ -7,7 +7,7 @@ export type BaseResolver<Node = any, P = undefined, A = undefined, C = {}, I = {
 
 // TODO add permissions for campaign users to get the name of other campaign users for their campaign
 
-export interface INodeEdge {
+export interface ILinkChange {
     edgeNodeId: number;
     edgeNodeName: string;
     resolverOperation: string;
@@ -17,8 +17,8 @@ export interface INodeEdge {
 export interface IRevisionConnection<Node> {
     edges: Array<{
         cursor: string;
-        version?: IRevisionInfo;
-        versionEdge?: INodeEdge;
+        nodeChange?: INodeChange;
+        linkChange?: ILinkChange;
         node: Node;
     }>;
     pageInfo: {
@@ -31,7 +31,7 @@ export interface IRevisionConnection<Node> {
 
 export interface IRevisionEdge<Node> {
     cursor: string;
-    version: IRevisionInfo;
+    nodeChange: INodeChange;
     node: Node;
 }
 
@@ -130,7 +130,7 @@ export interface IRevisionInput {
     nodeId?: string | number;
 }
 
-export interface IRevisionInfo {
+export interface INodeChange {
     // id: string;
     userId: number;
     userRoles?: string[];
@@ -201,7 +201,7 @@ export interface IRevisionQueryResultWithTimeSecs {
 
 export interface ITransformInput {
     columnNames: NonNullable<INamesForTablesAndColumns['columnNames']> & {[column: string]: any};
-    columnData: NonNullable<IRevisionInfo> & {[column: string]: any};
+    columnData: NonNullable<INodeChange> & {[column: string]: any};
 }
 
 // tslint:disable

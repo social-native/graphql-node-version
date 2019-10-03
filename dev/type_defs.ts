@@ -51,8 +51,8 @@ export default gql`
     type QueryUserVersionEdge implements IEdge {
         cursor: String!
         node: User
-        version: Version
-        versionEdge: VersionEdge
+        nodeChange: Version
+        linkChange: VersionEdge
     }
 
     type QueryTeamVersionConnection implements IConnection {
@@ -63,8 +63,8 @@ export default gql`
     type QueryTeamVersionEdge implements IEdge {
         cursor: String!
         node: Team
-        version: Version
-        versionEdge: VersionEdge
+        nodeChange: Version
+        linkChange: VersionEdge
     }
 
     type Query {

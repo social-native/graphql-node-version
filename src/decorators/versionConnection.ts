@@ -5,12 +5,10 @@ import {
     UnPromisify,
     INamesConfig,
     INamesForTablesAndColumns,
-    // IRevisionQueryResult,
     INodeBuilderRevisionInfo,
     IRevisionQueryResultWithTimeSecs,
-    // IRevisionConnection,
     IRevisionEdge,
-    INodeEdge,
+    ILinkChange,
     IRevisionConnection
 } from '../types';
 import {ConnectionManager, IQueryResult, IFilter} from '@social-native/snpkg-snapi-connections';
@@ -110,7 +108,7 @@ export const createRevisionConnection = async <
         nodeConnection.addResult([{}]);
         const {edges, pageInfo} = nodeConnection;
         const firstEdge = edges[0];
-        return {pageInfo, edges: [{...firstEdge, version: undefined, node: currentVersionNode}]};
+        return {pageInfo, edges: [{...firstEdge, nodeChange: undefined, node: currentVersionNode}]};
     }
 
     console.log('3. DETERMINING OLDEST REVISION ID');
@@ -189,17 +187,17 @@ export interface INodesOfInterest<ResolverT extends (...args: any[]) => any> {
 }
 
 const mergeNodeEdgesWithEdgesInRangeOfInterest = <ResolverT extends (...args: any[]) => any>(
-    nodeEdgesOfVersions: INodeEdge[],
+    nodeEdgesOfVersions: ILinkChange[],
     edgesInRangeOfInterest: Array<IRevisionEdge<UnPromisify<ReturnType<ResolverT>>>>
 ) => {
     // tslint:disable-next-line
     const joinedEdges = [...nodeEdgesOfVersions, ...edgesInRangeOfInterest].sort((edgeA, edgeB) => {
         const revisionTimeA = isRevisionEdge(edgeA)
             ? edgeA.revisionTime
-            : edgeA.version && edgeA.version.revisionTime;
+            : edgeA.nodeChange && edgeA.nodeChange.revisionTime;
         const revisionTimeB = isRevisionEdge(edgeB)
             ? edgeB.revisionTime
-            : edgeB.version && edgeB.version.revisionTime;
+            : edgeB.nodeChange && edgeB.nodeChange.revisionTime;
 
         return revisionTimeA > revisionTimeB ? 0 : -1;
     });
@@ -215,10 +213,21 @@ const mergeNodeEdgesWithEdgesInRangeOfInterest = <ResolverT extends (...args: an
                 }
                 if (isRevisionEdge(edge)) {
                     const lastEdge = allEdges[index - 1] || {};
-                    const newEdge = {...lastEdge, version: undefined, versionEdge: edge};
+                    const newEdge = {
+                        ...lastEdge,
+                        nodeChange: undefined,
+                        linkChange: edge,
+                        isLinkChange: true,
+                        isNodeChange: false
+                    };
                     allEdges.push(newEdge);
                 } else {
-                    allEdges.push({...edge, versionEdge: undefined} as any);
+                    allEdges.push({
+                        ...edge,
+                        linkChange: undefined,
+                        isNodeChange: true,
+                        isLinkChange: false
+                    } as any);
                 }
                 return allEdges;
             },
@@ -228,7 +237,7 @@ const mergeNodeEdgesWithEdgesInRangeOfInterest = <ResolverT extends (...args: an
     return newVersions;
 };
 
-const isRevisionEdge = (edge: INodeEdge | any): edge is INodeEdge => {
+const isRevisionEdge = (edge: ILinkChange | any): edge is ILinkChange => {
     return typeof edge.revisionTime === 'number';
 };
 
@@ -247,7 +256,7 @@ const calculateEdgesInRangeOfInterest = <ResolverT extends (...args: any[]) => a
             revisionId,
             userRoles
         } = edge.node;
-        const version = {
+        const nodeChange = {
             revisionData,
             userId,
             nodeName: nn,
@@ -258,7 +267,7 @@ const calculateEdgesInRangeOfInterest = <ResolverT extends (...args: any[]) => a
             userRoles
         };
         const calculatedNode = nodesInRange[edge.node.revisionId];
-        return {...edge, node: calculatedNode, version};
+        return {...edge, node: calculatedNode, nodeChange};
     });
 };
 
@@ -304,7 +313,7 @@ const getNodeEdgesInRangeOfInterest = async (
     minRevisionTimeInUnixSecs: number,
     nodeName: string,
     nodeId: number | string
-): Promise<INodeEdge[]> => {
+): Promise<ILinkChange[]> => {
     const result = (await knex
         .queryBuilder()
         .from(nodeToSqlNameMappings.tableNames.revisionEdge)
