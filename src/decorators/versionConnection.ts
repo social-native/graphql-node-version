@@ -5,7 +5,7 @@ import {
     UnPromisify,
     INamesConfig,
     INamesForTablesAndColumns,
-    IRevisionQueryResult,
+    // IRevisionQueryResult,
     INodeBuilderRevisionInfo,
     IRevisionQueryResultWithTimeSecs
 } from '../types';
@@ -44,7 +44,7 @@ export default <ResolverT extends (...args: [any, any, any, any]) => any>(
             const latestNode = (await value(args[0], args[1], args[2], args[3])) as UnPromisify<
                 ReturnType<ResolverT>
             >;
-            return createRevisionConnection(
+            return createRevisionConnection<ResolverT>(
                 latestNode,
                 args as Parameters<ResolverT>,
                 extractors,
@@ -64,6 +64,7 @@ export const createRevisionConnection = async <
     extractors: IVersionConnectionExtractors<ResolverT>,
     config?: INamesConfig
 ) => {
+    // tslint:disable-next-line
     console.log('CURRENT NODE', currentVersionNode);
     const {knex} = extractors;
     // extractors.knex(resolverArgs[0], resolverArgs[1], resolverArgs[2], resolverArgs[3]);
@@ -98,7 +99,7 @@ export const createRevisionConnection = async <
                     filterTransformer: castUnixToDateTime
                 },
                 resultOptions: {
-                    nodeTransformer: castDateTimeToUnixSecs
+                    nodeTransformer: castNodeWithRevisionTimeInDateTimeToUnixSecs
                 }
             }
         );
@@ -120,16 +121,22 @@ export const createRevisionConnection = async <
         throw new Error('Missing min revision number');
     }
 
-    const {revisionId: minRevisionNumber, revisionTime: minRevisionTime} = minRevision;
+    const {revisionId: minRevisionNumber, revisionTime: minRevisionTimeInUnixSecs} = minRevision;
 
     console.log('4. GETTING ALL REVISIONS IN RANGE');
     // Step 4. Get all revisions in range from the newest revision of interest to the
     //   oldest revision with a snapshot
-    const {
-        revisionId: maxRevisionNumber,
-        revisionTime: maxRevisionTime
-    } = revisionsOfInterest.edges[0].node;
+    const isUsingConnectionCursor = !!(
+        resolverArgs[1] &&
+        (resolverArgs[1].before || resolverArgs[1].after)
+    );
+    const {revisionId: maxRevisionNumber, revisionTime} = revisionsOfInterest.edges[0].node;
+    const maxRevisionTimeInUnixSecs = isUsingConnectionCursor
+        ? revisionTime
+        : Math.ceil(DateTime.utc().toSeconds());
+
     const {nodeId, nodeName} = revisionsOfInterest.edges[0].node;
+
     const revisionsInRange = await getRevisionsInRange(
         maxRevisionNumber,
         minRevisionNumber,
@@ -139,12 +146,18 @@ export const createRevisionConnection = async <
         nodeToSqlNameMappings
     );
 
-    console.log('5. GET ALL NODES THAT ARE EDGES');
+    console.log('5. GET ALL NODES THAT ARE EDGES', {
+        isUsingConnectionCursor,
+        maxRevisionTimeInUnixSecs,
+        minRevisionTimeInUnixSecs,
+        nodeName,
+        nodeId
+    });
     const nodeEdgesOfVersions = await getNodeEdgesInRangeOfInterest(
         knex,
         nodeToSqlNameMappings,
-        maxRevisionTime,
-        minRevisionTime,
+        maxRevisionTimeInUnixSecs,
+        minRevisionTimeInUnixSecs,
         nodeName,
         nodeId
     );
@@ -237,8 +250,8 @@ const calculateNodesInRangeOfInterest = <ResolverT extends (...args: any[]) => a
 const getNodeEdgesInRangeOfInterest = async (
     knex: Knex,
     nodeToSqlNameMappings: INamesForTablesAndColumns,
-    maxRevisionTime: string,
-    minRevisionTime: string,
+    maxRevisionTimeInUnixSecs: number,
+    minRevisionTimeInUnixSecs: number,
     nodeName: string,
     nodeId: number | string
 ) => {
@@ -248,12 +261,12 @@ const getNodeEdgesInRangeOfInterest = async (
         .where(
             `${nodeToSqlNameMappings.tableNames.revisionEdge}.${nodeToSqlNameMappings.columnNames.revisionEdgeTime}`,
             '>=',
-            minRevisionTime
+            unixSecondsToSqlTimestamp(minRevisionTimeInUnixSecs)
         )
         .where(
             `${nodeToSqlNameMappings.tableNames.revisionEdge}.${nodeToSqlNameMappings.columnNames.revisionEdgeTime}`,
             '<=',
-            maxRevisionTime
+            unixSecondsToSqlTimestamp(maxRevisionTimeInUnixSecs)
         )
         .andWhere({
             [`${nodeToSqlNameMappings.tableNames.revisionEdge}.${nodeToSqlNameMappings.columnNames.edgeNodeIdA}`]: nodeId, // tslint:disable-line
@@ -275,7 +288,7 @@ const getNodeEdgesInRangeOfInterest = async (
         revisionTime: string;
     }>;
 
-    return result;
+    return result.map(n => castNodeWithRevisionTimeInDateTimeToUnixSecs(n));
 };
 
 /**
@@ -329,7 +342,7 @@ const getMinRevisionNumberWithSnapshot = async (
         .first()) as {revisionId: number; revisionTime: string};
 
     console.log('resulttttt', result);
-    return result;
+    return castNodeWithRevisionTimeInDateTimeToUnixSecs(result);
 };
 
 const getRevisionsInRange = async (
@@ -395,8 +408,10 @@ const castUnixToDateTime = (filter: IFilter) => {
     return filter;
 };
 
-const castDateTimeToUnixSecs = (node: any) => {
-    const {revisionTime} = node as IRevisionQueryResult;
+const castNodeWithRevisionTimeInDateTimeToUnixSecs = <T extends {revisionTime: string}>(
+    node: T
+): T & {revisionTime: number} => {
+    const {revisionTime} = node;
     const newRevisionTime = castDateToUTCSeconds(revisionTime);
     console.log('~~~~~~~~~~~', `from: ${revisionTime}`, 'to :', newRevisionTime);
     return {
@@ -429,7 +444,7 @@ const getRevisionsOfInterest = async <ResolverT extends (...args: any[]) => any>
                 filterTransformer: castUnixToDateTime
             },
             resultOptions: {
-                nodeTransformer: castDateTimeToUnixSecs
+                nodeTransformer: castNodeWithRevisionTimeInDateTimeToUnixSecs
             }
         }
     );

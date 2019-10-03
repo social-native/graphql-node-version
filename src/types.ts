@@ -122,7 +122,7 @@ export interface IRevisionInfo {
     userRoles?: string[];
     revisionId: number;
     revisionData: string;
-    revisionTime: string;
+    revisionTime: number;
     nodeSchemaVersion: number;
     resolverOperation: string;
     nodeName: string;
@@ -170,7 +170,7 @@ export interface IRevisionQueryResult {
 
 export interface IRevisionQueryResultWithTimeSecs {
     revisionId: number;
-    revisionTime: string;
+    revisionTime: number;
     revisionData: string;
 
     nodeName: string;
