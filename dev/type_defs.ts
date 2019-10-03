@@ -23,10 +23,7 @@ export default gql`
         node: User
     }
 
-    type QueryUserVersionConnection implements IConnection {
-        pageInfo: PageInfo!
-        edges: [QueryUserVersionEdge]!
-    }
+
 
     type Version {
         userId: ID!
@@ -39,9 +36,25 @@ export default gql`
         resolverOperation: String!
     }
 
+    type QueryUserVersionConnection implements IConnection {
+        pageInfo: PageInfo!
+        edges: [QueryUserVersionEdge]!
+    }
+
     type QueryUserVersionEdge implements IEdge {
         cursor: String!
         node: User
+        version: Version
+    }
+
+    type QueryTeamVersionConnection implements IConnection {
+        pageInfo: PageInfo!
+        edges: [QueryTeamVersionEdge]!
+    }
+
+    type QueryTeamVersionEdge implements IEdge {
+        cursor: String!
+        node: Team
         version: Version
     }
 
@@ -69,7 +82,17 @@ export default gql`
         ): QueryUserConnection
         todoList(id: ID!): TodoList
         todoItem(id: ID!): TodoItem
-        team(id: ID!): Team
+        # team(id: ID!): Team
+        team(
+            id: ID!
+            first: First
+            last: Last
+            orderBy: OrderBy
+            orderDir: OrderDir
+            before: Before
+            after: After
+            filter: Filter
+        ): QueryTeamVersionConnection
     }
 
     type Mutation {

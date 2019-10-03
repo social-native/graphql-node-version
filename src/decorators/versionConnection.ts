@@ -79,10 +79,9 @@ export const createRevisionConnection = async <
         extractors
     );
 
+    console.log('2. CHECK IF THERE ARE NO REVISIONS');
     // Step 2. If there are no revisions in the connection, return with no edges
     if (revisionsOfInterest.edges.length === 0) {
-        //     return revisionsOfInterest;
-        // }
         const attributeMap = {
             ...nodeToSqlNameMappings.columnNames,
             id: `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.revisionId}`,
@@ -105,27 +104,31 @@ export const createRevisionConnection = async <
         );
         nodeConnection.addResult([{}]);
         const {edges, pageInfo} = nodeConnection;
-        console.log('HEREEEEE', edges);
         const firstEdge = edges[0];
         return {pageInfo, edges: [{...firstEdge, version: undefined, node: currentVersionNode}]};
     }
 
     console.log('3. DETERMINING OLDEST REVISION ID');
     // Step 3. Determine the oldest revision with a full node snapshot
-    const minRevisionNumber = await getFirstRevisionNumberWithSnapshot(
+    const minRevision = await getMinRevisionNumberWithSnapshot(
         revisionsOfInterest,
         knex,
         nodeToSqlNameMappings
     );
 
-    if (minRevisionNumber === undefined) {
+    if (minRevision === undefined) {
         throw new Error('Missing min revision number');
     }
+
+    const {revisionId: minRevisionNumber, revisionTime: minRevisionTime} = minRevision;
 
     console.log('4. GETTING ALL REVISIONS IN RANGE');
     // Step 4. Get all revisions in range from the newest revision of interest to the
     //   oldest revision with a snapshot
-    const maxRevisionNumber = revisionsOfInterest.edges[0].node.revisionId;
+    const {
+        revisionId: maxRevisionNumber,
+        revisionTime: maxRevisionTime
+    } = revisionsOfInterest.edges[0].node;
     const {nodeId, nodeName} = revisionsOfInterest.edges[0].node;
     const revisionsInRange = await getRevisionsInRange(
         maxRevisionNumber,
@@ -136,17 +139,29 @@ export const createRevisionConnection = async <
         nodeToSqlNameMappings
     );
 
-    console.log('5. CALCULATE NODE DIFFS');
-    // Step 5. Calculate nodes by applying revision diffs to previous node snapshots
+    console.log('5. GET ALL NODES THAT ARE EDGES');
+    const nodeEdgesOfVersions = await getNodeEdgesInRangeOfInterest(
+        knex,
+        nodeToSqlNameMappings,
+        maxRevisionTime,
+        minRevisionTime,
+        nodeName,
+        nodeId
+    );
+
+    console.log(nodeEdgesOfVersions);
+
+    console.log('6. CALCULATE NODE DIFFS');
+    // Step 6. Calculate nodes by applying revision diffs to previous node snapshots
     const nodesInRange = calculateNodesInRangeOfInterest(revisionsInRange, extractors);
     // const latestCalculatedNode = nodesInRange[nodesInRange.length - 1];
 
-    console.log('6. BUILD VERSIONED EDGES');
-    // Step 6. Build the versioned edges using the full nodes and the desired revisions
+    console.log('7. BUILD VERSIONED EDGES');
+    // Step 7. Build the versioned edges using the full nodes and the desired revisions
     const newEdges = calculateEdgesInRangeOfInterest(revisionsOfInterest, nodesInRange);
 
-    console.log('7. BUILD CONNECTION');
-    // Step 7. Build the connection
+    console.log('8. BUILD CONNECTION');
+    // Step 8. Build the connection
     return {pageInfo: revisionsOfInterest.pageInfo, edges: newEdges};
 };
 
@@ -214,11 +229,60 @@ const calculateNodesInRangeOfInterest = <ResolverT extends (...args: any[]) => a
         {} as INodesOfInterest<ResolverT>
     );
 };
+
 /**
  * Gets the closest revision with a snapshot to the oldest revision of interest
  * This will be the initial snapshot that full nodes are calculated off of
  */
-const getFirstRevisionNumberWithSnapshot = async (
+const getNodeEdgesInRangeOfInterest = async (
+    knex: Knex,
+    nodeToSqlNameMappings: INamesForTablesAndColumns,
+    maxRevisionTime: string,
+    minRevisionTime: string,
+    nodeName: string,
+    nodeId: number | string
+) => {
+    const result = (await knex
+        .queryBuilder()
+        .from(nodeToSqlNameMappings.tableNames.revisionEdge)
+        .where(
+            `${nodeToSqlNameMappings.tableNames.revisionEdge}.${nodeToSqlNameMappings.columnNames.revisionEdgeTime}`,
+            '>=',
+            minRevisionTime
+        )
+        .where(
+            `${nodeToSqlNameMappings.tableNames.revisionEdge}.${nodeToSqlNameMappings.columnNames.revisionEdgeTime}`,
+            '<=',
+            maxRevisionTime
+        )
+        .andWhere({
+            [`${nodeToSqlNameMappings.tableNames.revisionEdge}.${nodeToSqlNameMappings.columnNames.edgeNodeIdA}`]: nodeId, // tslint:disable-line
+            [`${nodeToSqlNameMappings.tableNames.revisionEdge}.${nodeToSqlNameMappings.columnNames.edgeNodeNameA}`]: nodeName // tslint:disable-line
+        })
+        .select(
+            `${nodeToSqlNameMappings.tableNames.revisionEdge}.${nodeToSqlNameMappings.columnNames.edgeNodeIdB} as edgeNodeId`, // tslint:disable-line
+            `${nodeToSqlNameMappings.tableNames.revisionEdge}.${nodeToSqlNameMappings.columnNames.edgeNodeNameB} as edgeNodeName`, // tslint:disable-line
+            `${nodeToSqlNameMappings.tableNames.revisionEdge}.${nodeToSqlNameMappings.columnNames.resolverOperation} as resolverOperation`, // tslint:disable-line
+            `${nodeToSqlNameMappings.tableNames.revisionEdge}.${nodeToSqlNameMappings.columnNames.revisionEdgeTime} as revisionTime` // tslint:disable-line
+        )
+        .orderBy(
+            `${nodeToSqlNameMappings.tableNames.revisionEdge}.${nodeToSqlNameMappings.columnNames.revisionEdgeTime}`,
+            'desc'
+        )) as Array<{
+        edgeNodeId: number;
+        edgeNodeName: string;
+        resolverOperation: string;
+        revisionTime: string;
+    }>;
+
+    return result;
+};
+
+/**
+ * Gets the closest revision with a snapshot to the oldest revision of interest
+ * This will be the initial snapshot that full nodes are calculated off of
+ */
+const getMinRevisionNumberWithSnapshot = async (
     revisionsOfInterest: IQueryResult<IRevisionQueryResultWithTimeSecs>,
     knex: Knex,
     nodeToSqlNameMappings: INamesForTablesAndColumns
@@ -230,7 +294,8 @@ const getFirstRevisionNumberWithSnapshot = async (
 
     const hasSnapshotData = !!firstRevisionInRange.node.snapshotData;
     if (hasSnapshotData) {
-        return firstRevisionInRange.node.revisionId;
+        const {revisionId, revisionTime} = firstRevisionInRange.node;
+        return {revisionId, revisionTime};
     }
 
     const {nodeId, revisionId: lastRevisionId} = firstRevisionInRange.node;
@@ -254,16 +319,17 @@ const getFirstRevisionNumberWithSnapshot = async (
             `${lastRevisionId} `
         )
         .select(
-            `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.revisionId} as revisionId` // tslint:disable-line
+            `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.revisionId} as revisionId`, // tslint:disable-line
+            `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.revisionTime} as revisionTime` // tslint:disable-line
         )
         .orderBy(
             `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.revisionId}`,
             'desc'
         )
-        .first()) as {revisionId: number};
+        .first()) as {revisionId: number; revisionTime: string};
 
     console.log('resulttttt', result);
-    return result.revisionId;
+    return result;
 };
 
 const getRevisionsInRange = async (

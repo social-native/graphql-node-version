@@ -14,7 +14,11 @@ interface ITeam {
     name: string;
 }
 
-type QueryTeamResolver = Resolver<ITeam | undefined, undefined, {id: string}>;
+type QueryTeamResolver = Resolver<
+    IRevisionConnection<ITeam | null>,
+    undefined,
+    {id: string} & IInputArgs
+>;
 type QueryTodoListResolver = Resolver<ITodoList | undefined, undefined, {id: string}>;
 type QueryTodoItemResolver = Resolver<ITodoItem, undefined, {id: string}>;
 type QueryUsersResolver = Resolver<IQueryResult<IUserNode | null>, undefined, IInputArgs>;
@@ -34,11 +38,18 @@ const query: {
     user: QueryUserResolver;
     users: QueryUsersResolver;
 } = {
-    async team(_, {id}, {sqlClient}) {
-        return (await sqlClient
+    async team(parent, args, ctx, info) {
+        const currentNode = (await ctx.sqlClient
             .from('team')
-            .where({id})
+            .where({id: args.id})
             .first()) as {id: number; name: string};
+
+        return await createRevisionConnection(currentNode, [parent, args, ctx, info], {
+            knex: ctx.sqlClient,
+            nodeBuilder,
+            nodeId: args.id,
+            nodeName: 'team'
+        });
     },
     async todoList(_, {id}, {sqlClient}) {
         const result = (await sqlClient
