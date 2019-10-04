@@ -80,6 +80,7 @@ export interface INamesConfig {
         snapshotId?: string;
         snapshotTime?: string;
         snapshotData?: string;
+        snapshotNodeSchemaVersion?: string;
 
         roleId?: string;
         roleName?: string;

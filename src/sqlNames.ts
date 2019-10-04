@@ -59,6 +59,7 @@ enum DEFAULT_COLUMN_NAMES {
     snapshotId = 'id',
     snapshotTime = 'created_at',
     snapshotData = 'snapshot',
+    snapshotNodeSchemaVersion = 'node_schema_version',
 
     // role table
     roleId = 'id',

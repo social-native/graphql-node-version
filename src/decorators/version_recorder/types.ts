@@ -20,7 +20,7 @@ export interface IVersionRecorderExtractors<Resolver extends (...args: any[]) =>
         ctx: Parameters<Resolver>[2],
         info: Parameters<Resolver>[3]
     ) => string;
-    revisionTime?: (
+    eventTime?: (
         parent: Parameters<Resolver>[0],
         args: Parameters<Resolver>[1],
         ctx: Parameters<Resolver>[2],
@@ -64,12 +64,12 @@ export interface ICreateRevisionTransactionConfig extends INamesConfig {
 }
 
 export interface IRevisionInfo {
-    userId: string;
+    eventUserId: string;
+    eventTime: string;
+    eventNodeName: string;
+    nodeChangeRevisionData: string;
+    nodeChangeNodeSchemaVersion: number;
     userRoles?: string[];
-    revisionData: string;
-    revisionTime: string;
-    nodeSchemaVersion: number;
-    nodeName: string;
     edgesToRecord: INode[] | undefined;
     fragmentToRecord: INode | undefined;
     snapshotFrequency: number;

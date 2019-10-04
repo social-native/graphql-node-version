@@ -30,7 +30,7 @@ export default <ResolverT extends (...args: any[]) => any>(
             const localKnexClient = extractors.knex(args[0], args[1], args[2], args[3]);
             const transaction = await findOrCreateKnexTransaction(localKnexClient, config);
             const resolverOperation = getResolverOperation(extractors, property);
-            const revisionInfo = extractRevisionInfo(args, extractors);
+            const revisionEventInfo = extractRevisionEventInfo(args, extractors);
 
             console.log('2. GETTING CURRENT NODE');
             const node = await callDecoratedNode(transaction, value, args, extractors);
@@ -39,15 +39,15 @@ export default <ResolverT extends (...args: any[]) => any>(
             const nodeId = extractors.nodeId(node, args[0], args[1], args[2], args[3]);
             if (nodeId === undefined) {
                 throw new Error(
-                    `Unable to extract node id in version recorder for node ${revisionInfo.nodeName}`
+                    `Unable to extract node id in version recorder for node ${revisionEventInfo.nodeName}`
                 );
             }
 
             console.log('4. STORING REVISION');
-            const revisionId = await storeRevision(
+            const eventId = await storeEvent(
                 transaction,
                 nodeToSqlNameMappings,
-                revisionInfo,
+                revisionEventInfo,
                 nodeId,
                 resolverOperation
             );
@@ -55,7 +55,7 @@ export default <ResolverT extends (...args: any[]) => any>(
             const shouldStoreSnapshot = await findIfShouldStoreSnapshot(
                 transaction,
                 nodeToSqlNameMappings,
-                revisionInfo,
+                revisionEventInfo,
                 nodeId
             );
 
@@ -73,24 +73,25 @@ export default <ResolverT extends (...args: any[]) => any>(
                 await storeCurrentNodeSnapshot(
                     transaction,
                     nodeToSqlNameMappings,
+                    revisionEventInfo,
                     currentNodeSnapshot,
-                    revisionId
+                    eventId
                 );
             }
 
-            if (revisionInfo.edgesToRecord) {
-                await Bluebird.each(revisionInfo.edgesToRecord, async edge => {
+            if (revisionEventInfo.edgesToRecord) {
+                await Bluebird.each(revisionEventInfo.edgesToRecord, async edge => {
                     return await storeEdge(
                         transaction,
                         nodeToSqlNameMappings,
-                        revisionInfo,
+                        eventId,
+                        revisionEventInfo,
                         nodeId,
-                        resolverOperation,
                         edge
                     );
                 });
             }
-            await storeFragment(transaction, nodeToSqlNameMappings, revisionInfo, revisionId);
+            await storeFragment(transaction, nodeToSqlNameMappings, revisionEventInfo, eventId);
 
             await transaction.commit();
 
@@ -115,57 +116,85 @@ const findOrCreateKnexTransaction = async (
     return transaction;
 };
 
-const storeRevision = async (
+const storeEvent = async (
     transaction: Knex.Transaction,
-    nodeToSqlNameMappings: INamesForTablesAndColumns,
-    revisionInfo: IRevisionInfo,
-    nodeId: INode['nodeId'],
-    resolverOperation: string
+    {tableNames, columnNames}: INamesForTablesAndColumns,
+    revisionEventInfo: IRevisionInfo,
+    eventNodeId: INode['nodeId'],
+    eventResolverOperation: string
 ) => {
-    const {userRoles, ...mainTableInput} = revisionInfo;
-    const sqlData = nodeToSql(nodeToSqlNameMappings, {
-        ...mainTableInput,
-        nodeId,
-        resolverOperation
-    });
+    const {
+        userRoles,
+        eventUserId,
+        eventNodeName,
+        eventTime,
+        nodeChangeRevisionData,
+        nodeChangeNodeSchemaVersion
+    } = revisionEventInfo;
 
-    const revisionId = ((await transaction
-        .table(nodeToSqlNameMappings.tableNames.revision)
-        .insert(sqlData)
+    // Get the id for event implementor EVENT_NODE_CHANGE
+    const eventTypeId = (await transaction
+        .table(tableNames.eventImplementorType)
+        .where({[columnNames.eventImplementorType]: 'EVENT_NODE_CHANGE'})
+        .select(`${columnNames.eventImplementorTypeId} as id`)
+        .first()) as {id: number};
+
+    const eventSqlData = nodeToSql(
+        {tableNames, columnNames},
+        {
+            eventTime,
+            eventUserId,
+            eventNodeName,
+            eventNodeId,
+            eventResolverOperation,
+            [`${tableNames.eventImplementorType}_${columnNames.eventImplementorTypeId}`]: eventTypeId
+        }
+    );
+
+    // TODO use other method for get last inserted id
+    // Insert event data
+    const eventId = ((await transaction
+        .table(tableNames.event)
+        .insert(eventSqlData)
         .returning('id')) as number[])[0];
+
+    // Insert event node change data
+    await transaction.table(tableNames.eventNodeChange).insert({
+        [`${tableNames.event}_${columnNames.eventId}`]: eventId,
+        [columnNames.nodeChangeRevisionData]: nodeChangeRevisionData,
+        [columnNames.nodeChangeNodeSchemaVersion]: nodeChangeNodeSchemaVersion
+    });
 
     const roles = userRoles || [];
 
-    // calculate which role are missing in the db
+    // Calculate which role are missing in the db
     const foundRoleNames = await transaction
-        .table(nodeToSqlNameMappings.tableNames.revisionRole)
-        .whereIn(nodeToSqlNameMappings.columnNames.roleName, roles);
-    const foundRoles = foundRoleNames.map(
-        (n: any) => n[nodeToSqlNameMappings.columnNames.roleName]
-    );
+        .table(tableNames.role)
+        .whereIn(columnNames.roleName, roles);
+    const foundRoles = foundRoleNames.map((n: any) => n[columnNames.roleName]);
     const missingRoles = roles.filter(i => foundRoles.indexOf(i) < 0);
 
-    // insert the missing roles
-    await transaction.table(nodeToSqlNameMappings.tableNames.revisionRole).insert(
+    // Insert the missing roles
+    await transaction.table(tableNames.role).insert(
         missingRoles.map((role: string) => ({
-            [nodeToSqlNameMappings.columnNames.roleName]: role
+            [columnNames.roleName]: role
         }))
     );
 
-    // select the role ids
+    // Select the role ids
     const ids = (await transaction
-        .table(nodeToSqlNameMappings.tableNames.revisionRole)
-        .whereIn(nodeToSqlNameMappings.columnNames.roleName, roles)) as Array<{id: number}>;
+        .table(tableNames.role)
+        .whereIn(columnNames.roleName, roles)) as Array<{id: number}>;
 
-    // insert roles ids associated with the revision id
-    await transaction.table(nodeToSqlNameMappings.tableNames.revisionUserRole).insert(
+    // Insert roles ids associated with the revision id
+    await transaction.table(tableNames.userRole).insert(
         ids.map(({id}) => ({
-            [`${nodeToSqlNameMappings.tableNames.revisionRole}_id`]: id,
-            [`${nodeToSqlNameMappings.tableNames.revision}_id`]: revisionId
+            [`${tableNames.role}_${columnNames.roleId}`]: id,
+            [`${tableNames.event}_${columnNames.eventId}`]: eventId
         }))
     );
 
-    return revisionId;
+    return eventId;
 };
 
 const getResolverOperation = <T extends (...args: any[]) => any>(
@@ -199,23 +228,24 @@ const callDecoratedNode = async <ResolverT extends (...args: any[]) => any>(
     return node;
 };
 
-const extractRevisionInfo = <ResolverT extends (...args: any[]) => any>(
+const extractRevisionEventInfo = <ResolverT extends (...args: any[]) => any>(
     args: Parameters<ResolverT>,
     extractors: IVersionRecorderExtractors<ResolverT>
 ): IRevisionInfo => {
     // tslint:disable-next-line
-    const userId = extractors.userId(args[0], args[1], args[2], args[3]);
-    const revisionData = extractors.revisionData(args[0], args[1], args[2], args[3]);
-    const nodeSchemaVersion = extractors.nodeSchemaVersion;
-    const nodeName = extractors.nodeName;
+    const eventUserId = extractors.userId(args[0], args[1], args[2], args[3]);
+    const nodeChangeRevisionData = extractors.revisionData(args[0], args[1], args[2], args[3]);
+    const nodeChangeNodeSchemaVersion = extractors.nodeSchemaVersion;
+    const eventNodeName = extractors.nodeName;
 
     const userRoles = extractors.userRoles
         ? extractors.userRoles(args[0], args[1], args[2], args[3])
         : [];
 
-    const revisionTime = extractors.revisionTime
-        ? extractors.revisionTime(args[0], args[1], args[2], args[3])
-        : new Date()
+    const eventTime = extractors.eventTime
+        ? extractors.eventTime(args[0], args[1], args[2], args[3])
+        : // TODO check this
+          new Date()
               .toISOString()
               .split('Z')
               .join('');
@@ -253,12 +283,12 @@ const extractRevisionInfo = <ResolverT extends (...args: any[]) => any>(
         : 1;
 
     return {
-        userId,
+        eventUserId,
+        eventNodeName,
+        eventTime,
         userRoles,
-        revisionData,
-        revisionTime,
-        nodeSchemaVersion,
-        nodeName,
+        nodeChangeRevisionData,
+        nodeChangeNodeSchemaVersion,
         edgesToRecord,
         fragmentToRecord,
         snapshotFrequency
@@ -273,7 +303,7 @@ const storeFragment = async (
 ) => {
     if (revisionInfo.fragmentToRecord) {
         const fragment = {
-            [columnNames.revisionEdgeTime]: revisionInfo.revisionTime,
+            [columnNames.revisionEdgeTime]: revisionInfo.eventTime,
             [columnNames.fragmentParentNodeId]: revisionInfo.fragmentToRecord.nodeId,
             [columnNames.fragmentParentNodeName]: revisionInfo.fragmentToRecord.nodeName,
             [`${tableNames.revision}_${columnNames.revisionId}`]: revisionId
@@ -286,32 +316,29 @@ const storeFragment = async (
 const storeEdge = async (
     transaction: Knex.Transaction,
     {tableNames, columnNames}: INamesForTablesAndColumns,
-    revisionInfo: IRevisionInfo,
-    nodeId: string | number,
-    resolverOperation: string,
+    eventId: number,
+    revisionEventInfo: IRevisionInfo,
+    eventNodeId: string | number,
     edgesToRecord: {nodeId: string | number; nodeName: string}
 ) => {
     const inputFirst = {
-        [columnNames.revisionEdgeTime]: revisionInfo.revisionTime,
-        [columnNames.resolverOperation]: resolverOperation,
-        [columnNames.edgeNodeIdA]: nodeId,
-        [columnNames.edgeNodeNameA]: revisionInfo.nodeName,
-        [columnNames.edgeNodeIdB]: edgesToRecord.nodeId,
-        [columnNames.edgeNodeNameB]: edgesToRecord.nodeName
+        [`${tableNames.event}_${columnNames.eventId}`]: eventId,
+        [columnNames.linkChangeNodeIdA]: eventNodeId,
+        [columnNames.linkChangeNodeNameA]: revisionEventInfo.eventNodeName,
+        [columnNames.linkChangeNodeIdB]: edgesToRecord.nodeId,
+        [columnNames.linkChangeNodeNameB]: edgesToRecord.nodeName
     };
 
     // switch A and B nodes for faster sql querying
     const inputSecond = {
-        [columnNames.revisionEdgeTime]: revisionInfo.revisionTime,
-        [columnNames.resolverOperation]: resolverOperation,
-        [columnNames.edgeNodeIdB]: nodeId,
-        [columnNames.edgeNodeNameB]: revisionInfo.nodeName,
-        [columnNames.edgeNodeIdA]: edgesToRecord.nodeId,
-        [columnNames.edgeNodeNameA]: edgesToRecord.nodeName
+        [`${tableNames.event}_${columnNames.eventId}`]: eventId,
+        [columnNames.linkChangeNodeIdB]: eventNodeId,
+        [columnNames.linkChangeNodeNameB]: revisionEventInfo.eventNodeName,
+        [columnNames.linkChangeNodeIdA]: edgesToRecord.nodeId,
+        [columnNames.linkChangeNodeNameA]: edgesToRecord.nodeName
     };
 
-    await transaction.table(tableNames.revisionEdge).insert(inputFirst);
-    await transaction.table(tableNames.revisionEdge).insert(inputSecond);
+    await transaction.table(tableNames.eventLinkChange).insert([inputFirst, inputSecond]);
 };
 
 /**
@@ -320,12 +347,15 @@ const storeEdge = async (
 const storeCurrentNodeSnapshot = async (
     transaction: Knex.Transaction,
     {tableNames, columnNames}: INamesForTablesAndColumns,
+    revisionEventInfo: IRevisionInfo,
     currentNodeSnapshot: any,
-    revisionId: string | number
+    eventId: string | number
 ) => {
-    await transaction.table(tableNames.revisionNodeSnapshot).insert({
-        [`${tableNames.revision}_${columnNames.revisionId}`]: revisionId,
-        [columnNames.snapshotData]: JSON.stringify(currentNodeSnapshot) // tslint:disable-line
+    await transaction.table(tableNames.nodeSnapshot).insert({
+        [`${tableNames.event}_${columnNames.eventId}`]: eventId,
+        [columnNames.snapshotData]: JSON.stringify(currentNodeSnapshot), // tslint:disable-line
+        [columnNames.snapshotTime]: revisionEventInfo.eventTime, // tslint:disable-line
+        [columnNames.snapshotNodeSchemaVersion]: revisionEventInfo.nodeChangeNodeSchemaVersion // tslint:disable-line
     });
 };
 
@@ -336,30 +366,31 @@ const storeCurrentNodeSnapshot = async (
 const findIfShouldStoreSnapshot = async (
     transaction: Knex.Transaction,
     {tableNames, columnNames}: INamesForTablesAndColumns,
-    revisionInfo: IRevisionInfo,
-    nodeId: string | number
-) => {
+    eventRevisionInfo: IRevisionInfo,
+    eventNodeId: string | number
+): Promise<boolean> => {
     const sql = transaction
-        .table(tableNames.revision)
+        .table(tableNames.event)
         .leftJoin(
-            tableNames.revisionNodeSnapshot,
-            `${tableNames.revision}.${columnNames.revisionId}`,
-            `${tableNames.revisionNodeSnapshot}.${tableNames.revision}_${columnNames.revisionId}`
+            tableNames.nodeSnapshot,
+            `${tableNames.event}.${columnNames.eventId}`,
+            `${tableNames.nodeSnapshot}.${tableNames.event}_${columnNames.eventId}`
         )
         .where({
-            [`${tableNames.revision}.${columnNames.nodeName}`]: revisionInfo.nodeName,
-            [`${tableNames.revision}.${columnNames.nodeId}`]: nodeId,
-            [`${tableNames.revision}.${columnNames.nodeSchemaVersion}`]: revisionInfo.nodeSchemaVersion
+            [`${tableNames.event}.${columnNames.eventNodeName}`]: eventRevisionInfo.eventNodeName,
+            [`${tableNames.event}.${columnNames.eventNodeName}`]: eventNodeId,
+            // tslint:disable-next-line
+            [`${tableNames.nodeSnapshot}.${columnNames.snapshotNodeSchemaVersion}`]: eventRevisionInfo.nodeChangeNodeSchemaVersion
         })
-        .orderBy(`${tableNames.revision}.${columnNames.revisionTime}`, 'desc')
-        .limit(revisionInfo.snapshotFrequency)
+        .orderBy(`${tableNames.event}.${columnNames.eventTime}`, 'desc')
+        .limit(eventRevisionInfo.snapshotFrequency)
         .select(
-            `${tableNames.revision}.${columnNames.revisionTime} as revision_creation`,
-            `${tableNames.revisionNodeSnapshot}.${columnNames.snapshotTime} as snapshot_creation`
+            `${tableNames.event}.${columnNames.eventTime} as event_creation`,
+            `${tableNames.nodeSnapshot}.${columnNames.snapshotTime} as snapshot_creation`
         );
 
     const snapshots = (await sql) as Array<{
-        revision_creation?: string;
+        event_creation?: string;
         snapshot_creation?: string;
     }>;
     const snapshotWithinFrequencyRange = !!snapshots.find(data => data.snapshot_creation);

@@ -11,9 +11,9 @@ import {setNames} from '../sqlNames';
  * - The types of implementors that exist are in the `eventImplementorType` table
  * - `eventLinkChange` captures information about how edges of the node change
  * - `eventNodeChange` captures information about how the node's fields changes
- * - In some cases, a node is composed of other nodes. Aka, it is made up of node fragments.
+ * - In some cases, a node is composed of other nodes. AKA: it is made up of node fragments.
  * For this case, `eventNodeChangeFragment` captures information about the fragment nodes that make up the whole node
- * - Information about the user that caused an event is captured in the `event`, `userRole`, `role` table
+ * - Information about the user that caused an event is captured in the `event`, `userRole`, and `role` tables
  */
 interface IConfig extends INamesConfig {
     revisionRole: string[];
@@ -91,6 +91,12 @@ export default (config?: IConfig) => {
                 .primary();
 
             t.timestamp(columnNames.snapshotTime).notNullable();
+            t.integer(`${tableNames.event}_${columnNames.eventId}`)
+                .unsigned()
+                .notNullable()
+                .references(columnNames.eventId)
+                .inTable(tableNames.event);
+            t.integer(columnNames.snapshotNodeSchemaVersion).notNullable();
             t.json(columnNames.snapshotData).notNullable();
         });
 
