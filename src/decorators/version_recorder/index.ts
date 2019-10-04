@@ -22,15 +22,20 @@ export default <ResolverT extends (...args: any[]) => any>(
             throw new TypeError('Only functions can be decorated.');
         }
 
+        console.log('HEREEEEE');
+
         // tslint:disable-next-line
         descriptor.value = (async (...args: Parameters<ResolverT>) => {
+            console.log('1. EXTRACTING INFO');
             const localKnexClient = extractors.knex(args[0], args[1], args[2], args[3]);
             const transaction = await findOrCreateKnexTransaction(localKnexClient, config);
             const resolverOperation = getResolverOperation(extractors, property);
             const revisionInfo = extractRevisionInfo(args, extractors);
 
+            console.log('2. GETTING CURRENT NODE');
             const node = await callDecoratedNode(transaction, value, args, extractors);
 
+            console.log('3. EXTRACTING NODE ID');
             const nodeId = extractors.nodeId(node, args[0], args[1], args[2], args[3]);
             if (nodeId === undefined) {
                 throw new Error(
@@ -38,6 +43,7 @@ export default <ResolverT extends (...args: any[]) => any>(
                 );
             }
 
+            console.log('4. STORING REVISION');
             const revisionId = await storeRevision(
                 transaction,
                 nodeToSqlNameMappings,

@@ -5,7 +5,7 @@ import {
     // decorate,
     // versionConnectionDecorator as versionConnection,
     INodeBuilderRevisionInfo,
-    IRevisionConnection,
+    IVersionConnection,
     createRevisionConnection
 } from '../../src/index';
 
@@ -15,16 +15,24 @@ interface ITeam {
 }
 
 type QueryTeamResolver = Resolver<
-    IRevisionConnection<ITeam | null>,
+    IVersionConnection<ITeam | null>,
     undefined,
     {id: string} & IInputArgs
 >;
-type QueryTodoListResolver = Resolver<ITodoList | undefined, undefined, {id: string}>;
-type QueryTodoItemResolver = Resolver<ITodoItem, undefined, {id: string}>;
+type QueryTodoListResolver = Resolver<
+    IVersionConnection<ITodoList | undefined>,
+    undefined,
+    {id: string} & IInputArgs
+>;
+type QueryTodoItemResolver = Resolver<
+    IVersionConnection<ITodoItem | undefined>,
+    undefined,
+    {id: string} & IInputArgs
+>;
 type QueryUsersResolver = Resolver<IQueryResult<IUserNode | null>, undefined, IInputArgs>;
 // type QueryUserResolver = Resolver<IUserNode, undefined, {id: string}>;
 type QueryUserResolver = Resolver<
-    IRevisionConnection<IUserNode | null>,
+    IVersionConnection<IUserNode | null>,
     undefined,
     {id: string} & IInputArgs
 >;
@@ -51,39 +59,31 @@ const query: {
             nodeName: 'team'
         });
     },
-    async todoList(_, {id}, {sqlClient}) {
-        const result = (await sqlClient
+    async todoList(parent, args, ctx, info) {
+        const currentNode = await ctx.sqlClient
             .from('todo_list')
-            .leftJoin('todo_item', 'todo_item.todo_list_id', 'todo_list.id')
-            .where({'todo_list.id': id})
-            .select(
-                'todo_list.id as id',
-                'todo_item.id as todoItemId',
-                'usage',
-                'note',
-                'order'
-            )) as Array<{
-            id: number;
-            todoItemId: number;
-            usage: string;
-            note: string;
-            order: number;
-        }>;
-        if (result.length > 0) {
-            const {usage, id: listId} = result[0];
-            return {
-                id: listId,
-                usage,
-                items: result.filter(r => r.note).map(r => ({...r, id: r.todoItemId}))
-            };
-        }
-        return undefined;
-    },
-    async todoItem(_, {id}, {sqlClient}) {
-        return await sqlClient
-            .from('todo_item')
-            .where({id})
+            .where({'todo_list.id': args.id})
             .first();
+
+        return await createRevisionConnection(currentNode, [parent, args, ctx, info], {
+            knex: ctx.sqlClient,
+            nodeBuilder,
+            nodeId: args.id,
+            nodeName: 'todoList'
+        });
+    },
+    async todoItem(parent, args, ctx, info) {
+        const currentNode = await ctx.sqlClient
+            .from('todo_item')
+            .where({id: args.id})
+            .first();
+
+        return await createRevisionConnection(currentNode, [parent, args, ctx, info], {
+            knex: ctx.sqlClient,
+            nodeBuilder,
+            nodeId: args.id,
+            nodeName: 'todoItem'
+        });
     },
     async user(parent, args, ctx, info) {
         const currentNode = await ctx.sqlClient

@@ -397,7 +397,13 @@ decorate(mutation, {
         nodeId: ({id}) => id,
         nodeSchemaVersion: 1,
         currentNodeSnapshot: async (nodeId, args) => {
-            return await query.team(undefined, {id: nodeId as string}, args[2], args[3]);
+            const connectionResult = await query.team(
+                undefined,
+                {id: nodeId as string},
+                args[2],
+                args[3]
+            );
+            return connectionResult.edges[0].node;
         }
     }),
     teamUpdate: versionRecorder<MutationTeamUpdate>({
@@ -407,7 +413,13 @@ decorate(mutation, {
         nodeId: (_, __, {id}) => id,
         nodeSchemaVersion: 1,
         currentNodeSnapshot: async (nodeId, args) => {
-            return await query.team(undefined, {id: nodeId as string}, args[2], args[3]);
+            const connectionResult = await query.team(
+                undefined,
+                {id: nodeId as string},
+                args[2],
+                args[3]
+            );
+            return connectionResult.edges[0].node;
         }
     }),
     teamDelete: versionRecorder<MutationTeamCreate>({
@@ -417,7 +429,13 @@ decorate(mutation, {
         nodeId: ({id}) => id,
         nodeSchemaVersion: 1,
         currentNodeSnapshot: async (nodeId, args) => {
-            return await query.team(undefined, {id: nodeId as string}, args[2], args[3]);
+            const connectionResult = await query.team(
+                undefined,
+                {id: nodeId as string},
+                args[2],
+                args[3]
+            );
+            return connectionResult.edges[0].node;
         }
     }),
     userCreate: versionRecorder<MutationUserCreateResolver>({
@@ -429,14 +447,12 @@ decorate(mutation, {
         // TODO remind users in readme that the resolver type changes and
         // they need to cast it to IRevisionConnection<Node>
         currentNodeSnapshot: async (nodeId, args) => {
-            console.log('HEREEEE');
             const connectionResult = await query.user(
                 undefined,
                 {id: nodeId as string},
                 args[2],
                 args[3]
             );
-            console.log('CONNECTION RESULT', connectionResult);
             return connectionResult.edges[0].node;
         }
     }),
@@ -513,9 +529,14 @@ decorate(mutation, {
         nodeId: ({id}) => id,
         nodeSchemaVersion: 1,
         currentNodeSnapshot: async (nodeId, args) => {
-            return await query.todoList(undefined, {id: nodeId as string}, args[2], args[3]);
-        },
-        edges: (_, {userId}) => [{nodeId: userId, nodeName: 'user'}]
+            const connectionResult = await query.todoList(
+                undefined,
+                {id: nodeId as string},
+                args[2],
+                args[3]
+            );
+            return connectionResult.edges[0].node;
+        }
     }),
     todoListUpdate: versionRecorder<MutationTodoListUpdate>({
         ...commonDecoratorConfig<MutationTodoListUpdate>(),
@@ -524,7 +545,13 @@ decorate(mutation, {
         nodeId: (_, __, {id}) => id,
         nodeSchemaVersion: 1,
         currentNodeSnapshot: async (nodeId, args) => {
-            return await query.todoList(undefined, {id: nodeId as string}, args[2], args[3]);
+            const connectionResult = await query.todoList(
+                undefined,
+                {id: nodeId as string},
+                args[2],
+                args[3]
+            );
+            return connectionResult.edges[0].node;
         }
     }),
     todoListDelete: versionRecorder<MutationTodoListDelete>({
@@ -534,7 +561,13 @@ decorate(mutation, {
         nodeId: (_, __, {id}) => id,
         nodeSchemaVersion: 1,
         currentNodeSnapshot: async (nodeId, args) => {
-            return await query.todoList(undefined, {id: nodeId as string}, args[2], args[3]);
+            const connectionResult = await query.todoList(
+                undefined,
+                {id: nodeId as string},
+                args[2],
+                args[3]
+            );
+            return connectionResult.edges[0].node;
         }
     }),
     todoItemCreate: versionRecorder<MutationTodoItemCreate>({
@@ -544,7 +577,13 @@ decorate(mutation, {
         nodeId: ({id}) => id,
         nodeSchemaVersion: 1,
         currentNodeSnapshot: async (nodeId, args) => {
-            return await query.todoItem(undefined, {id: nodeId as string}, args[2], args[3]);
+            const connectionResult = await query.todoItem(
+                undefined,
+                {id: nodeId as string},
+                args[2],
+                args[3]
+            );
+            return connectionResult.edges[0].node;
         },
         parentNode: (_, {todoListId}) => ({nodeName: 'todoList', nodeId: todoListId})
     }),
@@ -555,7 +594,13 @@ decorate(mutation, {
         nodeId: (_, __, {id}) => id,
         nodeSchemaVersion: 1,
         currentNodeSnapshot: async (nodeId, args) => {
-            return await query.todoItem(undefined, {id: nodeId as string}, args[2], args[3]);
+            const connectionResult = await query.todoItem(
+                undefined,
+                {id: nodeId as string},
+                args[2],
+                args[3]
+            );
+            return connectionResult.edges[0].node;
         }
     }),
     todoItemDelete: versionRecorder<MutationTodoItemDelete>({
@@ -565,7 +610,13 @@ decorate(mutation, {
         nodeId: (_, __, {id}) => id,
         nodeSchemaVersion: 1,
         currentNodeSnapshot: async (nodeId, args) => {
-            return await query.todoList(undefined, {id: nodeId as string}, args[2], args[3]);
+            const connectionResult = await query.todoItem(
+                undefined,
+                {id: nodeId as string},
+                args[2],
+                args[3]
+            );
+            return connectionResult.edges[0].node;
         }
     })
 });

@@ -7,9 +7,9 @@ import {
     INamesForTablesAndColumns,
     INodeBuilderRevisionInfo,
     IRevisionQueryResultWithTimeSecs,
-    IRevisionEdge,
     ILinkChange,
-    IRevisionConnection
+    IVersionConnection,
+    Unpacked
 } from '../types';
 import {ConnectionManager, IQueryResult, IFilter} from '@social-native/snpkg-snapi-connections';
 
@@ -74,17 +74,17 @@ export const createRevisionConnection = async <
     const nodeToSqlNameMappings = setNames(config || {});
 
     // Step 1. Get all revisions in the connection
-    console.log('1. GETTING REVISIONS OF INTEREST');
-    const revisionsOfInterest = await getRevisionsOfInterest(
+    console.log('1. GETTING NODE CHANGE REVISIONS OF INTEREST');
+    const nodeChangesOfInterest = await getNodeChangesOfInterest(
         resolverArgs as Parameters<ResolverT>,
         knex,
         nodeToSqlNameMappings,
         extractors
     );
 
-    console.log('2. CHECK IF THERE ARE NO REVISIONS');
+    console.log('2. CHECK IF THERE ARE NO NODE CHANGE REVISIONS');
     // Step 2. If there are no revisions in the connection, return with no edges
-    if (revisionsOfInterest.edges.length === 0) {
+    if (nodeChangesOfInterest.edges.length === 0) {
         const attributeMap = {
             ...nodeToSqlNameMappings.columnNames,
             id: `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.revisionId}`,
@@ -114,7 +114,7 @@ export const createRevisionConnection = async <
     console.log('3. DETERMINING OLDEST REVISION ID');
     // Step 3. Determine the oldest revision with a full node snapshot
     const minRevision = await getMinRevisionNumberWithSnapshot(
-        revisionsOfInterest,
+        nodeChangesOfInterest,
         knex,
         nodeToSqlNameMappings
     );
@@ -132,12 +132,12 @@ export const createRevisionConnection = async <
         resolverArgs[1] &&
         (resolverArgs[1].before || resolverArgs[1].after)
     );
-    const {revisionId: maxRevisionNumber, revisionTime} = revisionsOfInterest.edges[0].node;
+    const {revisionId: maxRevisionNumber, revisionTime} = nodeChangesOfInterest.edges[0].node;
     const maxRevisionTimeInUnixSecs = isUsingConnectionCursor
         ? revisionTime
         : Math.ceil(DateTime.utc().toSeconds());
 
-    const {nodeId, nodeName} = revisionsOfInterest.edges[0].node;
+    const {nodeId, nodeName} = nodeChangesOfInterest.edges[0].node;
 
     const revisionsInRange = await getRevisionsInRange(
         maxRevisionNumber,
@@ -148,14 +148,14 @@ export const createRevisionConnection = async <
         nodeToSqlNameMappings
     );
 
-    console.log('5. GET ALL NODES THAT ARE EDGES', {
+    console.log('5. GET LINK CHANGE VERSIONS IN RANGE OF INTEREST', {
         isUsingConnectionCursor,
         maxRevisionTimeInUnixSecs,
         minRevisionTimeInUnixSecs,
         nodeName,
         nodeId
     });
-    const nodeEdgesOfVersions = await getNodeEdgesInRangeOfInterest(
+    const linkChanges = await getLinkChangesInRangeOfInterest(
         knex,
         nodeToSqlNameMappings,
         maxRevisionTimeInUnixSecs,
@@ -164,7 +164,7 @@ export const createRevisionConnection = async <
         nodeId
     );
 
-    console.log(nodeEdgesOfVersions);
+    console.log(linkChanges);
 
     console.log('6. CALCULATE NODE DIFFS');
     // Step 6. Calculate nodes by applying revision diffs to previous node snapshots
@@ -173,13 +173,13 @@ export const createRevisionConnection = async <
 
     console.log('7. BUILD VERSIONED EDGES');
     // Step 7. Build the versioned edges using the full nodes and the desired revisions
-    const newEdges = calculateEdgesInRangeOfInterest(revisionsOfInterest, nodesInRange);
+    const newEdges = calculateEdgesInRangeOfInterest(nodeChangesOfInterest, nodesInRange);
 
-    const mergedEdges = mergeNodeEdgesWithEdgesInRangeOfInterest(nodeEdgesOfVersions, newEdges);
+    const mergedEdges = mergeNodeEdgesWithEdgesInRangeOfInterest(linkChanges, newEdges);
     console.log('MERGED EDGESSSSSSS', mergedEdges);
     console.log('8. BUILD CONNECTION');
     // Step 8. Build the connection
-    return {pageInfo: revisionsOfInterest.pageInfo, edges: mergedEdges};
+    return {pageInfo: nodeChangesOfInterest.pageInfo, edges: mergedEdges};
 };
 
 export interface INodesOfInterest<ResolverT extends (...args: any[]) => any> {
@@ -188,7 +188,12 @@ export interface INodesOfInterest<ResolverT extends (...args: any[]) => any> {
 
 const mergeNodeEdgesWithEdgesInRangeOfInterest = <ResolverT extends (...args: any[]) => any>(
     nodeEdgesOfVersions: ILinkChange[],
-    edgesInRangeOfInterest: Array<IRevisionEdge<UnPromisify<ReturnType<ResolverT>>>>
+    edgesInRangeOfInterest: Array<
+        Pick<
+            Unpacked<IVersionConnection<UnPromisify<ReturnType<ResolverT>>>['edges']>,
+            'cursor' | 'nodeChange' | 'node'
+        >
+    >
 ) => {
     // tslint:disable-next-line
     const joinedEdges = [...nodeEdgesOfVersions, ...edgesInRangeOfInterest].sort((edgeA, edgeB) => {
@@ -199,6 +204,9 @@ const mergeNodeEdgesWithEdgesInRangeOfInterest = <ResolverT extends (...args: an
             ? edgeB.revisionTime
             : edgeB.nodeChange && edgeB.nodeChange.revisionTime;
 
+        if (!revisionTimeA || !revisionTimeB) {
+            throw new Error('Missing revision time for revision');
+        }
         return revisionTimeA > revisionTimeB ? 0 : -1;
     });
 
@@ -231,7 +239,7 @@ const mergeNodeEdgesWithEdgesInRangeOfInterest = <ResolverT extends (...args: an
                 }
                 return allEdges;
             },
-            [] as IRevisionConnection<UnPromisify<ReturnType<ResolverT>>>['edges']
+            [] as IVersionConnection<UnPromisify<ReturnType<ResolverT>>>['edges']
         )
         .reverse();
     return newVersions;
@@ -306,7 +314,7 @@ const calculateNodesInRangeOfInterest = <ResolverT extends (...args: any[]) => a
  * Gets the closest revision with a snapshot to the oldest revision of interest
  * This will be the initial snapshot that full nodes are calculated off of
  */
-const getNodeEdgesInRangeOfInterest = async (
+const getLinkChangesInRangeOfInterest = async (
     knex: Knex,
     nodeToSqlNameMappings: INamesForTablesAndColumns,
     maxRevisionTimeInUnixSecs: number,
@@ -479,7 +487,7 @@ const castNodeWithRevisionTimeInDateTimeToUnixSecs = <T extends {revisionTime: s
     };
 };
 
-const getRevisionsOfInterest = async <ResolverT extends (...args: any[]) => any>(
+const getNodeChangesOfInterest = async <ResolverT extends (...args: any[]) => any>(
     resolverArgs: Parameters<ResolverT>,
     knex: Knex,
     nodeToSqlNameMappings: INamesForTablesAndColumns,

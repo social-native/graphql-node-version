@@ -5,7 +5,16 @@ export type BaseResolver<Node = any, P = undefined, A = undefined, C = {}, I = {
     info?: I
 ) => Node | Promise<Node>;
 
-// TODO add permissions for campaign users to get the name of other campaign users for their campaign
+export interface INodeChange {
+    userId: number;
+    userRoles?: string[];
+    revisionId: number;
+    revisionData: string;
+    revisionTime: number;
+    nodeSchemaVersion: number;
+    resolverOperation: string;
+    nodeName: string;
+}
 
 export interface ILinkChange {
     edgeNodeId: number;
@@ -14,7 +23,7 @@ export interface ILinkChange {
     revisionTime: number;
 }
 
-export interface IRevisionConnection<Node> {
+export interface IVersionConnection<Node> {
     edges: Array<{
         cursor: string;
         nodeChange?: INodeChange;
@@ -28,13 +37,6 @@ export interface IRevisionConnection<Node> {
         endCursor: string;
     };
 }
-
-export interface IRevisionEdge<Node> {
-    cursor: string;
-    nodeChange: INodeChange;
-    node: Node;
-}
-
 export interface INamesConfig {
     tableNames?: {
         revision?: string;
@@ -128,30 +130,6 @@ export interface IRevisionInput {
     resolverOperation: string;
     nodeName: string;
     nodeId?: string | number;
-}
-
-export interface INodeChange {
-    // id: string;
-    userId: number;
-    userRoles?: string[];
-    revisionId: number;
-    revisionData: string;
-    revisionTime: number;
-    nodeSchemaVersion: number;
-    resolverOperation: string;
-    nodeName: string;
-    // nodeId: string;
-
-    // version: {
-    //     revisionData: string;
-    //     userId: string;
-    //     nodeName: string;
-    //     nodeSchemaVersion: number;
-    //     resolverOperation: string;
-    //     revisionTime: number;
-    //     revisionId: number;
-    //     userRoles: string[];
-    // };
 }
 
 export interface INodeBuilderRevisionInfo {
