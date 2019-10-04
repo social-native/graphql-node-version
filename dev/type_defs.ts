@@ -43,6 +43,30 @@ export default gql`
         revisionTime: Int!
     }
 
+    type QueryTodoItemVersionConnection implements IConnection {
+        pageInfo: PageInfo!
+        edges: [QueryTodoItemVersionEdge]!
+    }
+
+    type QueryTodoItemVersionEdge implements IEdge {
+        cursor: String!
+        node: TodoItem
+        nodeChange: Version
+        linkChange: VersionEdge
+    }
+
+    type QueryTodoListVersionConnection implements IConnection {
+        pageInfo: PageInfo!
+        edges: [QueryTodoListVersionEdge]!
+    }
+
+    type QueryTodoListVersionEdge implements IEdge {
+        cursor: String!
+        node: TodoList
+        nodeChange: Version
+        linkChange: VersionEdge
+    }
+
     type QueryUserVersionConnection implements IConnection {
         pageInfo: PageInfo!
         edges: [QueryUserVersionEdge]!
@@ -89,8 +113,28 @@ export default gql`
             filter: Filter
             search: Search
         ): QueryUserConnection
-        todoList(id: ID!): TodoList
-        todoItem(id: ID!): TodoItem
+        todoList(
+            id: ID!
+            first: First
+            last: Last
+            orderBy: OrderBy
+            orderDir: OrderDir
+            before: Before
+            after: After
+            filter: Filter
+        ): QueryTodoListVersionConnection
+        todoItem(
+            id: ID!
+            first: First
+            last: Last
+            orderBy: OrderBy
+            orderDir: OrderDir
+            before: Before
+            after: After
+            filter: Filter
+        ): QueryTodoItemVersionConnection
+        # todoList(id: ID!): TodoList
+        # todoItem(id: ID!): TodoItem
         # team(id: ID!): Team
         team(
             id: ID!

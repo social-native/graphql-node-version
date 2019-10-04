@@ -536,7 +536,8 @@ decorate(mutation, {
                 args[3]
             );
             return connectionResult.edges[0].node;
-        }
+        },
+        edges: (_, {userId}) => [{nodeId: userId, nodeName: 'user'}]
     }),
     todoListUpdate: versionRecorder<MutationTodoListUpdate>({
         ...commonDecoratorConfig<MutationTodoListUpdate>(),
