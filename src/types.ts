@@ -39,22 +39,43 @@ export interface IVersionConnection<Node> {
 }
 export interface INamesConfig {
     tableNames?: {
-        revision?: string;
-        revisionRole?: string;
-        revisionUserRole?: string;
-        revisionNodeSnapshot?: string;
-        revisionEdge?: string;
-        revisionFragment?: string;
+        event?: string;
+        eventImplementorType?: string;
+        eventNodeChange?: string;
+        eventNodeChangeFragment?: string;
+        eventLinkChange?: string;
+
+        role?: string;
+        userRole?: string;
+        nodeSnapshot?: string;
     };
     columnNames?: {
-        revisionId?: string;
-        revisionTime?: string;
-        userId?: string;
-        revisionData?: string;
-        nodeName?: string;
-        nodeSchemaVersion?: string;
-        nodeId?: string;
-        resolverOperation?: string;
+        eventId?: string;
+        eventTime?: string;
+        eventUserId?: string;
+        eventNodeName?: string;
+        eventNodeId?: string;
+        eventResolverOperation?: string;
+
+        eventImplementorTypeId?: string;
+        eventImplementorType?: string;
+
+        linkChangeId?: string;
+        linkChangeNodeNameA?: string;
+        linkChangeNodeIdA?: string;
+        linkChangeNodeNameB?: string;
+        linkChangeNodeIdB?: string;
+
+        nodeChangeId?: string;
+        nodeChangeRevisionData?: string;
+        nodeChangeNodeSchemaVersion?: string;
+
+        nodeChangeFragmentId?: string;
+        nodeChangeFragmentTime?: string;
+        nodeChangeFragmentParentNodeId?: string;
+        nodeChangeFragmentParentNodeName?: string;
+        nodeChangeFragmentChildNodeId?: string;
+        nodeChangeFragmentChildNodeName?: string;
 
         snapshotId?: string;
         snapshotTime?: string;
@@ -64,18 +85,6 @@ export interface INamesConfig {
         roleName?: string;
 
         userRoleId?: string;
-
-        revisionEdgeId?: string;
-        revisionEdgeTime?: string;
-        edgeNodeNameA: string;
-        edgeNodeIdA: string;
-        edgeNodeNameB: string;
-        edgeNodeIdB: string;
-
-        revisionFragmentId?: string;
-        revisionFragmentTime?: string;
-        fragmentParentNodeId: string;
-        fragmentParentNodeName: string;
     };
 }
 
@@ -108,18 +117,6 @@ export type InfoArgs<T> = T extends (
     ? A
     : undefined;
 
-// export interface IVersionInfo {
-//     userId: string;
-//     userRoles: string[];
-//     revisionId: number;
-//     revisionData?: string;
-//     revisionTime: string;
-//     nodeSchemaVersion: number;
-//     resolverOperation: string;
-//     nodeName: string;
-//     nodeId: string | number;
-// }
-
 export interface IRevisionInput {
     // id: string;
     userId: string;
@@ -143,26 +140,9 @@ export interface INodeBuilderRevisionInfo {
     resolverOperation?: string;
 }
 
-export interface IRevisionQueryResult {
+export interface IRevisionQueryResult<RevisionTime = string> {
     revisionId: number;
-    revisionTime: string;
-    revisionData: string;
-
-    nodeName: string;
-    nodeSchemaVersion: number;
-    userId: number;
-    nodeId: string | number;
-    resolverOperation: string;
-
-    snapshotTime?: string;
-    snapshotData?: string;
-
-    userRoles?: string[];
-}
-
-export interface IRevisionQueryResultWithTimeSecs {
-    revisionId: number;
-    revisionTime: number;
+    revisionTime: RevisionTime;
     revisionData: string;
 
     nodeName: string;

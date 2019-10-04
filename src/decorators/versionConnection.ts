@@ -6,7 +6,7 @@ import {
     INamesConfig,
     INamesForTablesAndColumns,
     INodeBuilderRevisionInfo,
-    IRevisionQueryResultWithTimeSecs,
+    IRevisionQueryResult,
     ILinkChange,
     IVersionConnection,
     Unpacked
@@ -93,7 +93,7 @@ export const createRevisionConnection = async <
             userRoles: `${nodeToSqlNameMappings.tableNames.revisionRole}.${nodeToSqlNameMappings.columnNames.roleName}`
         };
 
-        const nodeConnection = new ConnectionManager<IRevisionQueryResultWithTimeSecs>(
+        const nodeConnection = new ConnectionManager<IRevisionQueryResult<number>>(
             resolverArgs[1],
             attributeMap,
             {
@@ -250,7 +250,7 @@ const isRevisionEdge = (edge: ILinkChange | any): edge is ILinkChange => {
 };
 
 const calculateEdgesInRangeOfInterest = <ResolverT extends (...args: any[]) => any>(
-    revisionsOfInterest: IQueryResult<IRevisionQueryResultWithTimeSecs>,
+    revisionsOfInterest: IQueryResult<IRevisionQueryResult<number>>,
     nodesInRange: INodesOfInterest<ResolverT>
 ) => {
     return revisionsOfInterest.edges.map(edge => {
@@ -363,7 +363,7 @@ const getLinkChangesInRangeOfInterest = async (
  * This will be the initial snapshot that full nodes are calculated off of
  */
 const getMinRevisionNumberWithSnapshot = async (
-    revisionsOfInterest: IQueryResult<IRevisionQueryResultWithTimeSecs>,
+    revisionsOfInterest: IQueryResult<IRevisionQueryResult<number>>,
     knex: Knex,
     nodeToSqlNameMappings: INamesForTablesAndColumns
 ) => {
@@ -492,7 +492,7 @@ const getNodeChangesOfInterest = async <ResolverT extends (...args: any[]) => an
     knex: Knex,
     nodeToSqlNameMappings: INamesForTablesAndColumns,
     extractors: IVersionConnectionExtractors<ResolverT>
-): Promise<IQueryResult<IRevisionQueryResultWithTimeSecs>> => {
+): Promise<IQueryResult<IRevisionQueryResult<number>>> => {
     const attributeMap = {
         ...nodeToSqlNameMappings.columnNames,
         id: `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.revisionId}`,
@@ -503,7 +503,7 @@ const getNodeChangesOfInterest = async <ResolverT extends (...args: any[]) => an
 
     // force orderDir to be 'desc' b/c last is most recent in versions
     // const newInputArgs = {...inputArgs, orderDir: 'desc'};
-    const nodeConnection = new ConnectionManager<IRevisionQueryResultWithTimeSecs>(
+    const nodeConnection = new ConnectionManager<IRevisionQueryResult<number>>(
         resolverArgs[1],
         attributeMap,
         {

@@ -7,50 +7,65 @@ import {INamesConfig, INamesForTablesAndColumns} from './types';
  */
 
 enum DEFAULT_TABLE_NAMES {
-    revision = 'revision',
-    revisionRole = 'revision_role',
-    revisionUserRole = 'revision_user_roles',
-    revisionNodeSnapshot = 'revision_node_snapshot',
-    revisionEdge = 'revision_edge',
-    revisionFragment = 'revision_fragment'
+    event = 'version_event',
+    eventImplementorType = 'version_event_implementor_type',
+    eventNodeChange = 'version_event_node_change',
+    eventNodeChangeFragment = 'version_event_node_change_fragment',
+    eventLinkChange = 'version_event_link_change',
+
+    role = 'version_role',
+    userRole = 'version_user_role',
+    nodeSnapshot = 'version_node_snapshot'
 }
 
 enum DEFAULT_COLUMN_NAMES {
-    // revision table
-    revisionId = 'id',
-    revisionTime = 'revision_created_at',
-    userId = 'user_id',
-    revisionData = 'revision',
-    nodeName = 'node_name',
-    nodeSchemaVersion = 'node_schema_version',
-    nodeId = 'node_id',
-    resolverOperation = 'resolver_operation',
+    // event table
+    // (base table)
+    eventId = 'id',
+    eventTime = 'created_at',
+    eventUserId = 'user_id',
+    eventNodeName = 'node_name',
+    eventNodeId = 'node_id',
+    eventResolverOperation = 'resolver_operation',
 
-    // revision node snapshot table
+    // event type table
+    // (implementor type)
+    eventImplementorTypeId = 'id',
+    eventImplementorType = 'event_type',
+
+    // event link change table
+    // (implementor)
+    linkChangeId = 'id',
+    linkChangeNodeNameA = 'node_name_a',
+    linkChangeNodeIdA = 'node_id_a',
+    linkChangeNodeNameB = 'node_name_b',
+    linkChangeNodeIdB = 'node_id_b',
+
+    // event node change table
+    // (implementor)
+    nodeChangeId = 'id',
+    nodeChangeRevisionData = 'revision',
+    nodeChangeNodeSchemaVersion = 'node_schema_version',
+
+    // event node change fragment table
+    nodeChangeFragmentId = 'id',
+    nodeChangeFragmentTime = 'created_at',
+    nodeChangeFragmentParentNodeId = 'parent_node_id',
+    nodeChangeFragmentParentNodeName = 'parent_node_name',
+    nodeChangeFragmentChildNodeId = 'child_node_id',
+    nodeChangeFragmentChildNodeName = 'child_node_name',
+
+    // node snapshot table
     snapshotId = 'id',
-    snapshotTime = 'snapshot_created_at',
-    snapshotData = 'previous_node_version_snapshot',
+    snapshotTime = 'created_at',
+    snapshotData = 'snapshot',
 
-    // revision role table
+    // role table
     roleId = 'id',
     roleName = 'role_name',
 
-    // revision user roles
-    userRoleId = 'id',
-
-    // revision edge
-    revisionEdgeId = 'id',
-    revisionEdgeTime = 'created_at',
-    edgeNodeNameA = 'node_name_a',
-    edgeNodeIdA = 'node_id_a',
-    edgeNodeNameB = 'node_name_b',
-    edgeNodeIdB = 'node_id_b',
-
-    // revision fragment
-    revisionFragmentId = 'id',
-    revisionFragmentTime = 'created_at',
-    fragmentParentNodeId = 'parent_node_id',
-    fragmentParentNodeName = 'parent_node_name'
+    // user role table
+    userRoleId = 'id'
 }
 
 export const setNames = ({tableNames, columnNames}: INamesConfig): INamesForTablesAndColumns => ({
