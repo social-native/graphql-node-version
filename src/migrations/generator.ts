@@ -1,6 +1,6 @@
 import * as Knex from 'knex';
 
-import {INamesConfig} from '../types';
+import {ITableAndColumnNames} from '../types';
 import {setNames} from '../sqlNames';
 
 /**
@@ -15,12 +15,12 @@ import {setNames} from '../sqlNames';
  * For this case, `eventNodeChangeFragment` captures information about the fragment nodes that make up the whole node
  * - Information about the user that caused an event is captured in the `event`, `userRole`, and `role` tables
  */
-interface IConfig extends INamesConfig {
-    revisionRole: string[];
-}
+// interface IConfig extends INamesConfig {
+//     revisionRole: string[];
+// }
 
-export default (config?: IConfig) => {
-    const {tableNames, columnNames} = setNames(config || {});
+export default (config?: ITableAndColumnNames) => {
+    const {tableNames, event} = setNames(config || {});
 
     const up = async (knex: Knex) => {
         await knex.schema.createTable(tableNames.eventImplementorType, t => {

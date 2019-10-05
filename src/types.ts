@@ -63,27 +63,10 @@ export interface ISqlEventTable {
     implementor_type_id: number;
 }
 
-export const DEFAULT_COLUMN_NAMES_EVENT_TABLE: {[k in keyof ISqlEventTable]: string} = {
-    id: 'id',
-    created_at: 'created_at',
-    user_id: 'user_id',
-    node_name: 'node_name',
-    node_id: 'node_id',
-    resolver_operation: 'resolver_operation',
-    implementor_type_id: 'implementor_type_id'
-};
-
 export interface ISqlEventImplementorTypeTable {
     id: string;
     type: string;
 }
-
-export const DEFAULT_COLUMN_NAMES_EVENT_IMPLEMENTOR_TYPE_TABLE: {
-    [k in keyof ISqlEventImplementorTypeTable]: string;
-} = {
-    id: 'id',
-    type: 'type'
-};
 
 export interface ISqlEventLinkChangeTable {
     id: number;
@@ -94,32 +77,12 @@ export interface ISqlEventLinkChangeTable {
     node_id_b: string;
 }
 
-export const DEFAULT_COLUMN_NAMES_EVENT_LINK_CHANGE_TABLE: {
-    [k in keyof ISqlEventLinkChangeTable]: string;
-} = {
-    id: 'id',
-    event_id: 'event_id',
-    node_name_a: 'node_name_a',
-    node_id_a: 'node_id_a',
-    node_name_b: 'node_name_b',
-    node_id_b: 'node_id_b'
-};
-
 export interface ISqlEventNodeChangeTable {
     id: number;
     event_id: number;
     revision_data: string;
     schema_version: number;
 }
-
-export const DEFAULT_COLUMN_NAMES_EVENT_NODE_CHANGE_TABLE: {
-    [k in keyof ISqlEventNodeChangeTable]: string;
-} = {
-    id: 'id',
-    event_id: 'event_id',
-    revision_data: 'revision_data',
-    schema_version: 'schema_version'
-};
 
 export interface ISqlEventNodeFragmentChangeTable {
     id: number;
@@ -130,26 +93,10 @@ export interface ISqlEventNodeFragmentChangeTable {
     child_node_name: string;
 }
 
-export const DEFAULT_COLUMN_NAMES_EVENT_NODE_FRAGMENT_CHANGE_TABLE: {
-    [k in keyof ISqlEventNodeFragmentChangeTable]: string;
-} = {
-    id: 'id',
-    created_at: 'created_at',
-    parent_node_id: 'parent_node_id',
-    parent_node_name: 'parent_node_name',
-    child_node_id: 'child_node_id',
-    child_node_name: 'child_node_name'
-};
-
 export interface ISqlRoleTable {
     id: number;
     role: string;
 }
-
-export const DEFAULT_COLUMN_NAMES_ROLE_TABLE: {[k in keyof ISqlRoleTable]: string} = {
-    id: 'id',
-    role: 'role'
-};
 
 export interface ISqlUserRoleTable {
     id: number;
@@ -157,25 +104,12 @@ export interface ISqlUserRoleTable {
     user_id: number;
 }
 
-export const DEFAULT_COLUMN_NAMES_USER_ROLE_TABLE: {[k in keyof ISqlUserRoleTable]: string} = {
-    id: 'id',
-    role_id: 'role_id',
-    user_id: 'user_id'
-};
-
 export interface ISqlNodeSnapshotTable {
     id: number;
     created_at: string;
     snapshot: string;
     node_schema_version: number;
 }
-
-export const DEFAULT_COLUMN_NAMES_SNAPSHOT_TABLE: {[k in keyof ISqlNodeSnapshotTable]: string} = {
-    id: 'id',
-    created_at: 'created_at',
-    snapshot: 'snapshot',
-    node_schema_version: 'node_schema_version'
-};
 
 export type SqlTable<T> = {[k in keyof T]: string};
 
@@ -189,17 +123,9 @@ export interface ISqlColumnNames {
     user_role: SqlTable<ISqlUserRoleTable>;
     node_snapshot: SqlTable<ISqlNodeSnapshotTable>;
 }
-
-export const DEFAULT_SQL_TABLE_NAMES: {[k in keyof ISqlColumnNames]: string} = {
-    event: 'event',
-    event_implementor_type: 'event_implementor_type',
-    event_link_change: 'event_link_change',
-    event_node_change: 'event_node_change',
-    event_node_fragment_change: 'event_node_fragment_change',
-    role: 'role',
-    user_role: 'user_role',
-    node_snapshot: 'node_snapshot'
-};
+export interface ITableAndColumnNames extends ISqlColumnNames {
+    tableNames: SqlTable<ISqlColumnNames>;
+}
 
 /**
  * Graphql Schema
