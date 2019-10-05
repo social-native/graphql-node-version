@@ -20,7 +20,7 @@ import {setNames} from '../sqlNames';
 // }
 
 export default (config?: ITableAndColumnNames) => {
-    const {tableNames, event} = setNames(config || {});
+    const {tableNames} = setNames(config || {});
 
     const up = async (knex: Knex) => {
         await knex.schema.createTable(tableNames.eventImplementorType, t => {

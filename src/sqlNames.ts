@@ -164,51 +164,55 @@ export const DEFAULT_COLUMN_NAMES_SNAPSHOT_TABLE: SqlTable<ISqlNodeSnapshotTable
 //     userRoleId = 'id'
 // }
 
-export const setNames = ({
-    tableNames,
-    event,
-    event_implementor_type,
-    event_link_change,
-    event_node_change,
-    event_node_fragment_change,
-    role,
-    user_role,
-    node_snapshot
-}?: ITableAndColumnNames): ITableAndColumnNames => ({
-    tableNames: {
-        ...DEFAULT_SQL_TABLE_NAMES,
-        ...tableNames
-    },
-    event: {
-        ...DEFAULT_COLUMN_NAMES_EVENT_TABLE,
-        ...event
-    },
-    event_implementor_type: {
-        ...DEFAULT_COLUMN_NAMES_EVENT_IMPLEMENTOR_TYPE_TABLE,
-        ...event_implementor_type
-    },
-    event_link_change: {
-        ...DEFAULT_COLUMN_NAMES_EVENT_LINK_CHANGE_TABLE,
-        ...event_link_change
-    },
-    event_node_change: {
-        ...DEFAULT_COLUMN_NAMES_EVENT_NODE_CHANGE_TABLE,
-        ...event_node_change
-    },
-    event_node_fragment_change: {
-        ...DEFAULT_COLUMN_NAMES_EVENT_NODE_FRAGMENT_CHANGE_TABLE,
-        ...event_node_fragment_change
-    },
-    role: {
-        ...DEFAULT_COLUMN_NAMES_ROLE_TABLE,
-        ...role
-    },
-    user_role: {
-        ...DEFAULT_COLUMN_NAMES_USER_ROLE_TABLE,
-        ...user_role
-    },
-    node_snapshot: {
-        ...DEFAULT_COLUMN_NAMES_SNAPSHOT_TABLE,
-        ...node_snapshot
-    }
-});
+export const setNames = (names?: ITableAndColumnNames): ITableAndColumnNames => {
+    // tslint:disable
+    const tableNames = (names && names.tableNames) || {};
+    const event = (names && names.event) || {};
+    const event_implementor_type = (names && names.event_implementor_type) || {};
+    const event_link_change = (names && names.event_link_change) || {};
+    const event_node_change = (names && names.event_node_change) || {};
+    const event_node_fragment_change = (names && names.event_node_fragment_change) || {};
+    const role = (names && names.role) || {};
+    const user_role = (names && names.user_role) || {};
+    const node_snapshot = (names && names.node_snapshot) || {};
+    // tslint:enable
+
+    return {
+        tableNames: {
+            ...DEFAULT_SQL_TABLE_NAMES,
+            ...tableNames
+        },
+        event: {
+            ...DEFAULT_COLUMN_NAMES_EVENT_TABLE,
+            ...event
+        },
+        event_implementor_type: {
+            ...DEFAULT_COLUMN_NAMES_EVENT_IMPLEMENTOR_TYPE_TABLE,
+            ...event_implementor_type
+        },
+        event_link_change: {
+            ...DEFAULT_COLUMN_NAMES_EVENT_LINK_CHANGE_TABLE,
+            ...event_link_change
+        },
+        event_node_change: {
+            ...DEFAULT_COLUMN_NAMES_EVENT_NODE_CHANGE_TABLE,
+            ...event_node_change
+        },
+        event_node_fragment_change: {
+            ...DEFAULT_COLUMN_NAMES_EVENT_NODE_FRAGMENT_CHANGE_TABLE,
+            ...event_node_fragment_change
+        },
+        role: {
+            ...DEFAULT_COLUMN_NAMES_ROLE_TABLE,
+            ...role
+        },
+        user_role: {
+            ...DEFAULT_COLUMN_NAMES_USER_ROLE_TABLE,
+            ...user_role
+        },
+        node_snapshot: {
+            ...DEFAULT_COLUMN_NAMES_SNAPSHOT_TABLE,
+            ...node_snapshot
+        }
+    };
+};
