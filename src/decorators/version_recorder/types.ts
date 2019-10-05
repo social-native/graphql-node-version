@@ -39,7 +39,7 @@ export interface IVersionRecorderExtractors<Resolver extends (...args: any[]) =>
         ctx: Parameters<Resolver>[2],
         info: Parameters<Resolver>[3]
     ) => INode['nodeId'] | undefined; // tslint:disable-line
-    nodeSchemaVersion: number;
+    nodeSchemaVersion: number | string;
     nodeName: string;
     resolverOperation?: string;
     passThroughTransaction?: boolean;

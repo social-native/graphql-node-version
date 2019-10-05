@@ -1,7 +1,7 @@
 import * as Knex from 'knex';
 
 import {ITableAndColumnNames} from '../types';
-import {setNames} from '../sqlNames';
+import {setNames} from '../sql_names';
 
 /**
  * Create tables for storing versions of a node through time

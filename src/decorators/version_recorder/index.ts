@@ -1,7 +1,16 @@
 import * as Knex from 'knex';
 import Bluebird from 'bluebird';
 
-import {INamesConfig, UnPromisify, INamesForTablesAndColumns} from '../../types';
+import {
+    INamesConfig,
+    UnPromisify,
+    INamesForTablesAndColumns,
+    IGqlVersionNodeBase,
+    IEventInfoBase,
+    IEventNodeChangeInfo,
+    IEventLinkChangeInfo,
+    IEventNodeFragmentChangeInfo
+} from '../../types';
 import {setNames} from '../../sqlNames';
 import nodeToSql from '../../transformers/nodeToSql';
 import {
@@ -16,32 +25,33 @@ export default <ResolverT extends (...args: any[]) => any>(
     config?: ICreateRevisionTransactionConfig & INamesConfig
 ): MethodDecorator => {
     return (_target, property, descriptor: TypedPropertyDescriptor<any>) => {
-        const nodeToSqlNameMappings = setNames(config || {});
+        const nodeToSqlNameMappings = setNames(config);
         const {value} = descriptor;
         if (typeof value !== 'function') {
             throw new TypeError('Only functions can be decorated.');
         }
-
-        console.log('HEREEEEE');
 
         // tslint:disable-next-line
         descriptor.value = (async (...args: Parameters<ResolverT>) => {
             console.log('1. EXTRACTING INFO');
             const localKnexClient = extractors.knex(args[0], args[1], args[2], args[3]);
             const transaction = await findOrCreateKnexTransaction(localKnexClient, config);
-            const resolverOperation = getResolverOperation(extractors, property);
-            const revisionEventInfo = extractRevisionEventInfo(args, extractors);
 
             console.log('2. GETTING CURRENT NODE');
+
             const node = await callDecoratedNode(transaction, value, args, extractors);
 
             console.log('3. EXTRACTING NODE ID');
             const nodeId = extractors.nodeId(node, args[0], args[1], args[2], args[3]);
             if (nodeId === undefined) {
                 throw new Error(
-                    `Unable to extract node id in version recorder for node ${revisionEventInfo.nodeName}`
+                    `Unable to extract node id in version recorder for node ${JSON.stringify(node)}`
                 );
             }
+
+            const resolverOperation = getResolverOperation(extractors, property);
+            const eventNodeChangeInfo = extractEventNodeChangeInfo(args, extractors);
+            const revisionEventInfo = extractEventInfo(args, extractors, resolverOperation, nodeId);
 
             console.log('4. STORING REVISION');
             const eventId = await storeEvent(
@@ -228,31 +238,29 @@ const callDecoratedNode = async <ResolverT extends (...args: any[]) => any>(
     return node;
 };
 
-const extractRevisionEventInfo = <ResolverT extends (...args: any[]) => any>(
+const extractEventNodeChangeInfo = <ResolverT extends (...args: any[]) => any>(
     args: Parameters<ResolverT>,
-    extractors: IVersionRecorderExtractors<ResolverT>
-): IRevisionInfo => {
-    // tslint:disable-next-line
-    const eventUserId = extractors.userId(args[0], args[1], args[2], args[3]);
-    const nodeChangeRevisionData = extractors.revisionData(args[0], args[1], args[2], args[3]);
-    const nodeChangeNodeSchemaVersion = extractors.nodeSchemaVersion;
-    const eventNodeName = extractors.nodeName;
+    extractors: IVersionRecorderExtractors<ResolverT>,
+    eventInfoBase: IEventInfoBase
+): IEventNodeChangeInfo => {
+    const revisionData = extractors.revisionData(args[0], args[1], args[2], args[3]);
+    const nodeSchemaVersion = extractors.nodeSchemaVersion;
 
-    const userRoles = extractors.userRoles
-        ? extractors.userRoles(args[0], args[1], args[2], args[3])
-        : [];
+    return {
+        ...eventInfoBase,
+        revisionData,
+        nodeSchemaVersion
+    };
+};
 
-    const eventTime = extractors.eventTime
-        ? extractors.eventTime(args[0], args[1], args[2], args[3])
-        : // TODO check this
-          new Date()
-              .toISOString()
-              .split('Z')
-              .join('');
-
+const extractEventLinkChangeInfo = <ResolverT extends (...args: any[]) => any>(
+    args: Parameters<ResolverT>,
+    extractors: IVersionRecorderExtractors<ResolverT>,
+    eventInfoBase: IEventInfoBase
+): IEventLinkChangeInfo[] => {
     const edgesToRecord = extractors.edges
         ? extractors.edges(args[0], args[1], args[2], args[3])
-        : undefined;
+        : [];
 
     const edgesToRecordErrors = edgesToRecord
         ? edgesToRecord.filter(node => node.nodeId === undefined || node.nodeName === undefined)
@@ -264,9 +272,43 @@ const extractRevisionEventInfo = <ResolverT extends (...args: any[]) => any>(
         );
     }
 
+    // Events need to be in terms of both the edge and the link
+    // So one edge revision will lead to two events (one for each node)
+    return edgesToRecord.reduce(
+        (acc, edge) => {
+            const eventOne = {
+                ...eventInfoBase,
+                linkNodeId: edge.nodeId.toString(),
+                linkNodeName: edge.nodeName
+            };
+            const eventTwo = {
+                ...eventInfoBase,
+                nodeId: edge.nodeId.toString(),
+                nodeName: edge.nodeName,
+                linkNodeId: eventInfoBase.nodeName,
+                linkNodeName: eventInfoBase.nodeId
+            };
+            acc.push(eventOne);
+            acc.push(eventTwo);
+            return acc;
+        },
+        [] as IEventLinkChangeInfo[]
+    );
+};
+
+const extractNodeFragmentChangeInfo = <ResolverT extends (...args: any[]) => any>(
+    args: Parameters<ResolverT>,
+    extractors: IVersionRecorderExtractors<ResolverT>,
+    eventInfoBase: IEventInfoBase
+): IEventNodeFragmentChangeInfo | undefined => {
+    // tslint:disable-next-line
     const fragmentToRecord = extractors.parentNode
         ? extractors.parentNode(args[0], args[1], args[2], args[3])
         : undefined;
+
+    if (!fragmentToRecord) {
+        return;
+    }
 
     const fragmentToRecordHasAnError =
         fragmentToRecord &&
@@ -278,19 +320,53 @@ const extractRevisionEventInfo = <ResolverT extends (...args: any[]) => any>(
         );
     }
 
+    const fragment = {
+        childNodeId: eventInfoBase.nodeId.toString(),
+        childNodeName: eventInfoBase.nodeName,
+        parentNodeId: fragmentToRecord.nodeId.toString(),
+        parentNodeName: fragmentToRecord.nodeName
+    };
+
+    return {
+        ...eventInfoBase,
+        nodeId: fragmentToRecord.nodeId.toString(),
+        nodeName: fragmentToRecord.nodeName,
+        ...fragment
+    };
+};
+
+const extractEventInfo = <ResolverT extends (...args: any[]) => any>(
+    args: Parameters<ResolverT>,
+    extractors: IVersionRecorderExtractors<ResolverT>,
+    resolverOperation: string,
+    nodeId: string
+): IEventInfoBase => {
+    const userId = extractors.userId(args[0], args[1], args[2], args[3]);
+    const nodeName = extractors.nodeName;
+
+    const userRoles = extractors.userRoles
+        ? extractors.userRoles(args[0], args[1], args[2], args[3])
+        : [];
+
+    const createdAt = extractors.eventTime
+        ? extractors.eventTime(args[0], args[1], args[2], args[3])
+        : // TODO check this
+          new Date()
+              .toISOString()
+              .split('Z')
+              .join('');
+
     const snapshotFrequency = extractors.currentNodeSnapshotFrequency
         ? extractors.currentNodeSnapshotFrequency
         : 1;
 
     return {
-        eventUserId,
-        eventNodeName,
-        eventTime,
+        createdAt,
+        userId,
+        nodeName,
+        nodeId,
+        resolverOperation,
         userRoles,
-        nodeChangeRevisionData,
-        nodeChangeNodeSchemaVersion,
-        edgesToRecord,
-        fragmentToRecord,
         snapshotFrequency
     };
 };

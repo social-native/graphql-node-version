@@ -36,7 +36,7 @@ export type Unpacked<T> = T extends (infer U)[]
 export interface IVersionConnection<Node> {
     edges: Array<{
         cursor: string;
-        version: IGqlVerisonNode;
+        version: IGqlVersionNode;
         node: Node;
     }>;
     pageInfo: {
@@ -150,9 +150,24 @@ export interface IGqlVersionNodeChangeNode extends IGqlVersionNodeBase {
     nodeId: string;
     resolverOperation: string;
     type: string;
+    userRoles: string[];
 
     revisionData: string;
     nodeSchemaVersion: string;
+}
+
+export interface IGqlVersionNodeFragmentChangeNode extends IGqlVersionNodeBase {
+    id: string;
+    createdAt: number;
+    userId: string;
+    nodeName: string;
+    nodeId: string;
+    resolverOperation: string;
+    type: string;
+    userRoles: string[];
+
+    childNodeId: string;
+    childNodeName: string;
 }
 
 export interface IGqlVersionLinkChangeNode extends IGqlVersionNodeBase {
@@ -163,13 +178,69 @@ export interface IGqlVersionLinkChangeNode extends IGqlVersionNodeBase {
     nodeId: string;
     resolverOperation: string;
     type: string;
+    userRoles: string[];
 
     linkNodeId: string;
     linkNodeName: string;
 }
 
-export type IGqlVerisonNode = IGqlVersionNodeChangeNode | IGqlVersionLinkChangeNode;
+export type IGqlVersionNode =
+    | IGqlVersionNodeChangeNode
+    | IGqlVersionNodeFragmentChangeNode
+    | IGqlVersionLinkChangeNode;
 
+/**
+ * Extractors (GQL Input -> Data Access Layer)
+ */
+
+export interface IEventInfoBase {
+    createdAt: string;
+    userId: string;
+    nodeName: string;
+    nodeId: string;
+    resolverOperation: string;
+    userRoles: string[];
+    snapshotFrequency: number;
+}
+
+export interface IEventNodeChangeInfo extends IEventInfoBase {
+    createdAt: string;
+    userId: string;
+    nodeName: string;
+    nodeId: string;
+    resolverOperation: string;
+    userRoles: string[];
+    snapshotFrequency: number;
+
+    revisionData: string;
+    nodeSchemaVersion: string | number;
+}
+
+export interface IEventNodeFragmentChangeInfo extends IEventInfoBase {
+    createdAt: string;
+    userId: string;
+    nodeName: string;
+    nodeId: string;
+    resolverOperation: string;
+    userRoles: string[];
+    snapshotFrequency: number;
+
+    childNodeId: string;
+    childNodeName: string;
+}
+
+export interface IEventLinkChangeInfo extends IEventInfoBase {
+    createdAt: string;
+    userId: string;
+    nodeName: string;
+    nodeId: string;
+    resolverOperation: string;
+    userRoles: string[];
+    snapshotFrequency: number;
+
+    linkNodeId: string;
+    linkNodeName: string;
+}
 /**
  * Data access layer
  */
