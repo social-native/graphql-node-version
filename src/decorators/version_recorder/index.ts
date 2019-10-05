@@ -1,21 +1,9 @@
 import * as Knex from 'knex';
 import Bluebird from 'bluebird';
 
-import {
-    INamesConfig,
-    UnPromisify,
-    ISqlNodeSnapshotTable,
-    ITableAndColumnNames,
-    ISnapshotInfo
-} from '../../types';
+import {INamesConfig, UnPromisify} from '../../types';
 import {setNames} from '../../sqlNames';
-import nodeToSql from '../../transformers/nodeToSql';
-import {
-    ICreateRevisionTransactionConfig,
-    IVersionRecorderExtractors,
-    IRevisionInfo,
-    INode
-} from './types';
+import {ICreateRevisionTransactionConfig, IVersionRecorderExtractors, IRevisionInfo} from './types';
 
 export default <ResolverT extends (...args: any[]) => any>(
     extractors: IVersionRecorderExtractors<ResolverT>,
@@ -107,101 +95,6 @@ export default <ResolverT extends (...args: any[]) => any>(
 
         return descriptor;
     };
-};
-
-const findOrCreateKnexTransaction = async (
-    knex: Knex,
-    config: ICreateRevisionTransactionConfig | undefined
-) => {
-    const transaction = await knex.transaction();
-
-    setTimeout(async () => {
-        await transaction.rollback();
-        // throw new Error('Detected an orphaned transaction');
-    }, ((config && config.transactionTimeoutSeconds) || 10) * 1000);
-
-    return transaction;
-};
-
-const storeEvent = async (
-    transaction: Knex.Transaction,
-    {tableNames, columnNames}: INamesForTablesAndColumns,
-    revisionEventInfo: IRevisionInfo,
-    eventNodeId: INode['nodeId'],
-    eventResolverOperation: string
-) => {
-    const {
-        userRoles,
-        eventUserId,
-        eventNodeName,
-        eventTime,
-        nodeChangeRevisionData,
-        nodeChangeNodeSchemaVersion
-    } = revisionEventInfo;
-
-    // Get the id for event implementor EVENT_NODE_CHANGE
-    const eventTypeId = (await transaction
-        .table(tableNames.eventImplementorType)
-        .where({[columnNames.eventImplementorType]: 'EVENT_NODE_CHANGE'})
-        .select(`${columnNames.eventImplementorTypeId} as id`)
-        .first()) as {id: number};
-
-    const eventSqlData = nodeToSql(
-        {tableNames, columnNames},
-        {
-            eventTime,
-            eventUserId,
-            eventNodeName,
-            eventNodeId,
-            eventResolverOperation,
-            [`${tableNames.eventImplementorType}_${columnNames.eventImplementorTypeId}`]: eventTypeId
-        }
-    );
-
-    // TODO use other method for get last inserted id
-    // Insert event data
-    const eventId = ((await transaction
-        .table(tableNames.event)
-        .insert(eventSqlData)
-        .returning('id')) as number[])[0];
-
-    // Insert event node change data
-    await transaction.table(tableNames.eventNodeChange).insert({
-        [`${tableNames.event}_${columnNames.eventId}`]: eventId,
-        [columnNames.nodeChangeRevisionData]: nodeChangeRevisionData,
-        [columnNames.nodeChangeNodeSchemaVersion]: nodeChangeNodeSchemaVersion
-    });
-
-    const roles = userRoles || [];
-
-    // Calculate which role are missing in the db
-    const foundRoleNames = await transaction
-        .table(tableNames.role)
-        .whereIn(columnNames.roleName, roles);
-    const foundRoles = foundRoleNames.map((n: any) => n[columnNames.roleName]);
-    const missingRoles = roles.filter(i => foundRoles.indexOf(i) < 0);
-
-    // Insert the missing roles
-    await transaction.table(tableNames.role).insert(
-        missingRoles.map((role: string) => ({
-            [columnNames.roleName]: role
-        }))
-    );
-
-    // Select the role ids
-    const ids = (await transaction
-        .table(tableNames.role)
-        .whereIn(columnNames.roleName, roles)) as Array<{id: number}>;
-
-    // Insert roles ids associated with the revision id
-    await transaction.table(tableNames.userRole).insert(
-        ids.map(({id}) => ({
-            [`${tableNames.role}_${columnNames.roleId}`]: id,
-            [`${tableNames.event}_${columnNames.eventId}`]: eventId
-        }))
-    );
-
-    return eventId;
 };
 
 const getResolverOperation = <T extends (...args: any[]) => any>(

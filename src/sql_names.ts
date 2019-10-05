@@ -15,7 +15,7 @@ import {
 } from './types';
 
 /**
- * Sets the names for tables and columns that revisions will be stored in
+ * Sets the names for tables and columns that node version info will be stored in
  *
  * Allows users to specify their own column and table names. If none are specified, the defaults will be used.
  */
@@ -25,14 +25,14 @@ import {
  */
 
 export const DEFAULT_SQL_TABLE_NAMES: SqlTable<ISqlColumnNames> = {
-    event: 'event',
-    event_implementor_type: 'event_implementor_type',
-    event_link_change: 'event_link_change',
-    event_node_change: 'event_node_change',
-    event_node_fragment_change: 'event_node_fragment_change',
-    role: 'role',
-    user_role: 'user_role',
-    node_snapshot: 'node_snapshot'
+    event: 'version_event',
+    event_implementor_type: 'version_event_implementor_type',
+    event_link_change: 'version_event_link_change',
+    event_node_change: 'version_event_node_change',
+    event_node_fragment_change: 'version_event_node_fragment_change',
+    role: 'version_role',
+    user_role: 'version_user_role',
+    node_snapshot: 'version_node_snapshot'
 };
 
 /**
@@ -168,15 +168,15 @@ export const DEFAULT_COLUMN_NAMES_SNAPSHOT_TABLE: SqlTable<ISqlNodeSnapshotTable
 
 export const setNames = (names?: ITableAndColumnNames): ITableAndColumnNames => {
     // tslint:disable
-    const tableNames = (names && names.table_names) || {};
-    const event = (names && names.event) || {};
-    const event_implementor_type = (names && names.event_implementor_type) || {};
-    const event_link_change = (names && names.event_link_change) || {};
-    const event_node_change = (names && names.event_node_change) || {};
-    const event_node_fragment_change = (names && names.event_node_fragment_change) || {};
-    const role = (names && names.role) || {};
-    const user_role = (names && names.user_role) || {};
-    const node_snapshot = (names && names.node_snapshot) || {};
+    const tableNames = names && names.table_names;
+    const event = names && names.event;
+    const event_implementor_type = names && names.event_implementor_type;
+    const event_link_change = names && names.event_link_change;
+    const event_node_change = names && names.event_node_change;
+    const event_node_fragment_change = names && names.event_node_fragment_change;
+    const role = names && names.role;
+    const user_role = names && names.user_role;
+    const node_snapshot = names && names.node_snapshot;
     // tslint:enable
 
     return {

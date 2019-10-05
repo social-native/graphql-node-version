@@ -1,3 +1,5 @@
+// import {EVENT_IMPLEMENTOR_TYPES} from 'enums';
+
 export type BaseResolver<Node = any, P = undefined, A = undefined, C = {}, I = {}> = (
     parent: P,
     args: A,
@@ -255,6 +257,11 @@ export interface ISnapshotInfo {
  * Data access layer
  */
 
+export interface IEventInterfaceTypesToIdsMap {
+    [type: string]: number;
+}
+
+export type EventInfo = IEventNodeChangeInfo | IEventNodeFragmentChangeInfo | IEventLinkChangeInfo;
 // ISqlEventImplementorTypeTable &
 //     ISqlEventTable &
 //     ISqlEventLinkChangeTable &
@@ -264,12 +271,12 @@ export interface ISnapshotInfo {
 //     ISqlUserRoleTable &
 //     ISqlNodeSnapshotTable;
 
-export type EventNodeChangeInsert = Partial<
-    ISqlEventTable & ISqlEventNodeChangeTable & {roles: Array<ISqlRoleTable['role']>}
->;
-export type EventLinkChangeInsert = Partial<ISqlEventTable & ISqlEventLinkChangeTable>;
-export type NodeSnapshotInsert = Partial<ISqlNodeSnapshotTable>;
-export type EventNodeFragmentChangeInsert = Partial<ISqlEventNodeFragmentChangeTable>;
+// export type EventNodeChangeInsert = Partial<
+//     ISqlEventTable & ISqlEventNodeChangeTable & {roles: Array<ISqlRoleTable['role']>}
+// >;
+// export type EventLinkChangeInsert = Partial<ISqlEventTable & ISqlEventLinkChangeTable>;
+// export type NodeSnapshotInsert = Partial<ISqlNodeSnapshotTable>;
+// export type EventNodeFragmentChangeInsert = Partial<ISqlEventNodeFragmentChangeTable>;
 
 // export interface INamesConfig {
 //     tableNames?: {
