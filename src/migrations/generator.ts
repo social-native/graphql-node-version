@@ -78,7 +78,7 @@ export default (config?: ITableAndColumnNames) => {
                 .references(event.id)
                 .inTable(table_names.event);
             t.json(event_node_change.revision_data).notNullable();
-            t.integer(event_node_change.schema_version).notNullable();
+            t.string(event_node_change.node_schema_version).notNullable();
         });
 
         await knex.schema.createTable(table_names.event_node_fragment_change, t => {
@@ -98,8 +98,10 @@ export default (config?: ITableAndColumnNames) => {
                 .primary();
 
             t.timestamp(node_snapshot.created_at).notNullable();
-            t.integer(node_snapshot.node_schema_version).notNullable();
+            t.string(node_snapshot.node_schema_version).notNullable();
             t.json(node_snapshot.snapshot).notNullable();
+            t.string(node_snapshot.node_name).notNullable();
+            t.string(node_snapshot.node_id).notNullable();
         });
 
         await knex.schema.createTable(table_names.role, t => {

@@ -4,12 +4,9 @@ import Bluebird from 'bluebird';
 import {
     INamesConfig,
     UnPromisify,
-    INamesForTablesAndColumns,
-    IGqlVersionNodeBase,
-    IEventInfoBase,
-    IEventNodeChangeInfo,
-    IEventLinkChangeInfo,
-    IEventNodeFragmentChangeInfo
+    ISqlNodeSnapshotTable,
+    ITableAndColumnNames,
+    ISnapshotInfo
 } from '../../types';
 import {setNames} from '../../sqlNames';
 import nodeToSql from '../../transformers/nodeToSql';
@@ -238,139 +235,6 @@ const callDecoratedNode = async <ResolverT extends (...args: any[]) => any>(
     return node;
 };
 
-const extractEventNodeChangeInfo = <ResolverT extends (...args: any[]) => any>(
-    args: Parameters<ResolverT>,
-    extractors: IVersionRecorderExtractors<ResolverT>,
-    eventInfoBase: IEventInfoBase
-): IEventNodeChangeInfo => {
-    const revisionData = extractors.revisionData(args[0], args[1], args[2], args[3]);
-    const nodeSchemaVersion = extractors.nodeSchemaVersion;
-
-    return {
-        ...eventInfoBase,
-        revisionData,
-        nodeSchemaVersion
-    };
-};
-
-const extractEventLinkChangeInfo = <ResolverT extends (...args: any[]) => any>(
-    args: Parameters<ResolverT>,
-    extractors: IVersionRecorderExtractors<ResolverT>,
-    eventInfoBase: IEventInfoBase
-): IEventLinkChangeInfo[] => {
-    const edgesToRecord = extractors.edges
-        ? extractors.edges(args[0], args[1], args[2], args[3])
-        : [];
-
-    const edgesToRecordErrors = edgesToRecord
-        ? edgesToRecord.filter(node => node.nodeId === undefined || node.nodeName === undefined)
-        : [];
-
-    if (edgesToRecordErrors.length > 0) {
-        throw new Error(
-            `Missing info found in edgesToRecord ${JSON.stringify(edgesToRecordErrors)}`
-        );
-    }
-
-    // Events need to be in terms of both the edge and the link
-    // So one edge revision will lead to two events (one for each node)
-    return edgesToRecord.reduce(
-        (acc, edge) => {
-            const eventOne = {
-                ...eventInfoBase,
-                linkNodeId: edge.nodeId.toString(),
-                linkNodeName: edge.nodeName
-            };
-            const eventTwo = {
-                ...eventInfoBase,
-                nodeId: edge.nodeId.toString(),
-                nodeName: edge.nodeName,
-                linkNodeId: eventInfoBase.nodeName,
-                linkNodeName: eventInfoBase.nodeId
-            };
-            acc.push(eventOne);
-            acc.push(eventTwo);
-            return acc;
-        },
-        [] as IEventLinkChangeInfo[]
-    );
-};
-
-const extractNodeFragmentChangeInfo = <ResolverT extends (...args: any[]) => any>(
-    args: Parameters<ResolverT>,
-    extractors: IVersionRecorderExtractors<ResolverT>,
-    eventInfoBase: IEventInfoBase
-): IEventNodeFragmentChangeInfo | undefined => {
-    // tslint:disable-next-line
-    const fragmentToRecord = extractors.parentNode
-        ? extractors.parentNode(args[0], args[1], args[2], args[3])
-        : undefined;
-
-    if (!fragmentToRecord) {
-        return;
-    }
-
-    const fragmentToRecordHasAnError =
-        fragmentToRecord &&
-        (fragmentToRecord.nodeId === undefined || fragmentToRecord.nodeName === undefined);
-
-    if (fragmentToRecordHasAnError) {
-        throw new Error(
-            `Missing info found in fragmentToRecord ${JSON.stringify(fragmentToRecord)}`
-        );
-    }
-
-    const fragment = {
-        childNodeId: eventInfoBase.nodeId.toString(),
-        childNodeName: eventInfoBase.nodeName,
-        parentNodeId: fragmentToRecord.nodeId.toString(),
-        parentNodeName: fragmentToRecord.nodeName
-    };
-
-    return {
-        ...eventInfoBase,
-        nodeId: fragmentToRecord.nodeId.toString(),
-        nodeName: fragmentToRecord.nodeName,
-        ...fragment
-    };
-};
-
-const extractEventInfo = <ResolverT extends (...args: any[]) => any>(
-    args: Parameters<ResolverT>,
-    extractors: IVersionRecorderExtractors<ResolverT>,
-    resolverOperation: string,
-    nodeId: string
-): IEventInfoBase => {
-    const userId = extractors.userId(args[0], args[1], args[2], args[3]);
-    const nodeName = extractors.nodeName;
-
-    const userRoles = extractors.userRoles
-        ? extractors.userRoles(args[0], args[1], args[2], args[3])
-        : [];
-
-    const createdAt = extractors.eventTime
-        ? extractors.eventTime(args[0], args[1], args[2], args[3])
-        : // TODO check this
-          new Date()
-              .toISOString()
-              .split('Z')
-              .join('');
-
-    const snapshotFrequency = extractors.currentNodeSnapshotFrequency
-        ? extractors.currentNodeSnapshotFrequency
-        : 1;
-
-    return {
-        createdAt,
-        userId,
-        nodeName,
-        nodeId,
-        resolverOperation,
-        userRoles,
-        snapshotFrequency
-    };
-};
-
 const storeFragment = async (
     transaction: Knex.Transaction,
     {tableNames, columnNames}: INamesForTablesAndColumns,
@@ -415,24 +279,6 @@ const storeEdge = async (
     };
 
     await transaction.table(tableNames.eventLinkChange).insert([inputFirst, inputSecond]);
-};
-
-/**
- * Write the node snapshot to the database
- */
-const storeCurrentNodeSnapshot = async (
-    transaction: Knex.Transaction,
-    {tableNames, columnNames}: INamesForTablesAndColumns,
-    revisionEventInfo: IRevisionInfo,
-    currentNodeSnapshot: any,
-    eventId: string | number
-) => {
-    await transaction.table(tableNames.nodeSnapshot).insert({
-        [`${tableNames.event}_${columnNames.eventId}`]: eventId,
-        [columnNames.snapshotData]: JSON.stringify(currentNodeSnapshot), // tslint:disable-line
-        [columnNames.snapshotTime]: revisionEventInfo.eventTime, // tslint:disable-line
-        [columnNames.snapshotNodeSchemaVersion]: revisionEventInfo.nodeChangeNodeSchemaVersion // tslint:disable-line
-    });
 };
 
 /**

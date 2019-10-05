@@ -69,7 +69,7 @@ export const DEFAULT_COLUMN_NAMES_EVENT_NODE_CHANGE_TABLE: SqlTable<ISqlEventNod
     id: 'id',
     event_id: 'event_id',
     revision_data: 'revision_data',
-    schema_version: 'schema_version'
+    node_schema_version: 'schema_version'
 };
 
 export const DEFAULT_COLUMN_NAMES_EVENT_NODE_FRAGMENT_CHANGE_TABLE: SqlTable<
@@ -98,7 +98,9 @@ export const DEFAULT_COLUMN_NAMES_SNAPSHOT_TABLE: SqlTable<ISqlNodeSnapshotTable
     id: 'id',
     created_at: 'created_at',
     snapshot: 'snapshot',
-    node_schema_version: 'node_schema_version'
+    node_schema_version: 'node_schema_version',
+    node_id: 'node_id',
+    node_name: 'node_name'
 };
 
 // enum DEFAULT_TABLE_NAMES {

@@ -81,7 +81,7 @@ export interface ISqlEventNodeChangeTable {
     id: number;
     event_id: number;
     revision_data: string;
-    schema_version: number;
+    node_schema_version: string;
 }
 
 export interface ISqlEventNodeFragmentChangeTable {
@@ -108,7 +108,9 @@ export interface ISqlNodeSnapshotTable {
     id: number;
     created_at: string;
     snapshot: string;
-    node_schema_version: number;
+    node_id: string;
+    node_name: string;
+    node_schema_version: string;
 }
 
 export type SqlTable<T> = {[k in keyof T]: string};
@@ -197,7 +199,7 @@ export interface IEventInfoBase {
     createdAt: string;
     userId: string;
     nodeName: string;
-    nodeId: string;
+    nodeId: string | number;
     resolverOperation: string;
     userRoles: string[];
     snapshotFrequency: number;
@@ -207,7 +209,7 @@ export interface IEventNodeChangeInfo extends IEventInfoBase {
     createdAt: string;
     userId: string;
     nodeName: string;
-    nodeId: string;
+    nodeId: string | number;
     resolverOperation: string;
     userRoles: string[];
     snapshotFrequency: number;
@@ -220,12 +222,12 @@ export interface IEventNodeFragmentChangeInfo extends IEventInfoBase {
     createdAt: string;
     userId: string;
     nodeName: string;
-    nodeId: string;
+    nodeId: string | number;
     resolverOperation: string;
     userRoles: string[];
     snapshotFrequency: number;
 
-    childNodeId: string;
+    childNodeId: string | number;
     childNodeName: string;
 }
 
@@ -233,13 +235,21 @@ export interface IEventLinkChangeInfo extends IEventInfoBase {
     createdAt: string;
     userId: string;
     nodeName: string;
-    nodeId: string;
+    nodeId: string | number;
     resolverOperation: string;
     userRoles: string[];
     snapshotFrequency: number;
 
-    linkNodeId: string;
+    linkNodeId: string | number;
     linkNodeName: string;
+}
+
+export interface ISnapshotInfo {
+    createdAt: string;
+    snapshot: string;
+    nodeSchemaVersion: string;
+    nodeId: string | number;
+    nodeName: string;
 }
 /**
  * Data access layer
