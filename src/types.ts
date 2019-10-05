@@ -101,7 +101,7 @@ export interface ISqlRoleTable {
 export interface ISqlUserRoleTable {
     id: number;
     role_id: number;
-    user_id: number;
+    event_id: number;
 }
 
 export interface ISqlNodeSnapshotTable {
@@ -124,7 +124,7 @@ export interface ISqlColumnNames {
     node_snapshot: SqlTable<ISqlNodeSnapshotTable>;
 }
 export interface ITableAndColumnNames extends ISqlColumnNames {
-    tableNames: SqlTable<ISqlColumnNames>;
+    table_names: SqlTable<ISqlColumnNames>;
 }
 
 /**

@@ -91,7 +91,7 @@ export const DEFAULT_COLUMN_NAMES_ROLE_TABLE: SqlTable<ISqlRoleTable> = {
 export const DEFAULT_COLUMN_NAMES_USER_ROLE_TABLE: SqlTable<ISqlUserRoleTable> = {
     id: 'id',
     role_id: 'role_id',
-    user_id: 'user_id'
+    event_id: 'event_id'
 };
 
 export const DEFAULT_COLUMN_NAMES_SNAPSHOT_TABLE: SqlTable<ISqlNodeSnapshotTable> = {
@@ -166,7 +166,7 @@ export const DEFAULT_COLUMN_NAMES_SNAPSHOT_TABLE: SqlTable<ISqlNodeSnapshotTable
 
 export const setNames = (names?: ITableAndColumnNames): ITableAndColumnNames => {
     // tslint:disable
-    const tableNames = (names && names.tableNames) || {};
+    const tableNames = (names && names.table_names) || {};
     const event = (names && names.event) || {};
     const event_implementor_type = (names && names.event_implementor_type) || {};
     const event_link_change = (names && names.event_link_change) || {};
@@ -178,7 +178,7 @@ export const setNames = (names?: ITableAndColumnNames): ITableAndColumnNames => 
     // tslint:enable
 
     return {
-        tableNames: {
+        table_names: {
             ...DEFAULT_SQL_TABLE_NAMES,
             ...tableNames
         },

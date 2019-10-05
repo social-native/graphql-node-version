@@ -7,133 +7,135 @@ import {setNames} from '../sqlNames';
  * Create tables for storing versions of a node through time
  *
  * - A base table (`event`) describes the event interface.
- * - Two implementors of the interface exist: `eventLinkChange` and `eventNodeChange`
- * - The types of implementors that exist are in the `eventImplementorType` table
- * - `eventLinkChange` captures information about how edges of the node change
- * - `eventNodeChange` captures information about how the node's fields changes
+ * - Two implementors of the interface exist: `event_link_change` and `event_node_change`
+ * - The types of implementors that exist are in the `event_implementor_type` table
+ * - `event_link_change` captures information about how edges of the node change
+ * - `event_node_change` captures information about how the node's fields changes
  * - In some cases, a node is composed of other nodes. AKA: it is made up of node fragments.
- * For this case, `eventNodeChangeFragment` captures information about the fragment nodes that make up the whole node
- * - Information about the user that caused an event is captured in the `event`, `userRole`, and `role` tables
+ * For this case, `event_node_change_fragment` captures information about the fragment nodes that make up the whole node
+ * - Information about the user that caused an event is captured in the `event`, `user_role`, and `role` tables
  */
-// interface IConfig extends INamesConfig {
-//     revisionRole: string[];
-// }
 
 export default (config?: ITableAndColumnNames) => {
-    const {tableNames} = setNames(config || {});
+    const {
+        table_names,
+        event,
+        event_implementor_type,
+        event_link_change,
+        event_node_change,
+        event_node_fragment_change,
+        role,
+        user_role,
+        node_snapshot
+    } = setNames(config);
 
     const up = async (knex: Knex) => {
-        await knex.schema.createTable(tableNames.eventImplementorType, t => {
-            t.increments(columnNames.eventImplementorTypeId)
+        await knex.schema.createTable(table_names.event_implementor_type, t => {
+            t.increments(event_implementor_type.id)
                 .unsigned()
                 .primary();
-            t.string(columnNames.eventImplementorType).notNullable();
+            t.string(event_implementor_type.type).notNullable();
         });
 
-        await knex.schema.createTable(tableNames.event, t => {
-            t.increments(columnNames.eventId)
+        await knex.schema.createTable(table_names.event, t => {
+            t.increments(event.id)
                 .unsigned()
                 .primary();
-            t.integer(`${tableNames.eventImplementorType}_${columnNames.eventImplementorTypeId}`)
+            t.integer(event.implementor_type_id)
                 .unsigned()
                 .notNullable()
-                .references(columnNames.eventImplementorTypeId)
-                .inTable(tableNames.eventImplementorType);
-            t.timestamp(columnNames.eventTime).notNullable();
-            t.string(columnNames.eventUserId).notNullable();
-            t.string(columnNames.eventNodeName).notNullable();
-            t.string(columnNames.eventNodeId).notNullable();
-            t.string(columnNames.eventResolverOperation).notNullable();
+                .references(event_implementor_type.id)
+                .inTable(table_names.event_implementor_type);
+            t.timestamp(event.created_at).notNullable();
+            t.string(event.user_id).notNullable();
+            t.string(event.node_name).notNullable();
+            t.string(event.node_id).notNullable();
+            t.string(event.resolver_operation).notNullable();
         });
 
-        await knex.schema.createTable(tableNames.eventLinkChange, t => {
-            t.increments(columnNames.linkChangeId)
+        await knex.schema.createTable(table_names.event_link_change, t => {
+            t.increments(event_link_change.id)
                 .unsigned()
                 .primary();
-            t.integer(`${tableNames.event}_${columnNames.eventId}`)
+            t.integer(event_link_change.event_id)
                 .unsigned()
                 .notNullable()
-                .references(columnNames.eventId)
-                .inTable(tableNames.event);
-            t.string(columnNames.linkChangeNodeNameA).notNullable();
-            t.string(columnNames.linkChangeNodeIdA).notNullable();
-            t.string(columnNames.linkChangeNodeNameB).notNullable();
-            t.string(columnNames.linkChangeNodeIdB).notNullable();
+                .references(event.id)
+                .inTable(table_names.event);
+            t.string(event_link_change.node_name_a).notNullable();
+            t.string(event_link_change.node_id_a).notNullable();
+            t.string(event_link_change.node_name_b).notNullable();
+            t.string(event_link_change.node_id_b).notNullable();
         });
 
-        await knex.schema.createTable(tableNames.eventNodeChange, t => {
-            t.increments(columnNames.nodeChangeId)
+        await knex.schema.createTable(table_names.event_node_change, t => {
+            t.increments(event_node_change.id)
                 .unsigned()
                 .primary();
-            t.integer(`${tableNames.event}_${columnNames.eventId}`)
+            t.integer(event_node_change.event_id)
                 .unsigned()
                 .notNullable()
-                .references(columnNames.eventId)
-                .inTable(tableNames.event);
-            t.json(columnNames.nodeChangeRevisionData).notNullable();
-            t.integer(columnNames.nodeChangeNodeSchemaVersion).notNullable();
+                .references(event.id)
+                .inTable(table_names.event);
+            t.json(event_node_change.revision_data).notNullable();
+            t.integer(event_node_change.schema_version).notNullable();
         });
 
-        await knex.schema.createTable(tableNames.eventNodeChangeFragment, t => {
-            t.increments(columnNames.nodeChangeFragmentId)
+        await knex.schema.createTable(table_names.event_node_fragment_change, t => {
+            t.increments(event_node_fragment_change.id)
                 .unsigned()
                 .primary();
-            t.timestamp(columnNames.nodeChangeFragmentTime).notNullable();
-            t.string(columnNames.nodeChangeFragmentParentNodeId).notNullable();
-            t.string(columnNames.nodeChangeFragmentParentNodeName).notNullable();
-            t.string(columnNames.nodeChangeFragmentChildNodeId).notNullable();
-            t.string(columnNames.nodeChangeFragmentChildNodeName).notNullable();
+            t.timestamp(event_node_fragment_change.created_at).notNullable();
+            t.string(event_node_fragment_change.parent_node_id).notNullable();
+            t.string(event_node_fragment_change.parent_node_name).notNullable();
+            t.string(event_node_fragment_change.child_node_id).notNullable();
+            t.string(event_node_fragment_change.child_node_name).notNullable();
         });
 
-        await knex.schema.createTable(tableNames.nodeSnapshot, t => {
-            t.increments(columnNames.snapshotId)
+        await knex.schema.createTable(table_names.node_snapshot, t => {
+            t.increments(node_snapshot.id)
                 .unsigned()
                 .primary();
 
-            t.timestamp(columnNames.snapshotTime).notNullable();
-            t.integer(`${tableNames.event}_${columnNames.eventId}`)
-                .unsigned()
-                .notNullable()
-                .references(columnNames.eventId)
-                .inTable(tableNames.event);
-            t.integer(columnNames.snapshotNodeSchemaVersion).notNullable();
-            t.json(columnNames.snapshotData).notNullable();
+            t.timestamp(node_snapshot.created_at).notNullable();
+            t.integer(node_snapshot.node_schema_version).notNullable();
+            t.json(node_snapshot.snapshot).notNullable();
         });
 
-        await knex.schema.createTable(tableNames.role, t => {
-            t.increments(columnNames.roleId)
+        await knex.schema.createTable(table_names.role, t => {
+            t.increments(role.id)
                 .unsigned()
                 .primary();
-            t.string(columnNames.roleName)
+            t.string(role.role)
                 .notNullable()
                 .unique();
         });
 
-        return await knex.schema.createTable(tableNames.userRole, t => {
-            t.increments(columnNames.userRoleId)
+        return await knex.schema.createTable(table_names.user_role, t => {
+            t.increments(user_role.id)
                 .unsigned()
                 .primary();
-            t.integer(`${tableNames.event}_${columnNames.eventId}`)
+            t.integer(user_role.event_id)
                 .unsigned()
                 .notNullable()
-                .references(columnNames.eventId)
-                .inTable(tableNames.event);
-            t.integer(`${tableNames.role}_${columnNames.roleId}`)
+                .references(event.id)
+                .inTable(table_names.event);
+            t.integer(user_role.role_id)
                 .unsigned()
                 .notNullable()
-                .references(columnNames.roleId)
-                .inTable(tableNames.role);
+                .references(role.id)
+                .inTable(table_names.role);
         });
     };
 
     const down = async (knex: Knex) => {
-        await knex.schema.dropTable(tableNames.userRole);
-        await knex.schema.dropTable(tableNames.role);
-        await knex.schema.dropTable(tableNames.eventNodeChangeFragment);
-        await knex.schema.dropTable(tableNames.eventNodeChange);
-        await knex.schema.dropTable(tableNames.eventLinkChange);
-        await knex.schema.dropTable(tableNames.event);
-        return await knex.schema.dropTable(tableNames.eventImplementorType);
+        await knex.schema.dropTable(table_names.user_role);
+        await knex.schema.dropTable(table_names.role);
+        await knex.schema.dropTable(table_names.event_node_fragment_change);
+        await knex.schema.dropTable(table_names.event_node_change);
+        await knex.schema.dropTable(table_names.event_link_change);
+        await knex.schema.dropTable(table_names.event);
+        return await knex.schema.dropTable(table_names.event_implementor_type);
     };
 
     return {up, down};
