@@ -1,27 +1,28 @@
 import {
-    EventInfo,
+    AllEventInfo,
     IEventNodeChangeInfo,
     IEventNodeChangeWithSnapshotInfo,
     IEventNodeFragmentRegisterInfo,
-    IEventLinkChangeInfo
+    IEventLinkChangeInfo,
+    AllEventNodeChangeInfo
 } from 'types';
 
-export const isEventNodeChangeInfo = (e: EventInfo): e is IEventNodeChangeInfo => {
+export const isAllEventNodeChangeInfo = (e: AllEventInfo): e is AllEventNodeChangeInfo => {
     return (e as IEventNodeChangeInfo).revisionData !== undefined;
 };
 
 export const isEventNodeChangeWithSnapshotInfo = (
-    e: EventInfo
+    e: AllEventInfo
 ): e is IEventNodeChangeWithSnapshotInfo => {
     return (e as IEventNodeChangeWithSnapshotInfo).snapshot !== undefined;
 };
 
 export const isEventNodeFragmentRegisterInfo = (
-    e: EventInfo
+    e: AllEventInfo
 ): e is IEventNodeFragmentRegisterInfo => {
     return (e as IEventNodeFragmentRegisterInfo).childNodeId !== undefined;
 };
 
-export const isEventLinkChangeInfo = (e: EventInfo): e is IEventLinkChangeInfo => {
+export const isEventLinkChangeInfo = (e: AllEventInfo): e is IEventLinkChangeInfo => {
     return (e as IEventLinkChangeInfo).linkNodeId !== undefined;
 };

@@ -1,5 +1,5 @@
 import Knex from 'knex';
-import {ISqlNodeSnapshotTable, ITableAndColumnNames, EventInfo} from 'types';
+import {ISqlNodeSnapshotTable, ITableAndColumnNames, IEventNodeChangeWithSnapshotInfo} from 'types';
 import {isEventNodeChangeWithSnapshotInfo} from 'type_guards';
 
 /**
@@ -8,7 +8,7 @@ import {isEventNodeChangeWithSnapshotInfo} from 'type_guards';
 export default async (
     transaction: Knex.Transaction,
     {table_names, node_snapshot}: ITableAndColumnNames,
-    eventInfo: EventInfo,
+    eventInfo: IEventNodeChangeWithSnapshotInfo,
     eventId: number
 ) => {
     if (isEventNodeChangeWithSnapshotInfo(eventInfo)) {

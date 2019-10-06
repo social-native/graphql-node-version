@@ -1,11 +1,11 @@
 import Knex from 'knex';
-import {ITableAndColumnNames, IEventInterfaceTypesToIdsMap, ISqlEventTable, EventInfo} from 'types';
+import {ITableAndColumnNames, ISqlEventTable, AllEventInfo} from 'types';
 import {
     isEventNodeChangeInfo,
     isEventLinkChangeInfo,
     isEventNodeFragmentRegisterInfo
 } from 'type_guards';
-import {EVENT_IMPLEMENTOR_TYPES} from 'enums';
+import {EVENT_IMPLEMENTOR_TYPE_IDS} from 'enums';
 import {getTxInsertId} from './utils';
 
 /**
@@ -15,23 +15,24 @@ export default async (
     knex: Knex,
     transaction: Knex.Transaction,
     {table_names}: ITableAndColumnNames,
-    eventImplementorTypesToIdsMap: IEventInterfaceTypesToIdsMap,
-    eventInfo: EventInfo
+    eventInfo: AllEventInfo
 ) => {
+    // tslint:disable-next-line
     if (isEventNodeFragmentRegisterInfo(eventInfo)) {
         throw new Error(
             'Called data accessor for storing user roles with an event that doesnt contain user role information'
         );
     }
 
-    let implementorTypeId;
+    let implementorTypeId: number;
     if (isEventNodeChangeInfo(eventInfo)) {
-        implementorTypeId = eventImplementorTypesToIdsMap[EVENT_IMPLEMENTOR_TYPES.NODE_CHANGE];
+        implementorTypeId = EVENT_IMPLEMENTOR_TYPE_IDS.NODE_CHANGE;
     } else if (isEventNodeFragmentRegisterInfo(eventInfo)) {
-        implementorTypeId =
-            eventImplementorTypesToIdsMap[EVENT_IMPLEMENTOR_TYPES.NODE_FRAGMENT_CHANGE];
+        implementorTypeId = EVENT_IMPLEMENTOR_TYPE_IDS.NODE_FRAGMENT_CHANGE;
     } else if (isEventLinkChangeInfo(eventInfo)) {
-        implementorTypeId = eventImplementorTypesToIdsMap[EVENT_IMPLEMENTOR_TYPES.LINK_CHANGE];
+        implementorTypeId = EVENT_IMPLEMENTOR_TYPE_IDS.LINK_CHANGE;
+    } else {
+        throw new Error('Unknown event type. Could find find implementor ID');
     }
 
     // Get the id for event implementor EVENT_NODE_CHANGE
@@ -44,5 +45,10 @@ export default async (
         implementor_type_id: implementorTypeId
     });
 
-    return await getTxInsertId(knex, transaction);
+    const eventId = await getTxInsertId(knex, transaction);
+
+    if (eventId === undefined) {
+        throw new Error(`Error retrieving event id for event ${JSON.stringify(eventInfo)}`);
+    }
+    return eventId;
 };

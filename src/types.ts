@@ -60,6 +60,7 @@ export interface ISqlNodeSnapshotTable {
     id: number;
     event_id: string;
     snapshot: string;
+    node_schema_version: string;
 }
 
 export type SqlTable<T> = {[k in keyof T]: string};
@@ -202,7 +203,7 @@ export interface IVersionRecorderExtractors<Resolver extends (...args: any[]) =>
     nodeSchemaVersion: number | string;
     nodeName: string;
     resolverOperation?: string;
-    passThroughTransaction?: boolean;
+    // passThroughTransaction?: boolean;
     currentNodeSnapshot: (
         nodeId: INode['nodeId'],
         resolverArgs: Parameters<Resolver>
@@ -291,23 +292,28 @@ export interface IEventLinkChangeInfo extends IEventInfoBase {
  *
  */
 
-export interface IEventInterfaceTypesToIdsMap {
-    [type: string]: number;
-}
-
-export type EventInfo =
-    | IEventNodeChangeInfo
-    | IEventNodeChangeWithSnapshotInfo
+export type AllEventNodeChangeInfo = IEventNodeChangeInfo | IEventNodeChangeWithSnapshotInfo;
+export type AllEventInfo =
+    | AllEventNodeChangeInfo
     | IEventNodeFragmentRegisterInfo
     | IEventLinkChangeInfo;
 
 export interface IPersistVersionInfo {
-    nodeChange: IEventNodeChangeInfo | IEventNodeChangeWithSnapshotInfo;
+    nodeChange: AllEventNodeChangeInfo;
     linkChanges?: IEventLinkChangeInfo[];
     fragmentRegistration?: IEventNodeFragmentRegisterInfo;
 }
 
-export type PersistVersion = (versionInfo: IPersistVersionInfo) => Promise<any>;
+export type PersistVersion<Config = any> = (
+    versionInfo: IPersistVersionInfo,
+    config?: Config
+) => Promise<void>;
+
+export interface IPersistVersionInfoConfigSql {
+    knex: Knex;
+    transaction: Knex.Transaction;
+    tableAndColumnNames: ITableAndColumnNames;
+}
 
 /**
  *

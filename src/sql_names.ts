@@ -92,7 +92,8 @@ export const DEFAULT_COLUMN_NAMES_USER_ROLE_TABLE: SqlTable<ISqlUserRoleTable> =
 export const DEFAULT_COLUMN_NAMES_SNAPSHOT_TABLE: SqlTable<ISqlNodeSnapshotTable> = {
     id: 'id',
     event_id: 'event_id',
-    snapshot: 'snapshot'
+    snapshot: 'snapshot',
+    node_schema_version: 'node_schema_version'
 };
 
 /**

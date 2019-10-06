@@ -1,5 +1,5 @@
 import Knex from 'knex';
-import {ITableAndColumnNames, EventInfo, ISqlRoleTable} from 'types';
+import {ITableAndColumnNames, AllEventInfo, ISqlRoleTable} from 'types';
 import {isEventNodeFragmentRegisterInfo} from 'type_guards';
 
 /**
@@ -8,7 +8,7 @@ import {isEventNodeFragmentRegisterInfo} from 'type_guards';
 export default async (
     transaction: Knex.Transaction,
     {table_names, role, user_role}: ITableAndColumnNames,
-    eventInfo: EventInfo,
+    eventInfo: AllEventInfo,
     eventId: number
 ) => {
     if (isEventNodeFragmentRegisterInfo(eventInfo)) {

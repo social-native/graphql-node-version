@@ -1,5 +1,9 @@
 import Knex from 'knex';
-import {ITableAndColumnNames, ISqlEventNodeFragmentChangeTable, EventInfo} from 'types';
+import {
+    ITableAndColumnNames,
+    ISqlEventNodeFragmentChangeTable,
+    IEventNodeFragmentRegisterInfo
+} from 'types';
 import {isEventNodeFragmentRegisterInfo} from 'type_guards';
 
 /**
@@ -8,7 +12,7 @@ import {isEventNodeFragmentRegisterInfo} from 'type_guards';
 export default async (
     transaction: Knex.Transaction,
     {table_names, event_node_fragment_register}: ITableAndColumnNames,
-    eventInfo: EventInfo
+    eventInfo: IEventNodeFragmentRegisterInfo
 ) => {
     if (isEventNodeFragmentRegisterInfo(eventInfo)) {
         await transaction

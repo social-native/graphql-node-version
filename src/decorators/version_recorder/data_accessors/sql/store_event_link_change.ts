@@ -1,5 +1,5 @@
 import Knex from 'knex';
-import {ITableAndColumnNames, ISqlEventLinkChangeTable, EventInfo} from 'types';
+import {ITableAndColumnNames, ISqlEventLinkChangeTable, IEventLinkChangeInfo} from 'types';
 import {isEventLinkChangeInfo} from 'type_guards';
 
 /**
@@ -8,7 +8,7 @@ import {isEventLinkChangeInfo} from 'type_guards';
 export default async (
     transaction: Knex.Transaction,
     {table_names, event_link_change}: ITableAndColumnNames,
-    eventInfo: EventInfo,
+    eventInfo: IEventLinkChangeInfo,
     eventId: number
 ) => {
     if (isEventLinkChangeInfo(eventInfo)) {

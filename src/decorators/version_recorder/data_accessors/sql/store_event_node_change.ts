@@ -1,6 +1,6 @@
 import Knex from 'knex';
-import {ITableAndColumnNames, ISqlEventNodeChangeTable, EventInfo} from 'types';
-import {isEventNodeChangeInfo} from 'type_guards';
+import {ITableAndColumnNames, ISqlEventNodeChangeTable, AllEventNodeChangeInfo} from 'types';
+import {isAllEventNodeChangeInfo} from 'type_guards';
 
 /**
  * Write the event node change to the database
@@ -8,10 +8,10 @@ import {isEventNodeChangeInfo} from 'type_guards';
 export default async (
     transaction: Knex.Transaction,
     {table_names, event_node_change}: ITableAndColumnNames,
-    eventInfo: EventInfo,
+    eventInfo: AllEventNodeChangeInfo,
     eventId: number
 ) => {
-    if (isEventNodeChangeInfo(eventInfo)) {
+    if (isAllEventNodeChangeInfo(eventInfo)) {
         await transaction
             .table<ISqlEventNodeChangeTable>(table_names.event_node_change)
             .insert<ISqlEventNodeChangeTable>({

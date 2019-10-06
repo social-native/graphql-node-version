@@ -11,10 +11,7 @@ export const getTxInsertId = async (knex: Knex, tx: Knex.Transaction) => {
     return id;
 };
 
-export const findOrCreateKnexTransaction = async (
-    knex: Knex,
-    transactionTimeoutSeconds?: number
-) => {
+export const createKnexTransaction = async (knex: Knex, transactionTimeoutSeconds?: number) => {
     const transaction = await knex.transaction();
 
     setTimeout(async () => {

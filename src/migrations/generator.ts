@@ -102,6 +102,7 @@ export default (config?: ITableAndColumnNames) => {
                 .inTable(table_names.event);
 
             t.json(node_snapshot.snapshot).notNullable();
+            t.string(event_node_change.node_schema_version).notNullable();
         });
 
         await knex.schema.createTable(table_names.role, t => {
