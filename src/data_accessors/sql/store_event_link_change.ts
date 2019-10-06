@@ -1,6 +1,6 @@
 import Knex from 'knex';
-import {ITableAndColumnNames, ISqlEventLinkChangeTable, IEventLinkChangeInfo} from 'types';
-import {isEventLinkChangeInfo} from 'type_guards';
+import {ITableAndColumnNames, ISqlEventLinkChangeTable, IEventLinkChangeInfo} from '../../types';
+import {isEventLinkChangeInfo} from '../../type_guards';
 
 /**
  * Write the event link change to the database

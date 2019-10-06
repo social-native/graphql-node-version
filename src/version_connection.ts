@@ -10,10 +10,10 @@ import {
     ILinkChange,
     IVersionConnection,
     Unpacked
-} from '../types';
+} from './types';
 import {ConnectionManager, IQueryResult, IFilter} from '@social-native/snpkg-snapi-connections';
 
-import {setNames} from 'sqlNames';
+import {setNames} from 'sql_names';
 
 export interface IVersionConnectionExtractors<Resolver extends (...args: any[]) => any> {
     knex: Knex;

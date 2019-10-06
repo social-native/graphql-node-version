@@ -3,8 +3,8 @@ import {
     ITableAndColumnNames,
     ISqlEventNodeFragmentChangeTable,
     IEventNodeFragmentRegisterInfo
-} from 'types';
-import {isEventNodeFragmentRegisterInfo} from 'type_guards';
+} from '../../types';
+import {isEventNodeFragmentRegisterInfo} from '../../type_guards';
 
 /**
  * Write the event node fragment registration to the database

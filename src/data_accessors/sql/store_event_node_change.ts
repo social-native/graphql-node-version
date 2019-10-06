@@ -1,6 +1,6 @@
 import Knex from 'knex';
-import {ITableAndColumnNames, ISqlEventNodeChangeTable, IEventNodeChangeInfo} from 'types';
-import {isEventNodeChangeInfo} from 'type_guards';
+import {ITableAndColumnNames, ISqlEventNodeChangeTable, IEventNodeChangeInfo} from '../../types';
+import {isEventNodeChangeInfo} from '../../type_guards';
 
 /**
  * Write the event node change to the database

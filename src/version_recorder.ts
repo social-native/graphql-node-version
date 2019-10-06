@@ -1,5 +1,5 @@
-import {UnPromisify, ITableAndColumnNames, IVersionRecorderExtractors} from '../../types';
-import {setNames} from '../../sql_names';
+import {UnPromisify, ITableAndColumnNames, IVersionRecorderExtractors} from './types';
+import {setNames} from './sql_names';
 import {
     eventInfoBaseExtractor,
     eventLinkChangeInfoExtractor,

@@ -1,6 +1,6 @@
 import Knex from 'knex';
-import {ITableAndColumnNames, AllEventInfo, ISqlRoleTable} from 'types';
-import {isEventNodeFragmentRegisterInfo} from 'type_guards';
+import {ITableAndColumnNames, AllEventInfo, ISqlRoleTable} from '../../types';
+import {isEventNodeFragmentRegisterInfo} from '../../type_guards';
 
 /**
  * Write the event to the base event table in the database

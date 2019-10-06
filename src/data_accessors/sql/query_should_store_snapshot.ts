@@ -4,7 +4,7 @@ import {
     ISqlEventTable,
     ISqlNodeSnapshotTable,
     IEventNodeChangeInfo
-} from 'types';
+} from '../../types';
 /**
  * Fetch the number of full node snapshots for the node id and node schema version
  * If a snapshot exists within the expected snapshot frequency, then we don't need to take another snapshot

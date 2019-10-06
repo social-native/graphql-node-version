@@ -1,6 +1,10 @@
 import Knex from 'knex';
-import {ISqlNodeSnapshotTable, ITableAndColumnNames, IEventNodeChangeWithSnapshotInfo} from 'types';
-import {isEventNodeChangeWithSnapshotInfo} from 'type_guards';
+import {
+    ISqlNodeSnapshotTable,
+    ITableAndColumnNames,
+    IEventNodeChangeWithSnapshotInfo
+} from '../../types';
+import {isEventNodeChangeWithSnapshotInfo} from '../../type_guards';
 
 /**
  * Write the node snapshot to the database
@@ -16,8 +20,7 @@ export default async (
             .table<ISqlNodeSnapshotTable>(table_names.node_snapshot)
             .insert<ISqlNodeSnapshotTable>({
                 [node_snapshot.snapshot]: JSON.stringify(eventInfo.snapshot),
-                [node_snapshot.event_id]: eventId,
-=
+                [node_snapshot.event_id]: eventId
             });
     } else {
         throw new Error(

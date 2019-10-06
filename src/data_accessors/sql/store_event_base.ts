@@ -1,11 +1,11 @@
 import Knex from 'knex';
-import {ITableAndColumnNames, ISqlEventTable, AllEventInfo} from 'types';
+import {ITableAndColumnNames, ISqlEventTable, AllEventInfo} from '../../types';
 import {
     isEventNodeChangeInfo,
     isEventLinkChangeInfo,
     isEventNodeFragmentRegisterInfo
-} from 'type_guards';
-import {EVENT_IMPLEMENTOR_TYPE_IDS} from 'enums';
+} from '../../type_guards';
+import {EVENT_IMPLEMENTOR_TYPE_IDS} from '../../enums';
 import {getTxInsertId} from './utils';
 
 /**

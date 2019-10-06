@@ -5,14 +5,14 @@ import {
     AllEventInfo,
     PersistVersion,
     IPersistVersionInfoConfigSql
-} from '../../../../types';
+} from '../../types';
 import storeEventBase from './store_event_base';
 import storeUserRoles from './store_user_roles';
 import storeEventLinkChange from './store_event_link_change';
 import storeEventNodeChange from './store_event_node_change';
 import storeEventNodeFragmentRegistration from './store_event_node_fragment_registration';
 import storeNodeSnapshot from './store_node_snapshot';
-import {isEventNodeChangeWithSnapshotInfo} from 'type_guards';
+import {isEventNodeChangeWithSnapshotInfo} from '../../type_guards';
 
 export {default as createQueryShouldStoreSnapshot} from './query_should_store_snapshot';
 

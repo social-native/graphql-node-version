@@ -4,7 +4,7 @@ import {
     IEventNodeChangeWithSnapshotInfo,
     IEventNodeFragmentRegisterInfo,
     IEventLinkChangeInfo
-} from 'types';
+} from './types';
 
 export const isEventNodeChangeInfo = (e: AllEventInfo): e is IEventNodeChangeInfo => {
     return (e as IEventNodeChangeInfo).revisionData !== undefined;
