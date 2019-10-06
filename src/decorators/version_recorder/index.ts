@@ -1,9 +1,4 @@
-import {
-    UnPromisify,
-    ITableAndColumnNames,
-    AllEventNodeChangeInfo,
-    IVersionRecorderExtractors
-} from '../../types';
+import {UnPromisify, ITableAndColumnNames, IVersionRecorderExtractors} from '../../types';
 import {setNames} from '../../sql_names';
 import {
     eventInfoBaseExtractor,
@@ -12,7 +7,7 @@ import {
     eventNodeFragmentRegisterInfoExtractor
 } from './extractors';
 import {createKnexTransaction} from './data_accessors/sql/utils';
-import {persistVersion, queryShouldStoreSnapshot} from './data_accessors/sql';
+import {persistVersion, createQueryShouldStoreSnapshot} from './data_accessors/sql';
 
 export default <ResolverT extends (...args: any[]) => any>(
     extractors: IVersionRecorderExtractors<ResolverT>,
@@ -64,24 +59,17 @@ export default <ResolverT extends (...args: any[]) => any>(
                 eventInfoBase
             );
 
-            let eventNodeChangeInfo: AllEventNodeChangeInfo = await eventNodeChangeInfoExtractor(
-                args,
-                extractors,
-                eventInfoBase
-            );
-            const shouldStoreSnapshot = await queryShouldStoreSnapshot(
+            const queryShouldStoreSnapshot = createQueryShouldStoreSnapshot(
                 transaction,
-                tableAndColumnNames,
-                eventNodeChangeInfo
+                tableAndColumnNames
             );
 
-            if (shouldStoreSnapshot) {
-                eventNodeChangeInfo = addSnapshotToNodeChangeInfo(
-                    args,
-                    extractors,
-                    eventNodeChangeInfo
-                );
-            }
+            const eventNodeChangeInfo = await eventNodeChangeInfoExtractor(
+                args,
+                extractors,
+                eventInfoBase,
+                queryShouldStoreSnapshot
+            );
 
             await persistVersion(
                 {
@@ -115,7 +103,9 @@ const getResolverOperation = <T extends (...args: any[]) => any>(
 };
 
 const callDecoratedNode = async <ResolverT extends (...args: any[]) => any>(
-    value: (...resolverArgs: any[]) => UnPromisify<ReturnType<ResolverT>>,
+    value: (
+        ...resolverArgs: any[]
+    ) => Promise<UnPromisify<ReturnType<ResolverT>>> | UnPromisify<ReturnType<ResolverT>>,
     args: Parameters<ResolverT>
 ) => {
     return await value(args[0], args[1], args[2], args[3]);
