@@ -59,10 +59,8 @@ export const DEFAULT_COLUMN_NAMES_EVENT_IMPLEMENTOR_TYPE_TABLE: SqlTable<
 export const DEFAULT_COLUMN_NAMES_EVENT_LINK_CHANGE_TABLE: SqlTable<ISqlEventLinkChangeTable> = {
     id: 'id',
     event_id: 'event_id',
-    node_name_a: 'node_name_a',
-    node_id_a: 'node_id_a',
-    node_name_b: 'node_name_b',
-    node_id_b: 'node_id_b'
+    node_name: 'node_name',
+    node_id: 'node_id'
 };
 
 export const DEFAULT_COLUMN_NAMES_EVENT_NODE_CHANGE_TABLE: SqlTable<ISqlEventNodeChangeTable> = {
@@ -72,11 +70,10 @@ export const DEFAULT_COLUMN_NAMES_EVENT_NODE_CHANGE_TABLE: SqlTable<ISqlEventNod
     node_schema_version: 'schema_version'
 };
 
-export const DEFAULT_COLUMN_NAMES_EVENT_NODE_FRAGMENT_CHANGE_TABLE: SqlTable<
+export const DEFAULT_COLUMN_NAMES_EVENT_NODE_FRAGMENT_REGISTER_TABLE: SqlTable<
     ISqlEventNodeFragmentChangeTable
 > = {
     id: 'id',
-    created_at: 'created_at',
     parent_node_id: 'parent_node_id',
     parent_node_name: 'parent_node_name',
     child_node_id: 'child_node_id',
@@ -96,11 +93,8 @@ export const DEFAULT_COLUMN_NAMES_USER_ROLE_TABLE: SqlTable<ISqlUserRoleTable> =
 
 export const DEFAULT_COLUMN_NAMES_SNAPSHOT_TABLE: SqlTable<ISqlNodeSnapshotTable> = {
     id: 'id',
-    created_at: 'created_at',
-    snapshot: 'snapshot',
-    node_schema_version: 'node_schema_version',
-    node_id: 'node_id',
-    node_name: 'node_name'
+    event_id: 'event_id',
+    snapshot: 'snapshot'
 };
 
 // enum DEFAULT_TABLE_NAMES {
@@ -173,7 +167,7 @@ export const setNames = (names?: ITableAndColumnNames): ITableAndColumnNames => 
     const event_implementor_type = names && names.event_implementor_type;
     const event_link_change = names && names.event_link_change;
     const event_node_change = names && names.event_node_change;
-    const event_node_fragment_change = names && names.event_node_fragment_change;
+    const event_node_fragment_register = names && names.event_node_fragment_register;
     const role = names && names.role;
     const user_role = names && names.user_role;
     const node_snapshot = names && names.node_snapshot;
@@ -200,9 +194,9 @@ export const setNames = (names?: ITableAndColumnNames): ITableAndColumnNames => 
             ...DEFAULT_COLUMN_NAMES_EVENT_NODE_CHANGE_TABLE,
             ...event_node_change
         },
-        event_node_fragment_change: {
-            ...DEFAULT_COLUMN_NAMES_EVENT_NODE_FRAGMENT_CHANGE_TABLE,
-            ...event_node_fragment_change
+        event_node_fragment_register: {
+            ...DEFAULT_COLUMN_NAMES_EVENT_NODE_FRAGMENT_REGISTER_TABLE,
+            ...event_node_fragment_register
         },
         role: {
             ...DEFAULT_COLUMN_NAMES_ROLE_TABLE,

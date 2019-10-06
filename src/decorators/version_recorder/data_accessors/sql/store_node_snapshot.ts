@@ -1,5 +1,6 @@
 import Knex from 'knex';
-import {ISqlNodeSnapshotTable, ITableAndColumnNames, ISnapshotInfo} from 'types';
+import {ISqlNodeSnapshotTable, ITableAndColumnNames, EventInfo} from 'types';
+import {isEventNodeChangeWithSnapshotInfo} from 'type_guards';
 
 /**
  * Write the node snapshot to the database
@@ -7,15 +8,20 @@ import {ISqlNodeSnapshotTable, ITableAndColumnNames, ISnapshotInfo} from 'types'
 export default async (
     transaction: Knex.Transaction,
     {table_names, node_snapshot}: ITableAndColumnNames,
-    snapshotInfo: ISnapshotInfo
+    eventInfo: EventInfo,
+    eventId: number
 ) => {
-    await transaction
-        .table<ISqlNodeSnapshotTable>(table_names.node_snapshot)
-        .insert<ISqlNodeSnapshotTable>({
-            [node_snapshot.snapshot]: JSON.stringify(snapshotInfo.snapshot),
-            [node_snapshot.created_at]: snapshotInfo.createdAt,
-            [node_snapshot.node_schema_version]: snapshotInfo.nodeSchemaVersion,
-            [node_snapshot.node_id]: snapshotInfo.nodeId,
-            [node_snapshot.node_name]: snapshotInfo.nodeName
-        });
+    if (isEventNodeChangeWithSnapshotInfo(eventInfo)) {
+        await transaction
+            .table<ISqlNodeSnapshotTable>(table_names.node_snapshot)
+            .insert<ISqlNodeSnapshotTable>({
+                [node_snapshot.snapshot]: JSON.stringify(eventInfo.snapshot),
+                [node_snapshot.event_id]: eventId,
+=
+            });
+    } else {
+        throw new Error(
+            'Called data accessor for storing event node change snapshots with a non node change snapshot event'
+        );
+    }
 };

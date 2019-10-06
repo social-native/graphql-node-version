@@ -1,3 +1,5 @@
+# Dev playground
+
 ```graphql
 mutation TeamCreate {
   teamCreate(name: "Blue birds") {

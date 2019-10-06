@@ -73,26 +73,26 @@ export interface ISqlEventImplementorTypeTable {
 export interface ISqlEventLinkChangeTable {
     id: number;
     event_id: number;
-    node_name_a: string;
-    node_id_a: string;
-    node_name_b: string;
-    node_id_b: string;
+
+    node_id: string;
+    node_name: string;
 }
 
 export interface ISqlEventNodeChangeTable {
     id: number;
     event_id: number;
+
     revision_data: string;
     node_schema_version: string;
 }
 
 export interface ISqlEventNodeFragmentChangeTable {
     id: number;
-    created_at: string;
-    parent_node_id: string;
-    parent_node_name: string;
+
     child_node_id: string;
     child_node_name: string;
+    parent_node_id: string;
+    parent_node_name: string;
 }
 
 export interface ISqlRoleTable {
@@ -108,11 +108,8 @@ export interface ISqlUserRoleTable {
 
 export interface ISqlNodeSnapshotTable {
     id: number;
-    created_at: string;
+    event_id: string;
     snapshot: string;
-    node_id: string;
-    node_name: string;
-    node_schema_version: string;
 }
 
 export type SqlTable<T> = {[k in keyof T]: string};
@@ -122,7 +119,7 @@ export interface ISqlColumnNames {
     event_implementor_type: SqlTable<ISqlEventImplementorTypeTable>;
     event_link_change: SqlTable<ISqlEventLinkChangeTable>;
     event_node_change: SqlTable<ISqlEventNodeChangeTable>;
-    event_node_fragment_change: SqlTable<ISqlEventNodeFragmentChangeTable>;
+    event_node_fragment_register: SqlTable<ISqlEventNodeFragmentChangeTable>;
     role: SqlTable<ISqlRoleTable>;
     user_role: SqlTable<ISqlUserRoleTable>;
     node_snapshot: SqlTable<ISqlNodeSnapshotTable>;
@@ -170,7 +167,7 @@ export interface IGqlVersionNodeFragmentChangeNode extends IGqlVersionNodeBase {
     type: string;
     userRoles: string[];
 
-    childNodeId: string;
+    childId: string;
     childNodeName: string;
 }
 
@@ -220,7 +217,7 @@ export interface IEventNodeChangeInfo extends IEventInfoBase {
     nodeSchemaVersion: string | number;
 }
 
-export interface IEventNodeFragmentChangeInfo extends IEventInfoBase {
+export interface IEventNodeChangeWithSnapshotInfo extends IEventInfoBase {
     createdAt: string;
     userId: string;
     nodeName: string;
@@ -229,8 +226,17 @@ export interface IEventNodeFragmentChangeInfo extends IEventInfoBase {
     userRoles: string[];
     snapshotFrequency: number;
 
+    revisionData: string;
+    nodeSchemaVersion: string | number;
+
+    snapshot: string;
+}
+
+export interface IEventNodeFragmentRegisterInfo {
     childNodeId: string | number;
     childNodeName: string;
+    parentNodeId: string | number;
+    parentNodeName: string;
 }
 
 export interface IEventLinkChangeInfo extends IEventInfoBase {
@@ -246,13 +252,6 @@ export interface IEventLinkChangeInfo extends IEventInfoBase {
     linkNodeName: string;
 }
 
-export interface ISnapshotInfo {
-    createdAt: string;
-    snapshot: string;
-    nodeSchemaVersion: string;
-    nodeId: string | number;
-    nodeName: string;
-}
 /**
  * Data access layer
  */
@@ -261,7 +260,11 @@ export interface IEventInterfaceTypesToIdsMap {
     [type: string]: number;
 }
 
-export type EventInfo = IEventNodeChangeInfo | IEventNodeFragmentChangeInfo | IEventLinkChangeInfo;
+export type EventInfo =
+    | IEventNodeChangeInfo
+    | IEventNodeChangeInfoWithSnapshot
+    | IEventNodeFragmentRegisterInfo
+    | IEventLinkChangeInfo;
 // ISqlEventImplementorTypeTable &
 //     ISqlEventTable &
 //     ISqlEventLinkChangeTable &

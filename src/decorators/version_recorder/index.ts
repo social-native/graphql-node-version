@@ -128,52 +128,6 @@ const callDecoratedNode = async <ResolverT extends (...args: any[]) => any>(
     return node;
 };
 
-const storeFragment = async (
-    transaction: Knex.Transaction,
-    {tableNames, columnNames}: INamesForTablesAndColumns,
-    revisionInfo: IRevisionInfo,
-    revisionId: number
-) => {
-    if (revisionInfo.fragmentToRecord) {
-        const fragment = {
-            [columnNames.revisionEdgeTime]: revisionInfo.eventTime,
-            [columnNames.fragmentParentNodeId]: revisionInfo.fragmentToRecord.nodeId,
-            [columnNames.fragmentParentNodeName]: revisionInfo.fragmentToRecord.nodeName,
-            [`${tableNames.revision}_${columnNames.revisionId}`]: revisionId
-        };
-
-        await transaction.table(tableNames.revisionFragment).insert(fragment);
-    }
-};
-
-const storeEdge = async (
-    transaction: Knex.Transaction,
-    {tableNames, columnNames}: INamesForTablesAndColumns,
-    eventId: number,
-    revisionEventInfo: IRevisionInfo,
-    eventNodeId: string | number,
-    edgesToRecord: {nodeId: string | number; nodeName: string}
-) => {
-    const inputFirst = {
-        [`${tableNames.event}_${columnNames.eventId}`]: eventId,
-        [columnNames.linkChangeNodeIdA]: eventNodeId,
-        [columnNames.linkChangeNodeNameA]: revisionEventInfo.eventNodeName,
-        [columnNames.linkChangeNodeIdB]: edgesToRecord.nodeId,
-        [columnNames.linkChangeNodeNameB]: edgesToRecord.nodeName
-    };
-
-    // switch A and B nodes for faster sql querying
-    const inputSecond = {
-        [`${tableNames.event}_${columnNames.eventId}`]: eventId,
-        [columnNames.linkChangeNodeIdB]: eventNodeId,
-        [columnNames.linkChangeNodeNameB]: revisionEventInfo.eventNodeName,
-        [columnNames.linkChangeNodeIdA]: edgesToRecord.nodeId,
-        [columnNames.linkChangeNodeNameA]: edgesToRecord.nodeName
-    };
-
-    await transaction.table(tableNames.eventLinkChange).insert([inputFirst, inputSecond]);
-};
-
 /**
  * Fetch the number of full node snapshots for the node id and node schema version
  * If a snapshot exists within the expected snapshot frequency, then we don't need to take another snapshot

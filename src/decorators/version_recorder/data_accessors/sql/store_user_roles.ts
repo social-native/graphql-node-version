@@ -1,5 +1,6 @@
 import Knex from 'knex';
 import {ITableAndColumnNames, EventInfo, ISqlRoleTable} from 'types';
+import {isEventNodeFragmentRegisterInfo} from 'type_guards';
 
 /**
  * Write the event to the base event table in the database
@@ -10,6 +11,12 @@ export default async (
     eventInfo: EventInfo,
     eventId: number
 ) => {
+    if (isEventNodeFragmentRegisterInfo(eventInfo)) {
+        throw new Error(
+            'Called data accessor for storing user roles with an event that doesnt contain user role information'
+        );
+    }
+
     // Calculate which role are missing in the db
     let allRoles;
     const foundRolesQueryResult = (await transaction

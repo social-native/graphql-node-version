@@ -34,7 +34,7 @@ export default <ResolverT extends (...args: any[]) => any>(
                 nodeId: edge.nodeId.toString(),
                 nodeName: edge.nodeName,
                 linkNodeId: eventInfoBase.nodeName,
-                linkNodeName: eventInfoBase.nodeId
+                linkNodeName: eventInfoBase.nodeId.toString()
             };
             acc.push(eventOne);
             acc.push(eventTwo);

@@ -23,7 +23,7 @@ export default (config?: ITableAndColumnNames) => {
         event_implementor_type,
         event_link_change,
         event_node_change,
-        event_node_fragment_change,
+        event_node_fragment_register,
         role,
         user_role,
         node_snapshot
@@ -62,10 +62,8 @@ export default (config?: ITableAndColumnNames) => {
                 .notNullable()
                 .references(event.id)
                 .inTable(table_names.event);
-            t.string(event_link_change.node_name_a).notNullable();
-            t.string(event_link_change.node_id_a).notNullable();
-            t.string(event_link_change.node_name_b).notNullable();
-            t.string(event_link_change.node_id_b).notNullable();
+            t.string(event_link_change.node_name).notNullable();
+            t.string(event_link_change.node_id).notNullable();
         });
 
         await knex.schema.createTable(table_names.event_node_change, t => {
@@ -81,15 +79,14 @@ export default (config?: ITableAndColumnNames) => {
             t.string(event_node_change.node_schema_version).notNullable();
         });
 
-        await knex.schema.createTable(table_names.event_node_fragment_change, t => {
-            t.increments(event_node_fragment_change.id)
+        await knex.schema.createTable(table_names.event_node_fragment_register, t => {
+            t.increments(event_node_fragment_register.id)
                 .unsigned()
                 .primary();
-            t.timestamp(event_node_fragment_change.created_at).notNullable();
-            t.string(event_node_fragment_change.parent_node_id).notNullable();
-            t.string(event_node_fragment_change.parent_node_name).notNullable();
-            t.string(event_node_fragment_change.child_node_id).notNullable();
-            t.string(event_node_fragment_change.child_node_name).notNullable();
+            t.string(event_node_fragment_register.parent_node_id).notNullable();
+            t.string(event_node_fragment_register.parent_node_name).notNullable();
+            t.string(event_node_fragment_register.child_node_id).notNullable();
+            t.string(event_node_fragment_register.child_node_name).notNullable();
         });
 
         await knex.schema.createTable(table_names.node_snapshot, t => {
@@ -97,11 +94,13 @@ export default (config?: ITableAndColumnNames) => {
                 .unsigned()
                 .primary();
 
-            t.timestamp(node_snapshot.created_at).notNullable();
-            t.string(node_snapshot.node_schema_version).notNullable();
+            t.integer(node_snapshot.event_id)
+                .unsigned()
+                .notNullable()
+                .references(event.id)
+                .inTable(table_names.event);
+
             t.json(node_snapshot.snapshot).notNullable();
-            t.string(node_snapshot.node_name).notNullable();
-            t.string(node_snapshot.node_id).notNullable();
         });
 
         await knex.schema.createTable(table_names.role, t => {
@@ -133,7 +132,7 @@ export default (config?: ITableAndColumnNames) => {
     const down = async (knex: Knex) => {
         await knex.schema.dropTable(table_names.user_role);
         await knex.schema.dropTable(table_names.role);
-        await knex.schema.dropTable(table_names.event_node_fragment_change);
+        await knex.schema.dropTable(table_names.event_node_fragment_register);
         await knex.schema.dropTable(table_names.event_node_change);
         await knex.schema.dropTable(table_names.event_link_change);
         await knex.schema.dropTable(table_names.event);
