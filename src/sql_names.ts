@@ -1,6 +1,4 @@
 import {
-    // INamesConfig,
-    // INamesForTablesAndColumns,
     ISqlEventTable,
     ISqlEventImplementorTypeTable,
     ISqlEventLinkChangeTable,
@@ -29,7 +27,7 @@ export const DEFAULT_SQL_TABLE_NAMES: SqlTable<ISqlColumnNames> = {
     event_implementor_type: 'version_event_implementor_type',
     event_link_change: 'version_event_link_change',
     event_node_change: 'version_event_node_change',
-    event_node_fragment_change: 'version_event_node_fragment_change',
+    event_node_fragment_register: 'version_event_node_fragment_register',
     role: 'version_role',
     user_role: 'version_user_role',
     node_snapshot: 'version_node_snapshot'
@@ -97,68 +95,9 @@ export const DEFAULT_COLUMN_NAMES_SNAPSHOT_TABLE: SqlTable<ISqlNodeSnapshotTable
     snapshot: 'snapshot'
 };
 
-// enum DEFAULT_TABLE_NAMES {
-//     event = 'version_event',
-//     eventImplementorType = 'version_event_implementor_type',
-//     eventNodeChange = 'version_event_node_change',
-//     eventNodeChangeFragment = 'version_event_node_change_fragment',
-//     eventLinkChange = 'version_event_link_change',
-
-//     role = 'version_role',
-//     userRole = 'version_user_role',
-//     nodeSnapshot = 'version_node_snapshot'
-// }
-
-// enum DEFAULT_COLUMN_NAMES {
-//     // event table
-//     // (base table)
-//     eventId = 'id',
-//     eventTime = 'created_at',
-//     eventUserId = 'user_id',
-//     eventNodeName = 'node_name',
-//     eventNodeId = 'node_id',
-//     eventResolverOperation = 'resolver_operation',
-
-//     // event type table
-//     // (implementor type)
-//     eventImplementorTypeId = 'id',
-//     eventImplementorType = 'event_type',
-
-//     // event link change table
-//     // (implementor)
-//     linkChangeId = 'id',
-//     linkChangeNodeNameA = 'node_name_a',
-//     linkChangeNodeIdA = 'node_id_a',
-//     linkChangeNodeNameB = 'node_name_b',
-//     linkChangeNodeIdB = 'node_id_b',
-
-//     // event node change table
-//     // (implementor)
-//     nodeChangeId = 'id',
-//     nodeChangeRevisionData = 'revision',
-//     nodeChangeNodeSchemaVersion = 'node_schema_version',
-
-//     // event node change fragment table
-//     nodeChangeFragmentId = 'id',
-//     nodeChangeFragmentTime = 'created_at',
-//     nodeChangeFragmentParentNodeId = 'parent_node_id',
-//     nodeChangeFragmentParentNodeName = 'parent_node_name',
-//     nodeChangeFragmentChildNodeId = 'child_node_id',
-//     nodeChangeFragmentChildNodeName = 'child_node_name',
-
-//     // node snapshot table
-//     snapshotId = 'id',
-//     snapshotTime = 'created_at',
-//     snapshotData = 'snapshot',
-//     snapshotNodeSchemaVersion = 'node_schema_version',
-
-//     // role table
-//     roleId = 'id',
-//     roleName = 'role_name',
-
-//     // user role table
-//     userRoleId = 'id'
-// }
+/**
+ * Override default table and column names
+ */
 
 export const setNames = (names?: ITableAndColumnNames): ITableAndColumnNames => {
     // tslint:disable

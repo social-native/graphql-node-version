@@ -12,7 +12,8 @@ import {setNames} from '../sql_names';
  * - `event_link_change` captures information about how edges of the node change
  * - `event_node_change` captures information about how the node's fields changes
  * - In some cases, a node is composed of other nodes. AKA: it is made up of node fragments.
- * For this case, `event_node_change_fragment` captures information about the fragment nodes that make up the whole node
+ *     For this case, `event_node_change_fragment` captures information about the fragment nodes
+ *     that make up the whole node
  * - Information about the user that caused an event is captured in the `event`, `user_role`, and `role` tables
  */
 

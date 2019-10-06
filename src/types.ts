@@ -1,54 +1,4 @@
-// import {EVENT_IMPLEMENTOR_TYPES} from 'enums';
-
-export type BaseResolver<Node = any, P = undefined, A = undefined, C = {}, I = {}> = (
-    parent: P,
-    args: A,
-    ctx: C,
-    info?: I
-) => Node | Promise<Node>;
-
-// tslint:disable
-export type Unpacked<T> = T extends (infer U)[]
-    ? U
-    : T extends (...args: any[]) => infer U
-    ? U
-    : T extends Promise<infer U>
-    ? U
-    : T;
-// tslint:enable
-
-// export interface INodeChange {
-//     userId: number;
-//     userRoles?: string[];
-//     revisionId: number;
-//     revisionData: string;
-//     revisionTime: number;
-//     nodeSchemaVersion: string;
-//     resolverOperation: string;
-//     nodeName: string;
-// }
-
-// export interface ILinkChange {
-//     edgeNodeId: number;
-//     edgeNodeName: string;
-//     resolverOperation: string;
-//     revisionTime: number;
-// }
-
-export interface IVersionConnection<Node> {
-    edges: Array<{
-        cursor: string;
-        version: IGqlVersionNode;
-        node: Node;
-    }>;
-    pageInfo: {
-        hasNextPage: boolean;
-        hasPreviousPage: boolean;
-        startCursor: string;
-        endCursor: string;
-    };
-}
-
+import Knex from 'knex';
 /**
  *
  *  SQL Tables
@@ -129,7 +79,9 @@ export interface ITableAndColumnNames extends ISqlColumnNames {
 }
 
 /**
+ *
  * Graphql Schema
+ *
  */
 
 export interface IGqlVersionNodeBase {
@@ -190,9 +142,90 @@ export type IGqlVersionNode =
     | IGqlVersionNodeFragmentChangeNode
     | IGqlVersionLinkChangeNode;
 
+export interface IVersionConnection<Node> {
+    edges: Array<{
+        cursor: string;
+        version: IGqlVersionNode;
+        node: Node;
+    }>;
+    pageInfo: {
+        hasNextPage: boolean;
+        hasPreviousPage: boolean;
+        startCursor: string;
+        endCursor: string;
+    };
+}
+
 /**
+ *
  * Extractors (GQL Input -> Data Access Layer)
+ *
  */
+export interface IVersionRecorderExtractors<Resolver extends (...args: any[]) => any> {
+    userId: (
+        parent: Parameters<Resolver>[0],
+        args: Parameters<Resolver>[1],
+        ctx: Parameters<Resolver>[2],
+        info: Parameters<Resolver>[3]
+    ) => string;
+    userRoles: (
+        parent: Parameters<Resolver>[0],
+        args: Parameters<Resolver>[1],
+        ctx: Parameters<Resolver>[2],
+        info: Parameters<Resolver>[3]
+    ) => string[];
+    revisionData: (
+        parent: Parameters<Resolver>[0],
+        args: Parameters<Resolver>[1],
+        ctx: Parameters<Resolver>[2],
+        info: Parameters<Resolver>[3]
+    ) => string;
+    eventTime?: (
+        parent: Parameters<Resolver>[0],
+        args: Parameters<Resolver>[1],
+        ctx: Parameters<Resolver>[2],
+        info: Parameters<Resolver>[3]
+    ) => string;
+    knex: (
+        parent: Parameters<Resolver>[0],
+        args: Parameters<Resolver>[1],
+        ctx: Parameters<Resolver>[2],
+        info: Parameters<Resolver>[3]
+    ) => Knex;
+    nodeId: (
+        node: UnPromisify<ReturnType<Resolver>>,
+        parent: Parameters<Resolver>[0],
+        args: Parameters<Resolver>[1],
+        ctx: Parameters<Resolver>[2],
+        info: Parameters<Resolver>[3]
+    ) => INode['nodeId'] | undefined; // tslint:disable-line
+    nodeSchemaVersion: number | string;
+    nodeName: string;
+    resolverOperation?: string;
+    passThroughTransaction?: boolean;
+    currentNodeSnapshot: (
+        nodeId: INode['nodeId'],
+        resolverArgs: Parameters<Resolver>
+    ) => ReturnType<Resolver>; // tslint:disable-line
+    currentNodeSnapshotFrequency?: number;
+    parentNode?: (
+        parent: Parameters<Resolver>[0],
+        args: Parameters<Resolver>[1],
+        ctx: Parameters<Resolver>[2],
+        info: Parameters<Resolver>[3]
+    ) => INode;
+    edges?: (
+        parent: Parameters<Resolver>[0],
+        args: Parameters<Resolver>[1],
+        ctx: Parameters<Resolver>[2],
+        info: Parameters<Resolver>[3]
+    ) => INode[];
+}
+
+export interface INode {
+    nodeId: number | string;
+    nodeName: string;
+}
 
 export interface IEventInfoBase {
     createdAt: string;
@@ -253,7 +286,9 @@ export interface IEventLinkChangeInfo extends IEventInfoBase {
 }
 
 /**
+ *
  * Data access layer
+ *
  */
 
 export interface IEventInterfaceTypesToIdsMap {
@@ -262,85 +297,23 @@ export interface IEventInterfaceTypesToIdsMap {
 
 export type EventInfo =
     | IEventNodeChangeInfo
-    | IEventNodeChangeInfoWithSnapshot
+    | IEventNodeChangeWithSnapshotInfo
     | IEventNodeFragmentRegisterInfo
     | IEventLinkChangeInfo;
-// ISqlEventImplementorTypeTable &
-//     ISqlEventTable &
-//     ISqlEventLinkChangeTable &
-//     ISqlEventNodeChangeTable &
-//     ISqlEventNodeFragmentChangeTable &
-//     ISqlRoleTable &
-//     ISqlUserRoleTable &
-//     ISqlNodeSnapshotTable;
 
-// export type EventNodeChangeInsert = Partial<
-//     ISqlEventTable & ISqlEventNodeChangeTable & {roles: Array<ISqlRoleTable['role']>}
-// >;
-// export type EventLinkChangeInsert = Partial<ISqlEventTable & ISqlEventLinkChangeTable>;
-// export type NodeSnapshotInsert = Partial<ISqlNodeSnapshotTable>;
-// export type EventNodeFragmentChangeInsert = Partial<ISqlEventNodeFragmentChangeTable>;
+export interface IPersistVersionInfo {
+    nodeChange: IEventNodeChangeInfo | IEventNodeChangeWithSnapshotInfo;
+    linkChanges?: IEventLinkChangeInfo[];
+    fragmentRegistration?: IEventNodeFragmentRegisterInfo;
+}
 
-// export interface INamesConfig {
-//     tableNames?: {
-//         event?: string;
-//         eventImplementorType?: string;
-//         eventLinkChange?: string;
-//         eventNodeChange?: string;
-//         eventNodeChangeFragment?: string;
+export type PersistVersion = (versionInfo: IPersistVersionInfo) => Promise<any>;
 
-//         role?: string;
-//         userRole?: string;
-//         nodeSnapshot?: string;
-//     };
-//     columnNames?: {
-//         eventId?: string;
-//         eventTime?: string;
-//         eventUserId?: string;
-//         eventNodeName?: string;
-//         eventNodeId?: string;
-//         eventResolverOperation?: string;
-
-//         eventImplementorTypeId?: string;
-//         eventImplementorType?: string;
-
-//         linkChangeId?: string;
-//         linkChangeNodeNameA?: string;
-//         linkChangeNodeIdA?: string;
-//         linkChangeNodeNameB?: string;
-//         linkChangeNodeIdB?: string;
-
-//         nodeChangeId?: string;
-//         nodeChangeRevisionData?: string;
-//         nodeChangeNodeSchemaVersion?: string;
-
-//         nodeChangeFragmentId?: string;
-//         nodeChangeFragmentTime?: string;
-//         nodeChangeFragmentParentNodeId?: string;
-//         nodeChangeFragmentParentNodeName?: string;
-//         nodeChangeFragmentChildNodeId?: string;
-//         nodeChangeFragmentChildNodeName?: string;
-
-//         snapshotId?: string;
-//         snapshotTime?: string;
-//         snapshotData?: string;
-//         snapshotNodeSchemaVersion?: string;
-
-//         roleId?: string;
-//         roleName?: string;
-
-//         userRoleId?: string;
-//     };
-// }
-
-// export interface INamesForTablesAndColumns {
-//     tableNames: {
-//         [tableName in keyof Required<Required<INamesConfig>['tableNames']>]: string;
-//     };
-//     columnNames: {
-//         [columnName in keyof Required<Required<INamesConfig>['columnNames']>]: string;
-//     };
-// }
+/**
+ *
+ * Resolvers
+ *
+ */
 
 export type UnPromisify<T> = T extends Promise<infer U> ? U : T;
 
@@ -352,6 +325,29 @@ export type ContextArgs<T> = T extends (node: any, parent: any, args: any, ctx: 
     ? A
     : undefined;
 
+export type BaseResolver<Node = any, P = undefined, A = undefined, C = {}, I = {}> = (
+    parent: P,
+    args: A,
+    ctx: C,
+    info?: I
+) => Node | Promise<Node>;
+
+/**
+ *
+ * Utilities
+ *
+ */
+
+// tslint:disable
+export type Unpacked<T> = T extends (infer U)[]
+    ? U
+    : T extends (...args: any[]) => infer U
+    ? U
+    : T extends Promise<infer U>
+    ? U
+    : T;
+// tslint:enable
+
 export type InfoArgs<T> = T extends (
     node: any,
     parent: any,
@@ -361,48 +357,3 @@ export type InfoArgs<T> = T extends (
 ) => any
     ? A
     : undefined;
-
-// export interface IRevisionInput {
-//     // id: string;
-//     userId: string;
-//     userRoles?: string[];
-//     revisionData: string;
-//     revisionTime: string;
-//     nodeSchemaVersion: string;
-//     resolverOperation: string;
-//     nodeName: string;
-//     nodeId?: string | number;
-// }
-
-// export interface INodeBuilderRevisionInfo {
-//     revisionData: string;
-//     revisionTime: string;
-//     revisionId: number;
-//     snapshotData?: string;
-//     nodeSchemaVersion: string;
-//     nodeName: string;
-//     nodeId: string | number;
-//     resolverOperation?: string;
-// }
-
-// export interface IRevisionQueryResult<RevisionTime = string> {
-//     revisionId: number;
-//     revisionTime: RevisionTime;
-//     revisionData: string;
-
-//     nodeName: string;
-//     nodeSchemaVersion: string;
-//     userId: number;
-//     nodeId: string | number;
-//     resolverOperation: string;
-
-//     snapshotTime?: string;
-//     snapshotData?: string;
-
-//     userRoles?: string[];
-// }
-
-// export interface ITransformInput {
-//     columnNames: NonNullable<INamesForTablesAndColumns['columnNames']> & {[column: string]: any};
-//     columnData: NonNullable<INodeChange> & {[column: string]: any};
-// }
