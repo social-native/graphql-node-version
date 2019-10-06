@@ -1,7 +1,6 @@
 import Knex from 'knex';
 import Bluebird from 'bluebird';
 import {
-    IPersistVersionInfo,
     ITableAndColumnNames,
     AllEventInfo,
     PersistVersion,
@@ -15,11 +14,11 @@ import storeEventNodeFragmentRegistration from './store_event_node_fragment_regi
 import storeNodeSnapshot from './store_node_snapshot';
 import {isEventNodeChangeWithSnapshotInfo} from 'type_guards';
 
-export {default as queryShouldStoreSnapshot} from './query_should_store_snapshot';
+export {default as createQueryShouldStoreSnapshot} from './query_should_store_snapshot';
 
 export const persistVersion: PersistVersion<IPersistVersionInfoConfigSql> = async (
     versionInfo,
-    {knex, trx, tableAndColumnNames}
+    {knex, transaction: trx, tableAndColumnNames}
 ) => {
     if (versionInfo.nodeChange) {
         const eventId = await createEventAndUserRoles(

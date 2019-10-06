@@ -207,7 +207,7 @@ export interface IVersionRecorderExtractors<Resolver extends (...args: any[]) =>
     currentNodeSnapshot: (
         nodeId: INode['nodeId'],
         resolverArgs: Parameters<Resolver>
-    ) => ReturnType<Resolver>; // tslint:disable-line
+    ) => Promise<UnPromisify<ReturnType<Resolver>>>; // tslint:disable-line
     currentNodeSnapshotFrequency?: number;
     parentNode?: (
         parent: Parameters<Resolver>[0],
@@ -249,20 +249,11 @@ export interface IEventNodeChangeInfo extends IEventInfoBase {
 
     revisionData: string;
     nodeSchemaVersion: string | number;
+
+    snapshot?: string;
 }
 
-export interface IEventNodeChangeWithSnapshotInfo extends IEventInfoBase {
-    createdAt: string;
-    userId: string;
-    nodeName: string;
-    nodeId: string | number;
-    resolverOperation: string;
-    userRoles: string[];
-    snapshotFrequency: number;
-
-    revisionData: string;
-    nodeSchemaVersion: string | number;
-
+export interface IEventNodeChangeWithSnapshotInfo extends IEventNodeChangeInfo {
     snapshot: string;
 }
 
@@ -292,21 +283,20 @@ export interface IEventLinkChangeInfo extends IEventInfoBase {
  *
  */
 
-export type AllEventNodeChangeInfo = IEventNodeChangeInfo | IEventNodeChangeWithSnapshotInfo;
 export type AllEventInfo =
-    | AllEventNodeChangeInfo
+    | IEventNodeChangeInfo
     | IEventNodeFragmentRegisterInfo
     | IEventLinkChangeInfo;
 
 export interface IPersistVersionInfo {
-    nodeChange: AllEventNodeChangeInfo;
+    nodeChange: IEventNodeChangeInfo;
     linkChanges?: IEventLinkChangeInfo[];
     fragmentRegistration?: IEventNodeFragmentRegisterInfo;
 }
 
-export type PersistVersion<Config = any> = (
+export type PersistVersion<Config = any | undefined> = (
     versionInfo: IPersistVersionInfo,
-    config?: Config
+    config: Config
 ) => Promise<void>;
 
 export interface IPersistVersionInfoConfigSql {
@@ -315,6 +305,7 @@ export interface IPersistVersionInfoConfigSql {
     tableAndColumnNames: ITableAndColumnNames;
 }
 
+export type QueryShouldTakeNodeSnapshot = (eventInfo: IEventNodeChangeInfo) => Promise<boolean>;
 /**
  *
  * Resolvers

@@ -3,17 +3,16 @@ import {
     ITableAndColumnNames,
     ISqlEventTable,
     ISqlNodeSnapshotTable,
-    AllEventNodeChangeInfo
+    IEventNodeChangeInfo
 } from 'types';
 /**
  * Fetch the number of full node snapshots for the node id and node schema version
  * If a snapshot exists within the expected snapshot frequency, then we don't need to take another snapshot
  */
-export default async (
+export default (
     transaction: Knex.Transaction,
-    {table_names, event, node_snapshot}: ITableAndColumnNames,
-    eventInfo: AllEventNodeChangeInfo
-): Promise<boolean> => {
+    {table_names, event, node_snapshot}: ITableAndColumnNames
+) => async (eventInfo: IEventNodeChangeInfo): Promise<boolean> => {
     const sql = transaction
         .table<ISqlEventTable>(table_names.event)
         .leftJoin<ISqlNodeSnapshotTable>(
@@ -29,6 +28,7 @@ export default async (
         .orderBy(`${table_names.event}.${event.created_at}`, 'desc')
         .limit(eventInfo.snapshotFrequency)
         .select(
+            // TODO remove `event_creation` its not used
             `${table_names.event}.${event.created_at} as event_creation`,
             `${table_names.node_snapshot}.${node_snapshot.id} as snapshot_creation`
         );

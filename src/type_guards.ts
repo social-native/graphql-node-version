@@ -3,11 +3,10 @@ import {
     IEventNodeChangeInfo,
     IEventNodeChangeWithSnapshotInfo,
     IEventNodeFragmentRegisterInfo,
-    IEventLinkChangeInfo,
-    AllEventNodeChangeInfo
+    IEventLinkChangeInfo
 } from 'types';
 
-export const isAllEventNodeChangeInfo = (e: AllEventInfo): e is AllEventNodeChangeInfo => {
+export const isEventNodeChangeInfo = (e: AllEventInfo): e is IEventNodeChangeInfo => {
     return (e as IEventNodeChangeInfo).revisionData !== undefined;
 };
 
