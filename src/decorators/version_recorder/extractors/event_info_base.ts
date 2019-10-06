@@ -5,7 +5,7 @@ export default <ResolverT extends (...args: any[]) => any>(
     args: Parameters<ResolverT>,
     extractors: IVersionRecorderExtractors<ResolverT>,
     resolverOperation: string,
-    nodeId: string
+    nodeId: string | number
 ): IEventInfoBase => {
     const userId = extractors.userId(args[0], args[1], args[2], args[3]);
     const nodeName = extractors.nodeName;

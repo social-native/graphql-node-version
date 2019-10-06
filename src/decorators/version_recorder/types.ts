@@ -1,5 +1,5 @@
 import Knex from 'knex';
-import {INamesConfig, UnPromisify} from '../../types';
+import {UnPromisify} from '../../types';
 
 export interface IVersionRecorderExtractors<Resolver extends (...args: any[]) => any> {
     userId: (
@@ -43,7 +43,10 @@ export interface IVersionRecorderExtractors<Resolver extends (...args: any[]) =>
     nodeName: string;
     resolverOperation?: string;
     passThroughTransaction?: boolean;
-    currentNodeSnapshot: (nodeId: INode['nodeId'], resolverArgs: Parameters<Resolver>) => any; // tslint:disable-line
+    currentNodeSnapshot: (
+        nodeId: INode['nodeId'],
+        resolverArgs: Parameters<Resolver>
+    ) => ReturnType<Resolver>; // tslint:disable-line
     currentNodeSnapshotFrequency?: number;
     parentNode?: (
         parent: Parameters<Resolver>[0],
@@ -59,9 +62,9 @@ export interface IVersionRecorderExtractors<Resolver extends (...args: any[]) =>
     ) => INode[];
 }
 
-export interface ICreateRevisionTransactionConfig extends INamesConfig {
-    transactionTimeoutSeconds: number;
-}
+// export interface ICreateRevisionTransactionConfig extends INamesConfig {
+//     transactionTimeoutSeconds: number;
+// }
 
 export interface IRevisionInfo {
     eventUserId: string;

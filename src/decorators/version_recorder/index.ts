@@ -1,9 +1,15 @@
 import * as Knex from 'knex';
-import Bluebird from 'bluebird';
 
-import {INamesConfig, UnPromisify} from '../../types';
-import {setNames} from '../../sqlNames';
-import {ICreateRevisionTransactionConfig, IVersionRecorderExtractors, IRevisionInfo} from './types';
+import {UnPromisify} from '../../types';
+import {setNames} from '../../sql_names';
+import {IVersionRecorderExtractors, IRevisionInfo} from './types';
+import {
+    eventInfoBaseExtractor,
+    eventLinkChangeInfoExtractor,
+    eventNodeChangeInfoExtractor,
+    eventNodeChangeWithSnapshotInfoExtractor,
+    eventNodeFragmentRegisterInfoExtractor
+} from './extractors';
 
 export default <ResolverT extends (...args: any[]) => any>(
     extractors: IVersionRecorderExtractors<ResolverT>,
@@ -35,16 +41,23 @@ export default <ResolverT extends (...args: any[]) => any>(
             }
 
             const resolverOperation = getResolverOperation(extractors, property);
-            const eventNodeChangeInfo = extractEventNodeChangeInfo(args, extractors);
-            const revisionEventInfo = extractEventInfo(args, extractors, resolverOperation, nodeId);
 
-            console.log('4. STORING REVISION');
-            const eventId = await storeEvent(
-                transaction,
-                nodeToSqlNameMappings,
-                revisionEventInfo,
-                nodeId,
-                resolverOperation
+            const eventInfoBase = eventInfoBaseExtractor(
+                args,
+                extractors,
+                resolverOperation,
+                nodeId
+            );
+            const eventLinkChangeInfo = eventLinkChangeInfoExtractor(
+                args,
+                extractors,
+                eventInfoBase
+            );
+
+            const eventNodeFragmentRegisterInfo = eventNodeFragmentRegisterInfoExtractor(
+                args,
+                extractors,
+                eventInfoBase
             );
 
             const shouldStoreSnapshot = await findIfShouldStoreSnapshot(
@@ -55,38 +68,18 @@ export default <ResolverT extends (...args: any[]) => any>(
             );
 
             if (shouldStoreSnapshot) {
-                let currentNodeSnapshot;
-                try {
-                    currentNodeSnapshot = await extractors.currentNodeSnapshot(
-                        nodeId,
-                        args as Parameters<ResolverT>
-                    );
-                } catch (e) {
-                    console.log('EERRRROR', e);
-                }
-
-                await storeCurrentNodeSnapshot(
-                    transaction,
-                    nodeToSqlNameMappings,
-                    revisionEventInfo,
-                    currentNodeSnapshot,
-                    eventId
+                const eventNodeChangeWithSnapshotInfo = await eventNodeChangeWithSnapshotInfoExtractor(
+                    args,
+                    extractors,
+                    eventInfoBase
+                );
+            } else {
+                const eventNodeChangeInfo = eventNodeChangeInfoExtractor(
+                    args,
+                    extractors,
+                    eventInfoBase
                 );
             }
-
-            if (revisionEventInfo.edgesToRecord) {
-                await Bluebird.each(revisionEventInfo.edgesToRecord, async edge => {
-                    return await storeEdge(
-                        transaction,
-                        nodeToSqlNameMappings,
-                        eventId,
-                        revisionEventInfo,
-                        nodeId,
-                        edge
-                    );
-                });
-            }
-            await storeFragment(transaction, nodeToSqlNameMappings, revisionEventInfo, eventId);
 
             await transaction.commit();
 
