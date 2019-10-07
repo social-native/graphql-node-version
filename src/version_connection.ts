@@ -1,8 +1,9 @@
 import {
     UnPromisify,
     IVersionConnectionExtractors,
-    ITableAndColumnNames,
-    IGqlVersionNode
+    // ITableAndColumnNames,
+    IGqlVersionNode,
+    IConfig
 } from './types';
 import {ConnectionManager} from '@social-native/snpkg-snapi-connections';
 import queryVersionConnection from './data_accessors/sql/query_version_connection';
@@ -11,6 +12,7 @@ import queryTimeRangeOfVersionConnection from './data_accessors/sql/query_time_r
 import queryEventsWithSnapshots from './data_accessors/sql/query_events_with_snapshots';
 
 import {setNames} from 'sql_names';
+import {getLoggerFromConfig} from 'logger';
 
 /**
  * Logic:
@@ -18,116 +20,124 @@ import {setNames} from 'sql_names';
  * 2. Calculate full nodes for all revisions in range
  * 3. Get revisions in connection (filters may apply etc)
  */
-export default <ResolverT extends (...args: [any, any, any, any]) => any>(
-    extractors: IVersionConnectionExtractors<ResolverT>,
-    config?: {names: ITableAndColumnNames}
-): MethodDecorator => {
-    return (_target, _property, descriptor: TypedPropertyDescriptor<any>) => {
-        const {value} = descriptor;
-        if (typeof value !== 'function') {
-            throw new TypeError('Only functions can be decorated.');
+// export default (config?: IConfig) => <ResolverT extends (...args: [any, any, any, any]) => any>(
+//     extractors: IVersionConnectionExtractors<ResolverT>
+// ): MethodDecorator => {
+//     const tableAndColumnNames = setNames(config ? config.names : undefined);
+//     const loggerOptions = config && config.logOptions ? config.logOptions : {};
+//     const logger = config && config.logger ? config.logger : pino(loggerOptions);
+
+//     const versionConnectionLogger = logger.child({api: 'Version Connection'});
+//     return (_target, _property, descriptor: TypedPropertyDescriptor<any>) => {
+//         const {value} = descriptor;
+//         if (typeof value !== 'function') {
+//             throw new TypeError('Only functions can be decorated.');
+//         }
+
+//         // tslint:disable-next-line
+//         descriptor.value = (async (...args) => {
+//             const latestNode = (await value(args[0], args[1], args[2], args[3])) as UnPromisify<
+//                 ReturnType<ResolverT>
+//             >;
+//             return createVersionConnectionWithFullNodes<ResolverT>(
+//                 latestNode,
+//                 args as Parameters<ResolverT>,
+//                 extractors,
+//                 config
+//             );
+//         }) as ResolverT;
+
+//         return descriptor;
+//     };
+// };
+
+export const createVersionConnectionWithFullNodes = (config?: IConfig) => {
+    const tableAndColumnNames = setNames(config ? config.names : undefined);
+    const parentLogger = getLoggerFromConfig(config);
+    const logger = parentLogger.child({api: 'Version Connection'});
+
+    return async <ResolverT extends (...args: [any, any, any, any]) => any>(
+        currentVersionNode: UnPromisify<ReturnType<ResolverT>>,
+        resolverArgs: Parameters<ResolverT>,
+        extractors: IVersionConnectionExtractors<ResolverT>
+    ) => {
+        // tslint:disable-next-line
+        logger.debug('CURRENT NODE', currentVersionNode);
+        const {knex, nodeId, nodeName} = extractors;
+
+        const nodeInstancesInConnection = await queryNodeInstancesInConnection(
+            knex,
+            tableAndColumnNames,
+            {nodeId, nodeName}
+        );
+
+        const versionNodeConnection = await queryVersionConnection(
+            resolverArgs[1],
+            knex,
+            tableAndColumnNames,
+            nodeInstancesInConnection
+        );
+
+        console.log('2. CHECK IF THERE ARE NO NODE CHANGE REVISIONS');
+        // Step 2. If there are no revisions in the connection, return with no edges
+        if (versionNodeConnection.edges.length === 0) {
+            const nodeConnection = new ConnectionManager<IGqlVersionNode>(resolverArgs[1], {});
+            nodeConnection.addResult([{}]);
+            const {edges, pageInfo} = nodeConnection;
+            const firstEdge = edges[0];
+            return {
+                pageInfo,
+                edges: [{...firstEdge, version: undefined, node: currentVersionNode}]
+            };
         }
 
-        // tslint:disable-next-line
-        descriptor.value = (async (...args) => {
-            const latestNode = (await value(args[0], args[1], args[2], args[3])) as UnPromisify<
-                ReturnType<ResolverT>
-            >;
-            return createVersionConnectionWithFullNodes<ResolverT>(
-                latestNode,
-                args as Parameters<ResolverT>,
-                extractors,
-                config
-            );
-        }) as ResolverT;
+        const timeRangeOfVersionConnection = await queryTimeRangeOfVersionConnection(
+            knex,
+            tableAndColumnNames,
+            resolverArgs,
+            versionNodeConnection.edges.map(e => e.node),
+            nodeInstancesInConnection
+        );
 
-        return descriptor;
+        const eventsWithSnapshots = await queryEventsWithSnapshots(
+            knex,
+            tableAndColumnNames,
+            timeRangeOfVersionConnection,
+            nodeInstancesInConnection
+        );
+
+        console.log(eventsWithSnapshots);
+        // TODO FINISH
+        // const eventsWithFullNodes = eventsWithSnapshots.reverse().reduce(
+        //     (acc, event) => {
+        //         if (event.snapshot) {
+        //             // const node = JSON.parse(event.snapshot) as UnPromisify<ReturnType<ResolverT>>;
+        //             acc.mostRecentSnapshot[`${event.nodeId}-${event.nodeName}`] = event.snapshot;
+        //         }
+        //         const snapshot = acc.mostRecentSnapshot[`${event.nodeId}-${event.nodeName}`];
+        //         if (snapshot) {
+        //             const calculatedNode = extractors.nodeBuilder(
+        //                 nodes[previousRevision.revisionId],
+        //                 revision
+        //             );
+        //         }
+        //         return acc;
+        //     },
+        //     {mostRecentSnapshot: {}, fullNodes: {}} as {
+        //         mostRecentSnapshot: {[nodeIdAndNodeName: string]: string};
+        //         lastVersion: {[nodeIdAndNodeName: string]: string};
+        //         fullNodes: {[eventId: number]: object};
+        //     }
+        // );
+
+        // Step 8. Build the connection
+        const edges = versionNodeConnection.edges.map(n => ({
+            cursor: n.cursor,
+            node: undefined,
+            version: n.node
+        }));
+        return {pageInfo: versionNodeConnection.pageInfo, edges};
     };
-};
-
-export const createVersionConnectionWithFullNodes = async <
-    ResolverT extends (...args: [any, any, any, any]) => any
->(
-    currentVersionNode: UnPromisify<ReturnType<ResolverT>>,
-    resolverArgs: Parameters<ResolverT>,
-    extractors: IVersionConnectionExtractors<ResolverT>,
-    config?: {names: ITableAndColumnNames}
-) => {
-    // tslint:disable-next-line
-    console.log('CURRENT NODE', currentVersionNode);
-    const {knex, nodeId, nodeName} = extractors;
-
-    const tableAndColumnNames = setNames(config ? config.names : undefined);
-
-    const nodeInstancesInConnection = await queryNodeInstancesInConnection(
-        knex,
-        tableAndColumnNames,
-        {nodeId, nodeName}
-    );
-
-    const versionNodeConnection = await queryVersionConnection(
-        resolverArgs[1],
-        knex,
-        tableAndColumnNames,
-        nodeInstancesInConnection
-    );
-
-    console.log('2. CHECK IF THERE ARE NO NODE CHANGE REVISIONS');
-    // Step 2. If there are no revisions in the connection, return with no edges
-    if (versionNodeConnection.edges.length === 0) {
-        const nodeConnection = new ConnectionManager<IGqlVersionNode>(resolverArgs[1], {});
-        nodeConnection.addResult([{}]);
-        const {edges, pageInfo} = nodeConnection;
-        const firstEdge = edges[0];
-        return {pageInfo, edges: [{...firstEdge, version: undefined, node: currentVersionNode}]};
-    }
-
-    const timeRangeOfVersionConnection = await queryTimeRangeOfVersionConnection(
-        knex,
-        tableAndColumnNames,
-        resolverArgs,
-        versionNodeConnection.edges.map(e => e.node),
-        nodeInstancesInConnection
-    );
-
-    const eventsWithSnapshots = await queryEventsWithSnapshots(
-        knex,
-        tableAndColumnNames,
-        timeRangeOfVersionConnection,
-        nodeInstancesInConnection
-    );
-
-    console.log(eventsWithSnapshots);
-    // TODO FINISH
-    // const eventsWithFullNodes = eventsWithSnapshots.reverse().reduce(
-    //     (acc, event) => {
-    //         if (event.snapshot) {
-    //             // const node = JSON.parse(event.snapshot) as UnPromisify<ReturnType<ResolverT>>;
-    //             acc.mostRecentSnapshot[`${event.nodeId}-${event.nodeName}`] = event.snapshot;
-    //         }
-    //         const snapshot = acc.mostRecentSnapshot[`${event.nodeId}-${event.nodeName}`];
-    //         if (snapshot) {
-    //             const calculatedNode = extractors.nodeBuilder(
-    //                 nodes[previousRevision.revisionId],
-    //                 revision
-    //             );
-    //         }
-    //         return acc;
-    //     },
-    //     {mostRecentSnapshot: {}, fullNodes: {}} as {
-    //         mostRecentSnapshot: {[nodeIdAndNodeName: string]: string};
-    //         lastVersion: {[nodeIdAndNodeName: string]: string};
-    //         fullNodes: {[eventId: number]: object};
-    //     }
-    // );
-
-    // Step 8. Build the connection
-    const edges = versionNodeConnection.edges.map(n => ({
-        cursor: n.cursor,
-        node: undefined,
-        version: n.node
-    }));
-    return {pageInfo: versionNodeConnection.pageInfo, edges};
 };
 
 // export interface INodesOfInterest<ResolverT extends (...args: any[]) => any> {

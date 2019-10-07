@@ -5,9 +5,13 @@ import {
     // decorate,
     // versionConnectionDecorator as versionConnection,
     IVersionConnection,
-    createRevisionConnection,
+    createRevisionConnection as unconfiguredCreateRevisionConnection,
     IGqlVersionNodeChangeNode
 } from '../../src/index';
+
+const createRevisionConnection = unconfiguredCreateRevisionConnection({
+    logOptions: {level: 'debug', prettyPrint: true, base: null}
+});
 
 interface ITeam {
     id: number;

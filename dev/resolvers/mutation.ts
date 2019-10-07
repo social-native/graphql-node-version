@@ -4,8 +4,12 @@ import knex from 'knex';
 
 import query from './query';
 
-import {decorate, versionRecorderDecorator as versionRecorder} from '../../src/index';
+import {decorate, versionRecorderDecorator as unconfiguredVersionRecorder} from '../../src/index';
 import {IVersionRecorderExtractors} from '../../src/types';
+
+const versionRecorder = unconfiguredVersionRecorder({
+    logOptions: {level: 'debug', prettyPrint: true, base: null}
+});
 
 interface ITeamCreationMutationInput {
     name: string;

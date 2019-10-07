@@ -1,4 +1,6 @@
 import Knex from 'knex';
+import pino from 'pino';
+
 /**
  *
  *  SQL Tables
@@ -356,6 +358,24 @@ export type BaseResolver<Node = any, P = undefined, A = undefined, C = {}, I = {
     ctx: C,
     info?: I
 ) => Node | Promise<Node>;
+
+/**
+ *
+ * Version API
+ *
+ */
+
+export interface IConfig extends ILoggerConfig {
+    logLevel?: string;
+    logOptions: pino.LoggerOptions;
+    logger?: ReturnType<typeof pino>;
+    names?: ITableAndColumnNames;
+}
+
+export interface ILoggerConfig {
+    logOptions?: pino.LoggerOptions;
+    logger?: ReturnType<typeof pino>;
+}
 
 /**
  *
