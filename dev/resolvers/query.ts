@@ -4,9 +4,9 @@ import {ConnectionManager, IInputArgs, IQueryResult} from '@social-native/snpkg-
 import {
     // decorate,
     // versionConnectionDecorator as versionConnection,
-    INodeBuilderRevisionInfo,
     IVersionConnection,
-    createRevisionConnection
+    createRevisionConnection,
+    IGqlVersionNodeChangeNode
 } from '../../src/index';
 
 interface ITeam {
@@ -145,8 +145,8 @@ const query: {
 //     }
 // };
 
-const nodeBuilder = (previousModel: object, revisionInfo: INodeBuilderRevisionInfo) => {
-    const {revisionData} = revisionInfo;
+const nodeBuilder = (previousModel: any, versionInfo: IGqlVersionNodeChangeNode) => {
+    const {revisionData} = versionInfo;
     // TODO figure out why this is an object
     const data = revisionData as any;
     return {...previousModel, ...data};

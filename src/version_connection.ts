@@ -122,7 +122,12 @@ export const createVersionConnectionWithFullNodes = async <
     // );
 
     // Step 8. Build the connection
-    return {pageInfo: versionNodeConnection.pageInfo, edges: versionNodeConnection.edges};
+    const edges = versionNodeConnection.edges.map(n => ({
+        cursor: n.cursor,
+        node: undefined,
+        version: n.node
+    }));
+    return {pageInfo: versionNodeConnection.pageInfo, edges};
 };
 
 // export interface INodesOfInterest<ResolverT extends (...args: any[]) => any> {

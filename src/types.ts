@@ -148,8 +148,8 @@ export type NodeInConnection = IGqlVersionNode & {snapshot?: string};
 export interface IVersionConnection<Node> {
     edges: Array<{
         cursor: string;
-        version: IGqlVersionNode;
-        node: Node;
+        version?: IGqlVersionNode;
+        node?: Node;
     }>;
     pageInfo: {
         hasNextPage: boolean;
@@ -170,8 +170,8 @@ export interface IVersionConnectionInfo<Resolver extends (...args: any[]) => any
     nodeName: string;
     nodeBuilder: (
         previousModel: UnPromisify<ReturnType<Resolver>>,
-        versionInfo: IGqlVersionNode
-    ) => UnPromisify<ReturnType<Resolver>>;
+        versionInfo: IGqlVersionNodeChangeNode
+    ) => UnPromisify<ReturnType<any>>;
 }
 export interface IVersionConnectionExtractors<Resolver extends (...args: any[]) => any>
     extends IVersionConnectionInfo<Resolver> {
@@ -226,7 +226,7 @@ export interface IVersionRecorderExtractors<Resolver extends (...args: any[]) =>
     currentNodeSnapshot: (
         nodeId: INode['nodeId'],
         resolverArgs: Parameters<Resolver>
-    ) => Promise<UnPromisify<ReturnType<Resolver>>>; // tslint:disable-line
+    ) => Promise<any>; // tslint:disable-line
     currentNodeSnapshotFrequency?: number;
     parentNode?: (
         parent: Parameters<Resolver>[0],
@@ -325,19 +325,28 @@ export interface IPersistVersionInfoConfigSql {
 }
 
 export type QueryShouldTakeNodeSnapshot = (eventInfo: IEventNodeChangeInfo) => Promise<boolean>;
+
 /**
  *
  * Resolvers
  *
  */
 
-export type UnPromisify<T> = T extends Promise<infer U> ? U : T;
-
 export type ResolverArgs<T> = T extends (node: any, parent: any, args: infer A) => any
     ? A
     : undefined;
 
 export type ContextArgs<T> = T extends (node: any, parent: any, args: any, ctx: infer A) => any
+    ? A
+    : undefined;
+
+export type InfoArgs<T> = T extends (
+    node: any,
+    parent: any,
+    args: any,
+    ctx: any,
+    info: infer A
+) => any
     ? A
     : undefined;
 
@@ -354,6 +363,8 @@ export type BaseResolver<Node = any, P = undefined, A = undefined, C = {}, I = {
  *
  */
 
+export type UnPromisify<T> = T extends Promise<infer U> ? U : T;
+
 // tslint:disable
 export type Unpacked<T> = T extends (infer U)[]
     ? U
@@ -363,13 +374,3 @@ export type Unpacked<T> = T extends (infer U)[]
     ? U
     : T;
 // tslint:enable
-
-export type InfoArgs<T> = T extends (
-    node: any,
-    parent: any,
-    args: any,
-    ctx: any,
-    info: infer A
-) => any
-    ? A
-    : undefined;

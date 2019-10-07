@@ -2,6 +2,7 @@ import * as Knex from 'knex';
 
 import {ITableAndColumnNames} from '../types';
 import {setNames} from '../sql_names';
+import {EVENT_IMPLEMENTOR_TYPE_IDS} from 'enums';
 
 /**
  * Create tables for storing versions of a node through time
@@ -37,6 +38,14 @@ export default (config?: ITableAndColumnNames) => {
                 .primary();
             t.string(event_implementor_type.type).notNullable();
         });
+
+        await knex
+            .table(table_names.event_implementor_type)
+            .insert([
+                {type: 'NODE_CHANGE', id: EVENT_IMPLEMENTOR_TYPE_IDS.NODE_CHANGE},
+                {type: 'NODE_FRAGMENT_CHANGE', id: EVENT_IMPLEMENTOR_TYPE_IDS.NODE_FRAGMENT_CHANGE},
+                {type: 'LINK_CHANGE', id: EVENT_IMPLEMENTOR_TYPE_IDS.LINK_CHANGE}
+            ]);
 
         await knex.schema.createTable(table_names.event, t => {
             t.increments(event.id)
@@ -102,7 +111,7 @@ export default (config?: ITableAndColumnNames) => {
                 .inTable(table_names.event);
 
             t.json(node_snapshot.snapshot).notNullable();
-            t.string(event_node_change.node_schema_version).notNullable();
+            t.string(node_snapshot.node_schema_version).notNullable();
         });
 
         await knex.schema.createTable(table_names.role, t => {
@@ -137,6 +146,7 @@ export default (config?: ITableAndColumnNames) => {
         await knex.schema.dropTable(table_names.event_node_fragment_register);
         await knex.schema.dropTable(table_names.event_node_change);
         await knex.schema.dropTable(table_names.event_link_change);
+        await knex.schema.dropTable(table_names.node_snapshot);
         await knex.schema.dropTable(table_names.event);
         return await knex.schema.dropTable(table_names.event_implementor_type);
     };

@@ -20,7 +20,8 @@ export default async (
             .table<ISqlNodeSnapshotTable>(table_names.node_snapshot)
             .insert<ISqlNodeSnapshotTable>({
                 [node_snapshot.snapshot]: JSON.stringify(eventInfo.snapshot),
-                [node_snapshot.event_id]: eventId
+                [node_snapshot.event_id]: eventId,
+                [node_snapshot.node_schema_version]: eventInfo.nodeSchemaVersion
             });
     } else {
         throw new Error(

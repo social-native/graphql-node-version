@@ -37,7 +37,9 @@ export default (
         event_creation?: string;
         snapshot_creation?: string;
     }>;
-    const snapshotWithinFrequencyRange = !!snapshots.find(data => data.snapshot_creation);
+    console.log('FOUND SNAPSHOTS', snapshots);
+    const shouldStoreSnapshot = !snapshots.find(data => data.snapshot_creation);
 
-    return !snapshotWithinFrequencyRange;
+    console.log('SHOULD STORE SNAPSHOT', shouldStoreSnapshot);
+    return shouldStoreSnapshot;
 };
