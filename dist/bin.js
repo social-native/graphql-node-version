@@ -3,8 +3,7 @@
 
 function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'default' in ex) ? ex['default'] : ex; }
 
-require('luxon');
-require('@social-native/snpkg-snapi-connections');
+require('@social-native/snpkg-snapi-ndm');
 require('bluebird');
 var yargs = _interopDefault(require('yargs'));
 var path = _interopDefault(require('path'));
@@ -15,152 +14,249 @@ var lodash = _interopDefault(require('lodash'));
 var fs = _interopDefault(require('fs'));
 
 /**
- * Sets the names for tables and columns that revisions will be stored in
+ * Sets the names for tables and columns that node version info will be stored in
  *
  * Allows users to specify their own column and table names. If none are specified, the defaults will be used.
  */
-var DEFAULT_TABLE_NAMES;
-(function (DEFAULT_TABLE_NAMES) {
-    DEFAULT_TABLE_NAMES["revision"] = "revision";
-    DEFAULT_TABLE_NAMES["revisionRole"] = "revision_role";
-    DEFAULT_TABLE_NAMES["revisionUserRole"] = "revision_user_roles";
-    DEFAULT_TABLE_NAMES["revisionNodeSnapshot"] = "revision_node_snapshot";
-    DEFAULT_TABLE_NAMES["revisionEdge"] = "revision_edge";
-    DEFAULT_TABLE_NAMES["revisionFragment"] = "revision_fragment";
-})(DEFAULT_TABLE_NAMES || (DEFAULT_TABLE_NAMES = {}));
-var DEFAULT_COLUMN_NAMES;
-(function (DEFAULT_COLUMN_NAMES) {
-    // revision table
-    DEFAULT_COLUMN_NAMES["revisionId"] = "id";
-    DEFAULT_COLUMN_NAMES["revisionTime"] = "revision_created_at";
-    DEFAULT_COLUMN_NAMES["userId"] = "user_id";
-    DEFAULT_COLUMN_NAMES["revisionData"] = "revision";
-    DEFAULT_COLUMN_NAMES["nodeName"] = "node_name";
-    DEFAULT_COLUMN_NAMES["nodeSchemaVersion"] = "node_schema_version";
-    DEFAULT_COLUMN_NAMES["nodeId"] = "node_id";
-    DEFAULT_COLUMN_NAMES["resolverOperation"] = "resolver_operation";
-    // revision node snapshot table
-    DEFAULT_COLUMN_NAMES["snapshotId"] = "id";
-    DEFAULT_COLUMN_NAMES["snapshotTime"] = "snapshot_created_at";
-    DEFAULT_COLUMN_NAMES["snapshotData"] = "previous_node_version_snapshot";
-    // revision role table
-    DEFAULT_COLUMN_NAMES["roleId"] = "id";
-    DEFAULT_COLUMN_NAMES["roleName"] = "role_name";
-    // revision user roles
-    DEFAULT_COLUMN_NAMES["userRoleId"] = "id";
-    // revision edge
-    DEFAULT_COLUMN_NAMES["revisionEdgeId"] = "id";
-    DEFAULT_COLUMN_NAMES["revisionEdgeTime"] = "created_at";
-    DEFAULT_COLUMN_NAMES["edgeNodeNameA"] = "node_name_a";
-    DEFAULT_COLUMN_NAMES["edgeNodeIdA"] = "node_id_a";
-    DEFAULT_COLUMN_NAMES["edgeNodeNameB"] = "node_name_b";
-    DEFAULT_COLUMN_NAMES["edgeNodeIdB"] = "node_id_b";
-    // revision fragment
-    DEFAULT_COLUMN_NAMES["revisionFragmentId"] = "id";
-    DEFAULT_COLUMN_NAMES["revisionFragmentTime"] = "created_at";
-    DEFAULT_COLUMN_NAMES["fragmentParentNodeId"] = "parent_node_id";
-    DEFAULT_COLUMN_NAMES["fragmentParentNodeName"] = "parent_node_name";
-})(DEFAULT_COLUMN_NAMES || (DEFAULT_COLUMN_NAMES = {}));
-const setNames = ({ tableNames, columnNames }) => ({
-    tableNames: {
-        ...DEFAULT_TABLE_NAMES,
-        ...tableNames
-    },
-    columnNames: {
-        ...DEFAULT_COLUMN_NAMES,
-        ...columnNames
-    }
-});
-
-var createRevisionMigrations = (config) => {
-    const { tableNames, columnNames } = setNames(config || {});
-    const up = async (knex) => {
-        const revision = await knex.schema.createTable(tableNames.revision, t => {
-            t.increments(columnNames.revisionId)
-                .unsigned()
-                .primary();
-            t.timestamp(columnNames.revisionTime).defaultTo(knex.fn.now());
-            t.string(columnNames.userId);
-            t.json(columnNames.revisionData);
-            t.string(columnNames.nodeName);
-            t.integer(columnNames.nodeSchemaVersion);
-            t.integer(columnNames.nodeId);
-            t.string(columnNames.resolverOperation);
-        });
-        await knex.schema.createTable(tableNames.revisionNodeSnapshot, t => {
-            t.increments(columnNames.snapshotId)
-                .unsigned()
-                .primary();
-            t.timestamp(columnNames.snapshotTime).defaultTo(knex.fn.now());
-            t.integer(`${tableNames.revision}_${columnNames.revisionId}`)
-                .unsigned()
-                .notNullable()
-                .references(columnNames.revisionId)
-                .inTable(tableNames.revision);
-            t.json(columnNames.snapshotData);
-        });
-        await knex.schema.createTable(tableNames.revisionEdge, t => {
-            t.increments(columnNames.revisionEdgeId)
-                .unsigned()
-                .primary();
-            t.timestamp(columnNames.revisionEdgeTime).defaultTo(knex.fn.now());
-            t.integer(columnNames.edgeNodeIdA);
-            t.string(columnNames.edgeNodeNameA);
-            t.integer(columnNames.edgeNodeIdB);
-            t.string(columnNames.edgeNodeNameB);
-            t.string(columnNames.resolverOperation);
-        });
-        await knex.schema.createTable(tableNames.revisionFragment, t => {
-            t.increments(columnNames.revisionFragmentId)
-                .unsigned()
-                .primary();
-            t.timestamp(columnNames.revisionFragmentTime).defaultTo(knex.fn.now());
-            t.integer(columnNames.fragmentParentNodeId);
-            t.string(columnNames.fragmentParentNodeName);
-            t.integer(`${tableNames.revision}_${columnNames.revisionId}`)
-                .unsigned()
-                .notNullable()
-                .references(columnNames.revisionId)
-                .inTable(tableNames.revision);
-        });
-        if (tableNames.revisionRole && tableNames.revisionUserRole) {
-            await knex.schema.createTable(tableNames.revisionRole, t => {
-                t.increments(columnNames.roleId)
-                    .unsigned()
-                    .primary();
-                t.string(columnNames.roleName)
-                    .notNullable()
-                    .unique();
-            });
-            return await knex.schema.createTable(tableNames.revisionUserRole, t => {
-                t.increments(columnNames.userRoleId)
-                    .unsigned()
-                    .primary();
-                t.integer(`${tableNames.revision}_${columnNames.revisionId}`)
-                    .unsigned()
-                    .notNullable()
-                    .references(columnNames.revisionId)
-                    .inTable(tableNames.revision);
-                t.integer(`${tableNames.revisionRole}_${columnNames.roleId}`)
-                    .unsigned()
-                    .notNullable()
-                    .references(columnNames.roleId)
-                    .inTable(tableNames.revisionRole);
-            });
-        }
-        else {
-            return revision;
+/**
+ * TABLE NAMES
+ */
+const DEFAULT_SQL_TABLE_NAMES = {
+    event: 'version_event',
+    event_implementor_type: 'version_event_implementor_type',
+    event_link_change: 'version_event_link_change',
+    event_node_change: 'version_event_node_change',
+    event_node_fragment_register: 'version_event_node_fragment_register',
+    role: 'version_role',
+    user_role: 'version_user_role',
+    node_snapshot: 'version_node_snapshot'
+};
+/**
+ * COLUMN NAMES
+ */
+const DEFAULT_COLUMN_NAMES_EVENT_TABLE = {
+    id: 'id',
+    created_at: 'created_at',
+    user_id: 'user_id',
+    node_name: 'node_name',
+    node_id: 'node_id',
+    resolver_operation: 'resolver_operation',
+    implementor_type_id: 'implementor_type_id'
+};
+const DEFAULT_COLUMN_NAMES_EVENT_IMPLEMENTOR_TYPE_TABLE = {
+    id: 'id',
+    type: 'type'
+};
+const DEFAULT_COLUMN_NAMES_EVENT_LINK_CHANGE_TABLE = {
+    id: 'id',
+    event_id: 'event_id',
+    node_name: 'node_name',
+    node_id: 'node_id'
+};
+const DEFAULT_COLUMN_NAMES_EVENT_NODE_CHANGE_TABLE = {
+    id: 'id',
+    event_id: 'event_id',
+    revision_data: 'revision_data',
+    node_schema_version: 'schema_version'
+};
+const DEFAULT_COLUMN_NAMES_EVENT_NODE_FRAGMENT_REGISTER_TABLE = {
+    id: 'id',
+    parent_node_id: 'parent_node_id',
+    parent_node_name: 'parent_node_name',
+    child_node_id: 'child_node_id',
+    child_node_name: 'child_node_name'
+};
+const DEFAULT_COLUMN_NAMES_ROLE_TABLE = {
+    id: 'id',
+    role: 'role'
+};
+const DEFAULT_COLUMN_NAMES_USER_ROLE_TABLE = {
+    id: 'id',
+    role_id: 'role_id',
+    event_id: 'event_id'
+};
+const DEFAULT_COLUMN_NAMES_SNAPSHOT_TABLE = {
+    id: 'id',
+    event_id: 'event_id',
+    snapshot: 'snapshot',
+    node_schema_version: 'node_schema_version'
+};
+/**
+ * Override default table and column names
+ */
+const setNames = (names) => {
+    // tslint:disable
+    const tableNames = names && names.table_names;
+    const event = names && names.event;
+    const event_implementor_type = names && names.event_implementor_type;
+    const event_link_change = names && names.event_link_change;
+    const event_node_change = names && names.event_node_change;
+    const event_node_fragment_register = names && names.event_node_fragment_register;
+    const role = names && names.role;
+    const user_role = names && names.user_role;
+    const node_snapshot = names && names.node_snapshot;
+    // tslint:enable
+    return {
+        table_names: {
+            ...DEFAULT_SQL_TABLE_NAMES,
+            ...tableNames
+        },
+        event: {
+            ...DEFAULT_COLUMN_NAMES_EVENT_TABLE,
+            ...event
+        },
+        event_implementor_type: {
+            ...DEFAULT_COLUMN_NAMES_EVENT_IMPLEMENTOR_TYPE_TABLE,
+            ...event_implementor_type
+        },
+        event_link_change: {
+            ...DEFAULT_COLUMN_NAMES_EVENT_LINK_CHANGE_TABLE,
+            ...event_link_change
+        },
+        event_node_change: {
+            ...DEFAULT_COLUMN_NAMES_EVENT_NODE_CHANGE_TABLE,
+            ...event_node_change
+        },
+        event_node_fragment_register: {
+            ...DEFAULT_COLUMN_NAMES_EVENT_NODE_FRAGMENT_REGISTER_TABLE,
+            ...event_node_fragment_register
+        },
+        role: {
+            ...DEFAULT_COLUMN_NAMES_ROLE_TABLE,
+            ...role
+        },
+        user_role: {
+            ...DEFAULT_COLUMN_NAMES_USER_ROLE_TABLE,
+            ...user_role
+        },
+        node_snapshot: {
+            ...DEFAULT_COLUMN_NAMES_SNAPSHOT_TABLE,
+            ...node_snapshot
         }
     };
+};
+
+var EVENT_IMPLEMENTOR_TYPE_IDS;
+(function (EVENT_IMPLEMENTOR_TYPE_IDS) {
+    EVENT_IMPLEMENTOR_TYPE_IDS[EVENT_IMPLEMENTOR_TYPE_IDS["NODE_CHANGE"] = 1] = "NODE_CHANGE";
+    EVENT_IMPLEMENTOR_TYPE_IDS[EVENT_IMPLEMENTOR_TYPE_IDS["NODE_FRAGMENT_CHANGE"] = 2] = "NODE_FRAGMENT_CHANGE";
+    EVENT_IMPLEMENTOR_TYPE_IDS[EVENT_IMPLEMENTOR_TYPE_IDS["LINK_CHANGE"] = 3] = "LINK_CHANGE";
+})(EVENT_IMPLEMENTOR_TYPE_IDS || (EVENT_IMPLEMENTOR_TYPE_IDS = {}));
+
+/**
+ * Create tables for storing versions of a node through time
+ *
+ * - A base table (`event`) describes the event interface.
+ * - Two implementors of the interface exist: `event_link_change` and `event_node_change`
+ * - The types of implementors that exist are in the `event_implementor_type` table
+ * - `event_link_change` captures information about how edges of the node change
+ * - `event_node_change` captures information about how the node's fields changes
+ * - In some cases, a node is composed of other nodes. AKA: it is made up of node fragments.
+ *     For this case, `event_node_change_fragment` captures information about the fragment nodes
+ *     that make up the whole node
+ * - Information about the user that caused an event is captured in the `event`, `user_role`, and `role` tables
+ */
+var createRevisionMigrations = (config) => {
+    const { table_names, event, event_implementor_type, event_link_change, event_node_change, event_node_fragment_register, role, user_role, node_snapshot } = setNames(config);
+    const up = async (knex) => {
+        await knex.schema.createTable(table_names.event_implementor_type, t => {
+            t.increments(event_implementor_type.id)
+                .unsigned()
+                .primary();
+            t.string(event_implementor_type.type).notNullable();
+        });
+        await knex.schema.createTable(table_names.event, t => {
+            t.increments(event.id)
+                .unsigned()
+                .primary();
+            t.integer(event.implementor_type_id)
+                .unsigned()
+                .notNullable()
+                .references(event_implementor_type.id)
+                .inTable(table_names.event_implementor_type);
+            t.timestamp(event.created_at).notNullable();
+            t.string(event.user_id).notNullable();
+            t.string(event.node_name).notNullable();
+            t.string(event.node_id).notNullable();
+            t.string(event.resolver_operation).notNullable();
+        });
+        await knex.schema.createTable(table_names.event_link_change, t => {
+            t.increments(event_link_change.id)
+                .unsigned()
+                .primary();
+            t.integer(event_link_change.event_id)
+                .unsigned()
+                .notNullable()
+                .references(event.id)
+                .inTable(table_names.event);
+            t.string(event_link_change.node_name).notNullable();
+            t.string(event_link_change.node_id).notNullable();
+        });
+        await knex.schema.createTable(table_names.event_node_change, t => {
+            t.increments(event_node_change.id)
+                .unsigned()
+                .primary();
+            t.integer(event_node_change.event_id)
+                .unsigned()
+                .notNullable()
+                .references(event.id)
+                .inTable(table_names.event);
+            t.json(event_node_change.revision_data).notNullable();
+            t.string(event_node_change.node_schema_version).notNullable();
+        });
+        await knex.schema.createTable(table_names.event_node_fragment_register, t => {
+            t.increments(event_node_fragment_register.id)
+                .unsigned()
+                .primary();
+            t.string(event_node_fragment_register.parent_node_id).notNullable();
+            t.string(event_node_fragment_register.parent_node_name).notNullable();
+            t.string(event_node_fragment_register.child_node_id).notNullable();
+            t.string(event_node_fragment_register.child_node_name).notNullable();
+        });
+        await knex.schema.createTable(table_names.node_snapshot, t => {
+            t.increments(node_snapshot.id)
+                .unsigned()
+                .primary();
+            t.integer(node_snapshot.event_id)
+                .unsigned()
+                .notNullable()
+                .references(event.id)
+                .inTable(table_names.event);
+            t.json(node_snapshot.snapshot).notNullable();
+            t.string(event_node_change.node_schema_version).notNullable();
+        });
+        await knex.schema.createTable(table_names.role, t => {
+            t.increments(role.id)
+                .unsigned()
+                .primary();
+            t.string(role.role)
+                .notNullable()
+                .unique();
+        });
+        return await knex.schema.createTable(table_names.user_role, t => {
+            t.increments(user_role.id)
+                .unsigned()
+                .primary();
+            t.integer(user_role.event_id)
+                .unsigned()
+                .notNullable()
+                .references(event.id)
+                .inTable(table_names.event);
+            t.integer(user_role.role_id)
+                .unsigned()
+                .notNullable()
+                .references(role.id)
+                .inTable(table_names.role);
+        });
+    };
     const down = async (knex) => {
-        if (tableNames.revisionRole && tableNames.revisionUserRole) {
-            await knex.schema.dropTable(tableNames.revisionUserRole);
-            await knex.schema.dropTable(tableNames.revisionRole);
-            await knex.schema.dropTable(tableNames.revisionEdge);
-            await knex.schema.dropTable(tableNames.revisionFragment);
-        }
-        await knex.schema.dropTable(tableNames.revisionNodeSnapshot);
-        return await knex.schema.dropTable(tableNames.revision);
+        await knex.schema.dropTable(table_names.user_role);
+        await knex.schema.dropTable(table_names.role);
+        await knex.schema.dropTable(table_names.event_node_fragment_register);
+        await knex.schema.dropTable(table_names.event_node_change);
+        await knex.schema.dropTable(table_names.event_link_change);
+        await knex.schema.dropTable(table_names.event);
+        return await knex.schema.dropTable(table_names.event_implementor_type);
     };
     return { up, down };
 };

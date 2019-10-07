@@ -1,5 +1,9 @@
-import {IVersionRecorderExtractors, QueryShouldTakeNodeSnapshot} from '../../../types';
-import {IEventInfoBase, IEventNodeChangeInfo} from 'types';
+import {
+    IVersionRecorderExtractors,
+    QueryShouldTakeNodeSnapshot,
+    IEventInfoBase,
+    IEventNodeChangeInfo
+} from '../types';
 
 export default async <ResolverT extends (...args: any[]) => any>(
     args: Parameters<ResolverT>,

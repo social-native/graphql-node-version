@@ -63,20 +63,20 @@ export interface ISqlNodeSnapshotTable {
     node_schema_version: string;
 }
 
-export type SqlTable<T> = {[k in keyof T]: string};
+export type StringValueWithKey<T> = {[k in keyof T]: string};
 
 export interface ISqlColumnNames {
-    event: SqlTable<ISqlEventTable>;
-    event_implementor_type: SqlTable<ISqlEventImplementorTypeTable>;
-    event_link_change: SqlTable<ISqlEventLinkChangeTable>;
-    event_node_change: SqlTable<ISqlEventNodeChangeTable>;
-    event_node_fragment_register: SqlTable<ISqlEventNodeFragmentChangeTable>;
-    role: SqlTable<ISqlRoleTable>;
-    user_role: SqlTable<ISqlUserRoleTable>;
-    node_snapshot: SqlTable<ISqlNodeSnapshotTable>;
+    event: StringValueWithKey<ISqlEventTable>;
+    event_implementor_type: StringValueWithKey<ISqlEventImplementorTypeTable>;
+    event_link_change: StringValueWithKey<ISqlEventLinkChangeTable>;
+    event_node_change: StringValueWithKey<ISqlEventNodeChangeTable>;
+    event_node_fragment_register: StringValueWithKey<ISqlEventNodeFragmentChangeTable>;
+    role: StringValueWithKey<ISqlRoleTable>;
+    user_role: StringValueWithKey<ISqlUserRoleTable>;
+    node_snapshot: StringValueWithKey<ISqlNodeSnapshotTable>;
 }
 export interface ITableAndColumnNames extends ISqlColumnNames {
-    table_names: SqlTable<ISqlColumnNames>;
+    table_names: StringValueWithKey<ISqlColumnNames>;
 }
 
 /**
@@ -88,11 +88,11 @@ export interface ITableAndColumnNames extends ISqlColumnNames {
 export interface IGqlVersionNodeBase {
     id: string;
     createdAt: number;
-    userId: string;
-    nodeName: string;
     nodeId: string;
+    nodeName: string;
     resolverOperation: string;
     type: string;
+    userId: string;
     userRoles: string[];
 }
 
@@ -120,7 +120,7 @@ export interface IGqlVersionNodeFragmentChangeNode extends IGqlVersionNodeBase {
     type: string;
     userRoles: string[];
 
-    childId: string;
+    childNodeId: string;
     childNodeName: string;
 }
 
@@ -162,6 +162,23 @@ export interface IVersionConnection<Node> {
  * Extractors (GQL Input -> Data Access Layer)
  *
  */
+
+export interface IVersionConnectionInfo<Resolver extends (...args: any[]) => any> {
+    nodeId: string | number;
+    nodeName: string;
+    nodeBuilder: (
+        previousModel: UnPromisify<ReturnType<Resolver>>,
+        versionInfo: IGqlVersionNode
+    ) => UnPromisify<ReturnType<Resolver>>;
+}
+export interface IVersionConnectionExtractors<Resolver extends (...args: any[]) => any>
+    extends IVersionConnectionInfo<Resolver> {
+    knex: Knex;
+    nodeId: IVersionConnectionInfo<Resolver>['nodeId'];
+    nodeName: IVersionConnectionInfo<Resolver>['nodeName'];
+    nodeBuilder: IVersionConnectionInfo<Resolver>['nodeBuilder'];
+}
+
 export interface IVersionRecorderExtractors<Resolver extends (...args: any[]) => any> {
     userId: (
         parent: Parameters<Resolver>[0],

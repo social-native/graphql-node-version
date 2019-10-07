@@ -1,5 +1,4 @@
-import {IVersionRecorderExtractors} from '../types';
-import {IEventInfoBase, IEventNodeFragmentRegisterInfo} from 'types';
+import {IVersionRecorderExtractors, IEventInfoBase, IEventNodeFragmentRegisterInfo} from '../types';
 
 export default <ResolverT extends (...args: any[]) => any>(
     args: Parameters<ResolverT>,
