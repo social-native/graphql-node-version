@@ -115,9 +115,9 @@ Promise<IQueryResult<IGqlVersionNode>> => {
                     `${table_names.role}.${role.id}`,
                     `${table_names.user_role}.${user_role.role_id}`
                 )
-                .where((k: Knex) => {
+                .orWhere((k: Knex) => {
                     nodeInstances.forEach(({nodeId, nodeName}) => {
-                        k.orWhere({
+                        k.andWhere({
                             [`${table_names.event}.${event.node_id}`]: nodeId,
                             [`${table_names.event}.${event.node_name}`]: nodeName
                         });
@@ -170,8 +170,6 @@ Promise<IQueryResult<IGqlVersionNode>> => {
             'linkNodeId',
             'linkNodeName',
             'userId',
-            // 'snapshotData',
-            // 'snapshotTime',
             `${table_names.role}.${role.role} as roleName`
         );
 
