@@ -5,8 +5,13 @@ import {
     ISqlNodeSnapshotTable,
     IVersionConnectionInfo
 } from '../../types';
-import {unixSecondsToSqlTimestamp} from 'lib/time';
+import {unixSecondsToSqlTimestamp, castDateToUTCSeconds} from 'lib/time';
 
+export interface IEventWithSnapshot {
+    createdAt: number;
+    id: number;
+    snapshot?: string;
+}
 export default async <ResolverT extends (...args: [any, any, any, any]) => any>(
     knex: Knex,
     {table_names, event, node_snapshot}: ITableAndColumnNames,
@@ -14,8 +19,8 @@ export default async <ResolverT extends (...args: [any, any, any, any]) => any>(
     allNodeInstancesInConnection: Array<
         Pick<IVersionConnectionInfo<ResolverT>, 'nodeId' | 'nodeName'>
     >
-): Promise<Array<{createdAt: string; id: number; snapshot?: string}>> => {
-    return (await knex
+): Promise<IEventWithSnapshot[]> => {
+    const result = (await knex
         .table<ISqlEventTable>(table_names.event)
         .leftJoin<ISqlNodeSnapshotTable>(
             table_names.node_snapshot,
@@ -50,4 +55,18 @@ export default async <ResolverT extends (...args: [any, any, any, any]) => any>(
         createdAt: string;
         snapshot?: string;
     }>;
+
+    return result.map(castNodeWithRevisionTimeInDateTimeToUnixSecs);
+};
+
+const castNodeWithRevisionTimeInDateTimeToUnixSecs = <T extends {createdAt: string}>(
+    node: T
+): T & {createdAt: number} => {
+    const {createdAt} = node;
+    const newRevisionTime = castDateToUTCSeconds(createdAt);
+    console.log('~~~~~~~~~~~', `from: ${createdAt}`, 'to :', newRevisionTime);
+    return {
+        ...node,
+        createdAt: newRevisionTime
+    };
 };

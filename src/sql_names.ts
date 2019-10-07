@@ -7,7 +7,7 @@ import {
     ISqlRoleTable,
     ISqlUserRoleTable,
     ISqlNodeSnapshotTable,
-    SqlTable,
+    StringValueWithKey,
     ISqlColumnNames,
     ITableAndColumnNames
 } from './types';
@@ -22,7 +22,7 @@ import {
  * TABLE NAMES
  */
 
-export const DEFAULT_SQL_TABLE_NAMES: SqlTable<ISqlColumnNames> = {
+export const DEFAULT_SQL_TABLE_NAMES: StringValueWithKey<ISqlColumnNames> = {
     event: 'version_event',
     event_implementor_type: 'version_event_implementor_type',
     event_link_change: 'version_event_link_change',
@@ -37,7 +37,7 @@ export const DEFAULT_SQL_TABLE_NAMES: SqlTable<ISqlColumnNames> = {
  * COLUMN NAMES
  */
 
-export const DEFAULT_COLUMN_NAMES_EVENT_TABLE: SqlTable<ISqlEventTable> = {
+export const DEFAULT_COLUMN_NAMES_EVENT_TABLE: StringValueWithKey<ISqlEventTable> = {
     id: 'id',
     created_at: 'created_at',
     user_id: 'user_id',
@@ -47,28 +47,32 @@ export const DEFAULT_COLUMN_NAMES_EVENT_TABLE: SqlTable<ISqlEventTable> = {
     implementor_type_id: 'implementor_type_id'
 };
 
-export const DEFAULT_COLUMN_NAMES_EVENT_IMPLEMENTOR_TYPE_TABLE: SqlTable<
+export const DEFAULT_COLUMN_NAMES_EVENT_IMPLEMENTOR_TYPE_TABLE: StringValueWithKey<
     ISqlEventImplementorTypeTable
 > = {
     id: 'id',
     type: 'type'
 };
 
-export const DEFAULT_COLUMN_NAMES_EVENT_LINK_CHANGE_TABLE: SqlTable<ISqlEventLinkChangeTable> = {
+export const DEFAULT_COLUMN_NAMES_EVENT_LINK_CHANGE_TABLE: StringValueWithKey<
+    ISqlEventLinkChangeTable
+> = {
     id: 'id',
     event_id: 'event_id',
     node_name: 'node_name',
     node_id: 'node_id'
 };
 
-export const DEFAULT_COLUMN_NAMES_EVENT_NODE_CHANGE_TABLE: SqlTable<ISqlEventNodeChangeTable> = {
+export const DEFAULT_COLUMN_NAMES_EVENT_NODE_CHANGE_TABLE: StringValueWithKey<
+    ISqlEventNodeChangeTable
+> = {
     id: 'id',
     event_id: 'event_id',
     revision_data: 'revision_data',
     node_schema_version: 'schema_version'
 };
 
-export const DEFAULT_COLUMN_NAMES_EVENT_NODE_FRAGMENT_REGISTER_TABLE: SqlTable<
+export const DEFAULT_COLUMN_NAMES_EVENT_NODE_FRAGMENT_REGISTER_TABLE: StringValueWithKey<
     ISqlEventNodeFragmentChangeTable
 > = {
     id: 'id',
@@ -78,18 +82,18 @@ export const DEFAULT_COLUMN_NAMES_EVENT_NODE_FRAGMENT_REGISTER_TABLE: SqlTable<
     child_node_name: 'child_node_name'
 };
 
-export const DEFAULT_COLUMN_NAMES_ROLE_TABLE: SqlTable<ISqlRoleTable> = {
+export const DEFAULT_COLUMN_NAMES_ROLE_TABLE: StringValueWithKey<ISqlRoleTable> = {
     id: 'id',
     role: 'role'
 };
 
-export const DEFAULT_COLUMN_NAMES_USER_ROLE_TABLE: SqlTable<ISqlUserRoleTable> = {
+export const DEFAULT_COLUMN_NAMES_USER_ROLE_TABLE: StringValueWithKey<ISqlUserRoleTable> = {
     id: 'id',
     role_id: 'role_id',
     event_id: 'event_id'
 };
 
-export const DEFAULT_COLUMN_NAMES_SNAPSHOT_TABLE: SqlTable<ISqlNodeSnapshotTable> = {
+export const DEFAULT_COLUMN_NAMES_SNAPSHOT_TABLE: StringValueWithKey<ISqlNodeSnapshotTable> = {
     id: 'id',
     event_id: 'event_id',
     snapshot: 'snapshot',

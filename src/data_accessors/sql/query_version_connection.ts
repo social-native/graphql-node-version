@@ -13,10 +13,8 @@ import {
     IFilter
 } from '@social-native/snpkg-snapi-connections';
 import {unixSecondsToSqlTimestamp, castDateToUTCSeconds} from 'lib/time';
-// import {parseInt} from '../../lib';
 
 const castUnixToDateTimeInFilter = (filter: IFilter) => {
-    console.log('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
     if (filter.field === 'createdAt') {
         const date = parseInt(filter.value, 10);
         const value = unixSecondsToSqlTimestamp(date);
@@ -132,10 +130,6 @@ Promise<IQueryResult<NodeInConnection & {snapshot?: string}>> => {
                         });
                     });
                 })
-                // .where({
-                //     [`${table_names.event}.${event.node_id}`]: nodeId,
-                //     [`${table_names.event}.${event.node_name}`]: nodeName
-                // })
                 .select(
                     `${table_names.event_implementor_type}.${event_implementor_type.type} as type`,
 
@@ -157,7 +151,6 @@ Promise<IQueryResult<NodeInConnection & {snapshot?: string}>> => {
                 .orderBy(`${table_names.event}.${event.created_at}`, 'desc');
 
             nodeConnection.createQuery(queryBuilder).as('main');
-            console.log('QUERY', queryBuilder.toSQL());
         })
         .leftJoin(
             table_names.user_role,
@@ -198,10 +191,7 @@ Promise<IQueryResult<NodeInConnection & {snapshot?: string}>> => {
  * for each user role. Thus, we need to combine user roles together into an array for
  * each duplicate of a revision.
  */
-const aggregateVersionsById = (
-    nodeVersions: NodesInConnectionUnprocessed
-    // Array<{eventId: string; roleName: string; revisionData: object}>
-) => {
+const aggregateVersionsById = (nodeVersions: NodesInConnectionUnprocessed) => {
     // extract all the user roles for the version
     const rolesByRevisionId = nodeVersions.reduce(
         (rolesObj, {id, roleName}) => {

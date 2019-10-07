@@ -72,29 +72,14 @@ const getMinCreatedAtOfVersionWithSnapshot = async (
     {table_names, event, node_snapshot}: ITableAndColumnNames,
     oldestNodes: NodeInConnection[]
 ): Promise<{createdAt: number}> => {
-    // if (revisionsOfInterest.edges.length === 0) {
-    //     return undefined;
-    // }
-    // const firstRevisionInRange = revisionsOfInterest.edges[revisionsOfInterest.edges.length - 1];
-
-    // const hasSnapshotData = !!firstRevisionInRange.node.snapshotData;
-    // if (hasSnapshotData) {
-    //     const {revisionId, revisionTime} = firstRevisionInRange.node;
-    //     return {revisionId, revisionTime};
-    // }
-
-    // const {nodeId, revisionId: lastRevisionId} = firstRevisionInRange.node;
     const result = (await knex
         .queryBuilder()
         .from(table_names.event)
         .leftJoin(
             table_names.node_snapshot,
-            `${table_names.node_snapshot}.${node_snapshot.event_id}`, // tslint:disable-line
+            `${table_names.node_snapshot}.${node_snapshot.event_id}`,
             `${table_names.event}.${event.id}`
         )
-        // .where({
-        //     [`${table_names.revision}.${columnNames.nodeId}`]: nodeId
-        // })
         .orWhere((k: Knex) => {
             oldestNodes.forEach(({nodeId, nodeName, createdAt}) => {
                 k.andWhere({
@@ -104,16 +89,11 @@ const getMinCreatedAtOfVersionWithSnapshot = async (
                 k.andWhere(`${table_names.event}.${event.created_at}`, '<', `${createdAt} `);
             });
         })
-        .whereNotNull(
-            `${table_names.node_snapshot}.${node_snapshot.snapshot}` // tslint:disable-line
-        )
-        .select(
-            `${table_names.event}.${event.created_at} as createdAt` // tslint:disable-line
-        )
+        .whereNotNull(`${table_names.node_snapshot}.${node_snapshot.snapshot}`)
+        .select(`${table_names.event}.${event.created_at} as createdAt`)
         .orderBy(`${table_names.event}.${event.created_at}`, 'desc')
         .first()) as {createdAt: string};
 
-    console.log('resulttttt', result);
     return castNodeWithRevisionTimeInDateTimeToUnixSecs(result);
 };
 
