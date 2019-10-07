@@ -10,6 +10,8 @@ import {unixSecondsToSqlTimestamp, castDateToUTCSeconds} from 'lib/time';
 export interface IEventWithSnapshot {
     createdAt: number;
     id: number;
+    nodeId: string;
+    nodeName: string;
     snapshot?: string;
 }
 export default async <ResolverT extends (...args: [any, any, any, any]) => any>(
@@ -48,10 +50,14 @@ export default async <ResolverT extends (...args: [any, any, any, any]) => any>(
         .orderBy(`${table_names.event}.${event.created_at}`, 'desc')
         .select(
             `${table_names.event}.${event.id} as id`,
+            `${table_names.event}.${event.node_id} as nodeId`,
+            `${table_names.event}.${event.node_id} as nodeName`,
             `${table_names.event}.${event.created_at} as createdAt`,
             `${table_names.node_snapshot}.${node_snapshot.snapshot} as snapshot`
         )) as Array<{
         id: number;
+        nodeId: string;
+        nodeName: string;
         createdAt: string;
         snapshot?: string;
     }>;

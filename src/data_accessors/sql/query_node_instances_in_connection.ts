@@ -4,7 +4,7 @@ import {IVersionConnectionInfo, ITableAndColumnNames} from 'types';
 export default async <ResolverT extends (...args: any[]) => any>(
     knex: Knex,
     {table_names, event_node_fragment_register}: ITableAndColumnNames,
-    originalNodeInstance: IVersionConnectionInfo<ResolverT>
+    originalNodeInstance: Pick<IVersionConnectionInfo<ResolverT>, 'nodeId' | 'nodeName'>
 ): Promise<Array<Pick<IVersionConnectionInfo<ResolverT>, 'nodeId' | 'nodeName'>>> => {
     const allNodeInstancesInConnection = (await knex
         .table(table_names.event_node_fragment_register)

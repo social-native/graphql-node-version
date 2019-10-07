@@ -1,14 +1,14 @@
 import {
     UnPromisify,
-    INamesConfig,
-    INamesForTablesAndColumns,
-    INodeBuilderRevisionInfo,
-    IRevisionQueryResult,
-    ILinkChange,
-    IVersionConnection,
-    Unpacked
+    IVersionConnectionExtractors,
+    ITableAndColumnNames,
+    IGqlVersionNode
 } from './types';
-import {ConnectionManager, IQueryResult, IFilter} from '@social-native/snpkg-snapi-connections';
+import {ConnectionManager} from '@social-native/snpkg-snapi-connections';
+import queryVersionConnection from './data_accessors/sql/query_version_connection';
+import queryNodeInstancesInConnection from './data_accessors/sql/query_node_instances_in_connection';
+import queryTimeRangeOfVersionConnection from './data_accessors/sql/query_time_range_of_version_connection';
+import queryEventsWithSnapshots from './data_accessors/sql/query_events_with_snapshots';
 
 import {setNames} from 'sql_names';
 
@@ -20,7 +20,7 @@ import {setNames} from 'sql_names';
  */
 export default <ResolverT extends (...args: [any, any, any, any]) => any>(
     extractors: IVersionConnectionExtractors<ResolverT>,
-    config?: INamesConfig
+    config?: {names: ITableAndColumnNames}
 ): MethodDecorator => {
     return (_target, _property, descriptor: TypedPropertyDescriptor<any>) => {
         const {value} = descriptor;
@@ -33,7 +33,7 @@ export default <ResolverT extends (...args: [any, any, any, any]) => any>(
             const latestNode = (await value(args[0], args[1], args[2], args[3])) as UnPromisify<
                 ReturnType<ResolverT>
             >;
-            return createRevisionConnection<ResolverT>(
+            return createVersionConnectionWithFullNodes<ResolverT>(
                 latestNode,
                 args as Parameters<ResolverT>,
                 extractors,
@@ -45,228 +45,210 @@ export default <ResolverT extends (...args: [any, any, any, any]) => any>(
     };
 };
 
-export const createRevisionConnection = async <
+export const createVersionConnectionWithFullNodes = async <
     ResolverT extends (...args: [any, any, any, any]) => any
 >(
     currentVersionNode: UnPromisify<ReturnType<ResolverT>>,
     resolverArgs: Parameters<ResolverT>,
     extractors: IVersionConnectionExtractors<ResolverT>,
-    config?: INamesConfig
+    config?: {names: ITableAndColumnNames}
 ) => {
     // tslint:disable-next-line
     console.log('CURRENT NODE', currentVersionNode);
-    const {knex} = extractors;
-    // extractors.knex(resolverArgs[0], resolverArgs[1], resolverArgs[2], resolverArgs[3]);
+    const {knex, nodeId, nodeName} = extractors;
 
-    const nodeToSqlNameMappings = setNames(config || {});
+    const tableAndColumnNames = setNames(config ? config.names : undefined);
 
-    // Step 1. Get all revisions in the connection
-    console.log('1. GETTING NODE CHANGE REVISIONS OF INTEREST');
-    const nodeChangesOfInterest = await getNodeChangesOfInterest(
-        resolverArgs as Parameters<ResolverT>,
+    const nodeInstancesInConnection = await queryNodeInstancesInConnection(
         knex,
-        nodeToSqlNameMappings,
-        extractors
+        tableAndColumnNames,
+        {nodeId, nodeName}
+    );
+
+    const versionNodeConnection = await queryVersionConnection(
+        resolverArgs[1],
+        knex,
+        tableAndColumnNames,
+        nodeInstancesInConnection
     );
 
     console.log('2. CHECK IF THERE ARE NO NODE CHANGE REVISIONS');
     // Step 2. If there are no revisions in the connection, return with no edges
-    if (nodeChangesOfInterest.edges.length === 0) {
-        const attributeMap = {
-            ...nodeToSqlNameMappings.columnNames,
-            id: `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.revisionId}`,
-            revisionId: `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.revisionId}`,
-            revisionTime: `${nodeToSqlNameMappings.tableNames.revision}.${nodeToSqlNameMappings.columnNames.revisionTime}`,
-            userRoles: `${nodeToSqlNameMappings.tableNames.revisionRole}.${nodeToSqlNameMappings.columnNames.roleName}`
-        };
-
-        const nodeConnection = new ConnectionManager<IRevisionQueryResult<number>>(
-            resolverArgs[1],
-            attributeMap,
-            {
-                builderOptions: {
-                    filterTransformer: castUnixToDateTime
-                },
-                resultOptions: {
-                    nodeTransformer: castNodeWithRevisionTimeInDateTimeToUnixSecs
-                }
-            }
-        );
+    if (versionNodeConnection.edges.length === 0) {
+        const nodeConnection = new ConnectionManager<IGqlVersionNode>(resolverArgs[1], {});
         nodeConnection.addResult([{}]);
         const {edges, pageInfo} = nodeConnection;
         const firstEdge = edges[0];
-        return {pageInfo, edges: [{...firstEdge, nodeChange: undefined, node: currentVersionNode}]};
+        return {pageInfo, edges: [{...firstEdge, version: undefined, node: currentVersionNode}]};
     }
 
-    const {nodeId, nodeName} = nodeChangesOfInterest.edges[0].node;
-
-    const revisionsInRange = await getRevisionsInRange(
-        maxRevisionNumber,
-        minRevisionNumber,
-        nodeId,
-        nodeName,
+    const timeRangeOfVersionConnection = await queryTimeRangeOfVersionConnection(
         knex,
-        nodeToSqlNameMappings
+        tableAndColumnNames,
+        resolverArgs,
+        versionNodeConnection.edges.map(e => e.node),
+        nodeInstancesInConnection
     );
 
-    console.log('5. GET LINK CHANGE VERSIONS IN RANGE OF INTEREST', {
-        isUsingConnectionCursor,
-        maxRevisionTimeInUnixSecs,
-        minRevisionTimeInUnixSecs,
-        nodeName,
-        nodeId
-    });
-    const linkChanges = await getLinkChangesInRangeOfInterest(
+    const eventsWithSnapshots = await queryEventsWithSnapshots(
         knex,
-        nodeToSqlNameMappings,
-        maxRevisionTimeInUnixSecs,
-        minRevisionTimeInUnixSecs,
-        nodeName,
-        nodeId
+        tableAndColumnNames,
+        timeRangeOfVersionConnection,
+        nodeInstancesInConnection
     );
 
-    console.log(linkChanges);
+    console.log(eventsWithSnapshots);
+    // TODO FINISH
+    // const eventsWithFullNodes = eventsWithSnapshots.reverse().reduce(
+    //     (acc, event) => {
+    //         if (event.snapshot) {
+    //             // const node = JSON.parse(event.snapshot) as UnPromisify<ReturnType<ResolverT>>;
+    //             acc.mostRecentSnapshot[`${event.nodeId}-${event.nodeName}`] = event.snapshot;
+    //         }
+    //         const snapshot = acc.mostRecentSnapshot[`${event.nodeId}-${event.nodeName}`];
+    //         if (snapshot) {
+    //             const calculatedNode = extractors.nodeBuilder(
+    //                 nodes[previousRevision.revisionId],
+    //                 revision
+    //             );
+    //         }
+    //         return acc;
+    //     },
+    //     {mostRecentSnapshot: {}, fullNodes: {}} as {
+    //         mostRecentSnapshot: {[nodeIdAndNodeName: string]: string};
+    //         lastVersion: {[nodeIdAndNodeName: string]: string};
+    //         fullNodes: {[eventId: number]: object};
+    //     }
+    // );
 
-    console.log('6. CALCULATE NODE DIFFS');
-    // Step 6. Calculate nodes by applying revision diffs to previous node snapshots
-    const nodesInRange = calculateNodesInRangeOfInterest(revisionsInRange, extractors);
-    // const latestCalculatedNode = nodesInRange[nodesInRange.length - 1];
-
-    console.log('7. BUILD VERSIONED EDGES');
-    // Step 7. Build the versioned edges using the full nodes and the desired revisions
-    const newEdges = calculateEdgesInRangeOfInterest(nodeChangesOfInterest, nodesInRange);
-
-    const mergedEdges = mergeNodeEdgesWithEdgesInRangeOfInterest(linkChanges, newEdges);
-    console.log('MERGED EDGESSSSSSS', mergedEdges);
-    console.log('8. BUILD CONNECTION');
     // Step 8. Build the connection
-    return {pageInfo: nodeChangesOfInterest.pageInfo, edges: mergedEdges};
+    return {pageInfo: versionNodeConnection.pageInfo, edges: versionNodeConnection.edges};
 };
 
-export interface INodesOfInterest<ResolverT extends (...args: any[]) => any> {
-    [revisionId: string]: UnPromisify<ReturnType<ResolverT>>;
-}
+// export interface INodesOfInterest<ResolverT extends (...args: any[]) => any> {
+//     [revisionId: string]: UnPromisify<ReturnType<ResolverT>>;
+// }
 
-const mergeNodeEdgesWithEdgesInRangeOfInterest = <ResolverT extends (...args: any[]) => any>(
-    nodeEdgesOfVersions: ILinkChange[],
-    edgesInRangeOfInterest: Array<
-        Pick<
-            Unpacked<IVersionConnection<UnPromisify<ReturnType<ResolverT>>>['edges']>,
-            'cursor' | 'nodeChange' | 'node'
-        >
-    >
-) => {
-    // tslint:disable-next-line
-    const joinedEdges = [...nodeEdgesOfVersions, ...edgesInRangeOfInterest].sort((edgeA, edgeB) => {
-        const revisionTimeA = isRevisionEdge(edgeA)
-            ? edgeA.revisionTime
-            : edgeA.nodeChange && edgeA.nodeChange.revisionTime;
-        const revisionTimeB = isRevisionEdge(edgeB)
-            ? edgeB.revisionTime
-            : edgeB.nodeChange && edgeB.nodeChange.revisionTime;
+// const mergeNodeEdgesWithEdgesInRangeOfInterest = <ResolverT extends (...args: any[]) => any>(
+//     nodeEdgesOfVersions: ILinkChange[],
+//     edgesInRangeOfInterest: Array<
+//         Pick<
+//             Unpacked<IVersionConnection<UnPromisify<ReturnType<ResolverT>>>['edges']>,
+//             'cursor' | 'nodeChange' | 'node'
+//         >
+//     >
+// ) => {
+//     // tslint:disable-next-line
+//     const joinedEdges = [...nodeEdgesOfVersions, ...edgesInRangeOfInterest].sort((edgeA, edgeB) => {
+//         const revisionTimeA = isRevisionEdge(edgeA)
+//             ? edgeA.revisionTime
+//             : edgeA.nodeChange && edgeA.nodeChange.revisionTime;
+//         const revisionTimeB = isRevisionEdge(edgeB)
+//             ? edgeB.revisionTime
+//             : edgeB.nodeChange && edgeB.nodeChange.revisionTime;
 
-        if (!revisionTimeA || !revisionTimeB) {
-            throw new Error('Missing revision time for revision');
-        }
-        return revisionTimeA > revisionTimeB ? 0 : -1;
-    });
+//         if (!revisionTimeA || !revisionTimeB) {
+//             throw new Error('Missing revision time for revision');
+//         }
+//         return revisionTimeA > revisionTimeB ? 0 : -1;
+//     });
 
-    // return joinedEdges;
-    const newVersions = joinedEdges
-        .reduce(
-            (allEdges, edge, index) => {
-                if (isRevisionEdge(edge) && index === 0) {
-                    throw new Error(
-                        'The first edge should be a revision not a record of edge creation'
-                    );
-                }
-                if (isRevisionEdge(edge)) {
-                    const lastEdge = allEdges[index - 1] || {};
-                    const newEdge = {
-                        ...lastEdge,
-                        nodeChange: undefined,
-                        linkChange: edge,
-                        isLinkChange: true,
-                        isNodeChange: false
-                    };
-                    allEdges.push(newEdge);
-                } else {
-                    allEdges.push({
-                        ...edge,
-                        linkChange: undefined,
-                        isNodeChange: true,
-                        isLinkChange: false
-                    } as any);
-                }
-                return allEdges;
-            },
-            [] as IVersionConnection<UnPromisify<ReturnType<ResolverT>>>['edges']
-        )
-        .reverse();
-    return newVersions;
-};
+//     // return joinedEdges;
+//     const newVersions = joinedEdges
+//         .reduce(
+//             (allEdges, edge, index) => {
+//                 if (isRevisionEdge(edge) && index === 0) {
+//                     throw new Error(
+//                         'The first edge should be a revision not a record of edge creation'
+//                     );
+//                 }
+//                 if (isRevisionEdge(edge)) {
+//                     const lastEdge = allEdges[index - 1] || {};
+//                     const newEdge = {
+//                         ...lastEdge,
+//                         nodeChange: undefined,
+//                         linkChange: edge,
+//                         isLinkChange: true,
+//                         isNodeChange: false
+//                     };
+//                     allEdges.push(newEdge);
+//                 } else {
+//                     allEdges.push({
+//                         ...edge,
+//                         linkChange: undefined,
+//                         isNodeChange: true,
+//                         isLinkChange: false
+//                     } as any);
+//                 }
+//                 return allEdges;
+//             },
+//             [] as IVersionConnection<UnPromisify<ReturnType<ResolverT>>>['edges']
+//         )
+//         .reverse();
+//     return newVersions;
+// };
 
-const isRevisionEdge = (edge: ILinkChange | any): edge is ILinkChange => {
-    return typeof edge.revisionTime === 'number';
-};
+// const isRevisionEdge = (edge: ILinkChange | any): edge is ILinkChange => {
+//     return typeof edge.revisionTime === 'number';
+// };
 
-const calculateEdgesInRangeOfInterest = <ResolverT extends (...args: any[]) => any>(
-    revisionsOfInterest: IQueryResult<IRevisionQueryResult<number>>,
-    nodesInRange: INodesOfInterest<ResolverT>
-) => {
-    return revisionsOfInterest.edges.map(edge => {
-        const {
-            revisionData,
-            userId,
-            nodeName: nn,
-            nodeSchemaVersion,
-            resolverOperation,
-            revisionTime,
-            revisionId,
-            userRoles
-        } = edge.node;
-        const nodeChange = {
-            revisionData,
-            userId,
-            nodeName: nn,
-            nodeSchemaVersion,
-            resolverOperation,
-            revisionTime,
-            revisionId,
-            userRoles
-        };
-        const calculatedNode = nodesInRange[edge.node.revisionId];
-        return {...edge, node: calculatedNode, nodeChange};
-    });
-};
+// const calculateEdgesInRangeOfInterest = <ResolverT extends (...args: any[]) => any>(
+//     revisionsOfInterest: IQueryResult<IRevisionQueryResult<number>>,
+//     nodesInRange: INodesOfInterest<ResolverT>
+// ) => {
+//     return revisionsOfInterest.edges.map(edge => {
+//         const {
+//             revisionData,
+//             userId,
+//             nodeName: nn,
+//             nodeSchemaVersion,
+//             resolverOperation,
+//             revisionTime,
+//             revisionId,
+//             userRoles
+//         } = edge.node;
+//         const nodeChange = {
+//             revisionData,
+//             userId,
+//             nodeName: nn,
+//             nodeSchemaVersion,
+//             resolverOperation,
+//             revisionTime,
+//             revisionId,
+//             userRoles
+//         };
+//         const calculatedNode = nodesInRange[edge.node.revisionId];
+//         return {...edge, node: calculatedNode, nodeChange};
+//     });
+// };
 
-const calculateNodesInRangeOfInterest = <ResolverT extends (...args: any[]) => any>(
-    revisionsInRange: INodeBuilderRevisionInfo[],
-    extractors: IVersionConnectionExtractors<ResolverT>
-) => {
-    return revisionsInRange.reduce(
-        (nodes, revision, index) => {
-            console.log('-----------------------------');
-            const {revisionId, snapshotData, revisionData} = revision;
-            if (index === 0 || snapshotData) {
-                console.log('Using snapshot for', revisionId);
-                nodes[revisionId] =
-                    typeof snapshotData === 'string' ? JSON.parse(snapshotData) : snapshotData;
-            } else {
-                console.log('Calculating node for', revisionId);
+// const calculateNodesInRangeOfInterest = <ResolverT extends (...args: any[]) => any>(
+//     revisionsInRange: INodeBuilderRevisionInfo[],
+//     extractors: IVersionConnectionExtractors<ResolverT>
+// ) => {
+//     return revisionsInRange.reduce(
+//         (nodes, revision, index) => {
+//             console.log('-----------------------------');
+//             const {revisionId, snapshotData, revisionData} = revision;
+//             if (index === 0 || snapshotData) {
+//                 console.log('Using snapshot for', revisionId);
+//                 nodes[revisionId] =
+//                     typeof snapshotData === 'string' ? JSON.parse(snapshotData) : snapshotData;
+//             } else {
+//                 console.log('Calculating node for', revisionId);
 
-                const previousRevision = revisionsInRange[index - 1];
-                const calculatedNode = extractors.nodeBuilder(
-                    nodes[previousRevision.revisionId],
-                    revision
-                );
-                console.log('Calculated node', calculatedNode);
-                console.log('Calculated diff', revisionData);
+//                 const previousRevision = revisionsInRange[index - 1];
+//                 const calculatedNode = extractors.nodeBuilder(
+//                     nodes[previousRevision.revisionId],
+//                     revision
+//                 );
+//                 console.log('Calculated node', calculatedNode);
+//                 console.log('Calculated diff', revisionData);
 
-                nodes[revisionId] = calculatedNode;
-            }
-            return nodes;
-        },
-        {} as INodesOfInterest<ResolverT>
-    );
-};
+//                 nodes[revisionId] = calculatedNode;
+//             }
+//             return nodes;
+//         },
+//         {} as INodesOfInterest<ResolverT>
+//     );
+// };

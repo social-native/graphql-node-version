@@ -55,7 +55,7 @@ export default async <ResolverT extends (...args: any[]) => any>(
         user_role,
         node_snapshot
     }: ITableAndColumnNames,
-    nodeInstances: Array<IVersionConnectionInfo<ResolverT>>
+    nodeInstances: Array<Pick<IVersionConnectionInfo<ResolverT>, 'nodeId' | 'nodeName'>>
 ): //  INamesForTablesAndColumns,
 // extractors: IVersionConnectionExtractors<ResolverT>
 Promise<IQueryResult<NodeInConnection & {snapshot?: string}>> => {
