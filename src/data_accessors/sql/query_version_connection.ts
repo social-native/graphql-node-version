@@ -3,7 +3,8 @@ import {
     ITableAndColumnNames,
     StringValueWithKey,
     IGqlVersionNode,
-    IVersionConnectionInfo
+    IVersionConnectionInfo,
+    NodeInConnection
 } from 'types';
 import {
     ConnectionManager,
@@ -16,7 +17,7 @@ import {unixSecondsToSqlTimestamp, castDateToUTCSeconds} from 'lib/time';
 
 const castUnixToDateTimeInFilter = (filter: IFilter) => {
     console.log('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
-    if (filter.field === 'revisionTime') {
+    if (filter.field === 'createdAt') {
         const date = parseInt(filter.value, 10);
         const value = unixSecondsToSqlTimestamp(date);
         console.log(`Changing revision time from ${filter.value}, to: ${value}`);
@@ -28,17 +29,19 @@ const castUnixToDateTimeInFilter = (filter: IFilter) => {
     return filter;
 };
 
-const castNodeWithRevisionTimeInDateTimeToUnixSecs = <T extends {revisionTime: string}>(
+const castNodeWithRevisionTimeInDateTimeToUnixSecs = <T extends {createdAt: string}>(
     node: T
-): T & {revisionTime: number} => {
-    const {revisionTime} = node;
-    const newRevisionTime = castDateToUTCSeconds(revisionTime);
-    console.log('~~~~~~~~~~~', `from: ${revisionTime}`, 'to :', newRevisionTime);
+): T & {createdAt: number} => {
+    const {createdAt} = node;
+    const newRevisionTime = castDateToUTCSeconds(createdAt);
+    console.log('~~~~~~~~~~~', `from: ${createdAt}`, 'to :', newRevisionTime);
     return {
         ...node,
-        revisionTime: newRevisionTime
+        createdAt: newRevisionTime
     };
 };
+
+type NodesInConnectionUnprocessed = Array<NodeInConnection & {roleName: string}>;
 
 export default async <ResolverT extends (...args: any[]) => any>(
     connectionInputs: IInputArgs,
@@ -51,12 +54,13 @@ export default async <ResolverT extends (...args: any[]) => any>(
         event_link_change,
         event_node_change,
         event_node_fragment_register,
-        user_role
+        user_role,
+        node_snapshot
     }: ITableAndColumnNames,
     nodeInstances: Array<IVersionConnectionInfo<ResolverT>>
 ): //  INamesForTablesAndColumns,
 // extractors: IVersionConnectionExtractors<ResolverT>
-Promise<IQueryResult<IGqlVersionNode>> => {
+Promise<IQueryResult<NodeInConnection & {snapshot?: string}>> => {
     const attributeMap = {
         id: `${table_names.event}.${event.id}`,
         createdAt: `${table_names.event}.${event.created_at}`,
@@ -115,6 +119,11 @@ Promise<IQueryResult<IGqlVersionNode>> => {
                     `${table_names.role}.${role.id}`,
                     `${table_names.user_role}.${user_role.role_id}`
                 )
+                .leftJoin(
+                    table_names.node_snapshot,
+                    `${table_names.node_snapshot}.${node_snapshot.event_id}`,
+                    `${table_names.event}.${event.id}`
+                )
                 .orWhere((k: Knex) => {
                     nodeInstances.forEach(({nodeId, nodeName}) => {
                         k.andWhere({
@@ -130,7 +139,7 @@ Promise<IQueryResult<IGqlVersionNode>> => {
                 .select(
                     `${table_names.event_implementor_type}.${event_implementor_type.type} as type`,
 
-                    `${table_names.event}.${event.id} as versionId`,
+                    `${table_names.event}.${event.id} as id`,
                     `${table_names.event}.${event.created_at} as createdAt`,
                     `${table_names.event}.${event.node_name} as nodeName`,
                     `${table_names.event}.${event.node_id} as nodeId`,
@@ -141,7 +150,9 @@ Promise<IQueryResult<IGqlVersionNode>> => {
                     `${table_names.event_link_change}.${event_link_change.node_name} as linkNodeName`,
 
                     `${table_names.event_node_change}.${event_node_change.revision_data} as revisionData`,
-                    `${table_names.event_node_change}.${event_node_change.node_schema_version} as nodeSchemaVersion`
+                    `${table_names.event_node_change}.${event_node_change.node_schema_version} as nodeSchemaVersion`,
+
+                    `${table_names.node_snapshot}.${node_snapshot.snapshot} as snapshot`
                 )
                 .orderBy(`${table_names.event}.${event.created_at}`, 'desc');
 
@@ -160,7 +171,7 @@ Promise<IQueryResult<IGqlVersionNode>> => {
         )
         .select(
             'type',
-            'versionId',
+            'main.id as id',
             'createdAt',
             'revisionData',
             'nodeName',
@@ -170,8 +181,9 @@ Promise<IQueryResult<IGqlVersionNode>> => {
             'linkNodeId',
             'linkNodeName',
             'userId',
+            'snapshot',
             `${table_names.role}.${role.role} as roleName`
-        );
+        ) as Promise<NodesInConnectionUnprocessed>;
 
     const nodeResult = await query;
     const uniqueVersions = aggregateVersionsById(nodeResult);
@@ -187,19 +199,18 @@ Promise<IQueryResult<IGqlVersionNode>> => {
  * each duplicate of a revision.
  */
 const aggregateVersionsById = (
-    nodeVersions: Array<{revisionId: string; roleName: string; revisionData: object}>
+    nodeVersions: NodesInConnectionUnprocessed
+    // Array<{eventId: string; roleName: string; revisionData: object}>
 ) => {
     // extract all the user roles for the version
     const rolesByRevisionId = nodeVersions.reduce(
-        (rolesObj, {revisionId, roleName}) => {
-            const roleNames = rolesObj[revisionId] || [];
+        (rolesObj, {id, roleName}) => {
+            const roleNames = rolesObj[id] || [];
 
-            rolesObj[revisionId] = roleNames.includes(roleName)
-                ? roleNames
-                : [...roleNames, roleName];
+            rolesObj[id] = roleNames.includes(roleName) ? roleNames : [...roleNames, roleName];
             return rolesObj;
         },
-        {} as {[revisionId: string]: string[]}
+        {} as {[id: string]: string[]}
     );
 
     // map over the versions
@@ -208,24 +219,26 @@ const aggregateVersionsById = (
     // - add user roles
     const versions = nodeVersions.reduce(
         (uniqueVersions, version) => {
-            if (uniqueVersions[version.revisionId]) {
+            if (uniqueVersions[version.id]) {
                 return uniqueVersions;
             }
-            uniqueVersions[version.revisionId] = {
+            uniqueVersions[version.id] = {
                 ...version,
-                userRoles: rolesByRevisionId[version.revisionId],
-                revisionData:
-                    typeof version.revisionData === 'string'
-                        ? version.revisionData
-                        : JSON.stringify(version.revisionData)
+                userRoles: rolesByRevisionId[version.id]
+
+                // TODO reimplement
+                // revisionData:
+                //     typeof version.revisionData === 'string'
+                //         ? version.revisionData
+                //         : JSON.stringify(version.revisionData)
             };
             return uniqueVersions;
         },
         {} as {
-            [revisionId: string]: {revisionId: string; userRoles: string[]; revisionData: string};
+            [id: string]: NodeInConnection;
         }
     );
 
     // make sure versions are returned in the same order as they came in
-    return [...new Set(nodeVersions.map(({revisionId}) => revisionId))].map(id => versions[id]);
+    return [...new Set(nodeVersions.map(({id}) => id))].map(id => versions[id]);
 };

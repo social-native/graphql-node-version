@@ -143,6 +143,8 @@ export type IGqlVersionNode =
     | IGqlVersionNodeFragmentChangeNode
     | IGqlVersionLinkChangeNode;
 
+export type NodeInConnection = IGqlVersionNode & {snapshot?: string};
+
 export interface IVersionConnection<Node> {
     edges: Array<{
         cursor: string;
