@@ -7,7 +7,10 @@ import {
     eventNodeFragmentRegisterInfoExtractor
 } from './extractors';
 import {createKnexTransaction} from './data_accessors/sql/utils';
-import {persistVersion, createQueryShouldStoreSnapshot} from './data_accessors/sql';
+import {
+    persistVersion as initializePersistVersion,
+    createQueryShouldStoreSnapshot
+} from './data_accessors/sql';
 import {getLoggerFromConfig} from 'logger';
 
 export default (config?: IConfig) => <ResolverT extends (...args: any[]) => any>(
@@ -86,14 +89,15 @@ export default (config?: IConfig) => <ResolverT extends (...args: any[]) => any>
             logger.debug('Event node change info:', eventNodeChangeInfo);
 
             logger.debug('Persisting version information');
-            await persistVersion(
-                {
-                    linkChanges: eventLinkChangeInfo,
-                    nodeChange: eventNodeChangeInfo,
-                    fragmentRegistration: eventNodeFragmentRegisterInfo
-                },
-                {knex: localKnexClient, transaction, tableAndColumnNames}
-            );
+            const persistVersion = initializePersistVersion(localKnexClient, transaction, {
+                logger,
+                names: tableAndColumnNames
+            });
+            await persistVersion({
+                linkChanges: eventLinkChangeInfo,
+                nodeChange: eventNodeChangeInfo,
+                fragmentRegistration: eventNodeFragmentRegisterInfo
+            });
 
             logger.debug('Committing transaction...');
             await transaction.commit();

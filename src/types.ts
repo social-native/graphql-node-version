@@ -315,16 +315,16 @@ export interface IPersistVersionInfo {
     fragmentRegistration?: IEventNodeFragmentRegisterInfo;
 }
 
-export type PersistVersion<Config = any | undefined> = (
-    versionInfo: IPersistVersionInfo,
-    config: Config
-) => Promise<void>;
+export type PersistVersion = (
+    versionInfo: IPersistVersionInfo
+) => // config: Config
+Promise<void>;
 
-export interface IPersistVersionInfoConfigSql {
-    knex: Knex;
-    transaction: Knex.Transaction;
-    tableAndColumnNames: ITableAndColumnNames;
-}
+// export interface IPersistVersionInfoConfigSql {
+//     knex: Knex;
+//     transaction: Knex.Transaction;
+//     tableAndColumnNames: ITableAndColumnNames;
+// }
 
 export type QueryShouldTakeNodeSnapshot = (eventInfo: IEventNodeChangeInfo) => Promise<boolean>;
 
@@ -366,8 +366,7 @@ export type BaseResolver<Node = any, P = undefined, A = undefined, C = {}, I = {
  */
 
 export interface IConfig extends ILoggerConfig {
-    logLevel?: string;
-    logOptions: pino.LoggerOptions;
+    logOptions?: pino.LoggerOptions;
     logger?: ReturnType<typeof pino>;
     names?: ITableAndColumnNames;
 }

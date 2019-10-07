@@ -15,6 +15,7 @@ export default async <ResolverT extends (...args: any[]) => any>(
     loggerConfig?: ILoggerConfig
 ): Promise<IEventNodeChangeInfo> => {
     const parentLogger = getLoggerFromConfig(loggerConfig);
+
     const logger = parentLogger.child({step: 'Extract event node change info'});
     const revisionData = extractors.revisionData(args[0], args[1], args[2], args[3]);
     const nodeSchemaVersion = extractors.nodeSchemaVersion;
