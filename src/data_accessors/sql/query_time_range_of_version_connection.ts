@@ -9,6 +9,7 @@ import {
 } from '../../types';
 import {castDateToUTCSeconds} from 'lib/time';
 import {getLoggerFromConfig} from 'logger';
+import Bluebird from 'bluebird';
 /**
  * Fetch the number of full node snapshots for the node id and node schema version
  * If a snapshot exists within the expected snapshot frequency, then we don't need to take another snapshot
@@ -52,27 +53,31 @@ export default async <ResolverT extends (...args: [any, any, any, any]) => any>(
 
     // Filter out any nodes that have snapshots
     const oldestNodes = (oldestNodesWithPossibilityOfSnapshots
-        ? oldestNodesWithPossibilityOfSnapshots.filter(node => node && node.snapshot !== undefined)
+        ? oldestNodesWithPossibilityOfSnapshots.filter(node => node && node.snapshot === undefined)
         : []) as NodeInConnection[] | undefined;
 
+    if (oldestNodesWithPossibilityOfSnapshots.length === 0) {
+        // TODO handle this case
+        logger.error('No oldest nodes found');
+    }
+
     if (oldestNodes === undefined || oldestNodes.length === 0) {
+        logger.debug('Oldest node has snapshot');
         return {
             oldestCreatedAt: nodesInVersionConnectionOrderedOldestToYoungest[0].createdAt,
             youngestCreatedAt
         };
     }
     // Determine the oldest version with a full node snapshot
-    const oldestVersion = await getMinCreatedAtOfVersionWithSnapshot(
+    const oldestCreatedAt = await getMinCreatedAtOfVersionWithSnapshot(
         knex,
         tableAndColumnNames,
         oldestNodes
     );
 
-    if (oldestVersion === undefined) {
+    if (oldestCreatedAt === undefined) {
         throw new Error('Missing oldest version');
     }
-
-    const {createdAt: oldestCreatedAt} = oldestVersion;
 
     return {oldestCreatedAt, youngestCreatedAt};
 };
@@ -86,32 +91,35 @@ const getMinCreatedAtOfVersionWithSnapshot = async (
     {table_names, event, node_snapshot}: ITableAndColumnNames,
     oldestNodes: NodeInConnection[],
     logger?: ILoggerConfig['logger']
-): Promise<{createdAt: number}> => {
-    const query = knex
-        .queryBuilder()
-        .from(table_names.event)
-        .leftJoin(
-            table_names.node_snapshot,
-            `${table_names.node_snapshot}.${node_snapshot.event_id}`,
-            `${table_names.event}.${event.id}`
-        )
-        .orWhere((k: Knex) => {
-            oldestNodes.forEach(({nodeId, nodeName, createdAt}) => {
-                k.andWhere({
-                    [`${table_names.event}.${event.node_id}`]: nodeId,
-                    [`${table_names.event}.${event.node_name}`]: nodeName
-                });
-                k.andWhere(`${table_names.event}.${event.created_at}`, '<', `${createdAt} `);
-            });
-        })
-        .whereNotNull(`${table_names.node_snapshot}.${node_snapshot.snapshot}`)
-        .select(`${table_names.event}.${event.created_at} as createdAt`)
-        .orderBy(`${table_names.event}.${event.created_at}`, 'desc')
-        .first();
+): Promise<number> => {
+    const oldestCreatedAts = await Bluebird.map(oldestNodes, async node => {
+        const query = knex
+            .queryBuilder()
+            .from(table_names.event)
+            .leftJoin(
+                table_names.node_snapshot,
+                `${table_names.node_snapshot}.${node_snapshot.event_id}`,
+                `${table_names.event}.${event.id}`
+            )
+            .andWhere({
+                [`${table_names.event}.${event.node_id}`]: node.nodeId,
+                [`${table_names.event}.${event.node_name}`]: node.nodeName
+            })
+            .andWhere(`${table_names.event}.${event.created_at}`, '<', `${node.createdAt} `)
+            .whereNotNull(`${table_names.node_snapshot}.${node_snapshot.snapshot}`)
+            .select(`${table_names.event}.${event.created_at} as createdAt`)
+            .orderBy(`${table_names.event}.${event.created_at}`, 'desc')
+            .first();
 
-    logger && logger.debug('Raw SQL:', query.toQuery()); // tslint:disable-line
-    const result = (await query) as {createdAt: string};
-    return castNodeWithRevisionTimeInDateTimeToUnixSecs(result, logger);
+        logger && logger.debug('Raw SQL:', query.toQuery()); // tslint:disable-line
+        const result = (await query) as {createdAt: string};
+        return castNodeWithRevisionTimeInDateTimeToUnixSecs(result, logger);
+    });
+
+    if (!oldestCreatedAts || oldestCreatedAts.length === 0) {
+        throw new Error('Couldnt find oldest nodes for establishing connection range');
+    }
+    return Math.max(...oldestCreatedAts.map(n => n.createdAt));
 };
 
 const castNodeWithRevisionTimeInDateTimeToUnixSecs = <T extends {createdAt: string}>(
