@@ -85,7 +85,7 @@ export const createVersionConnectionWithFullNodes = (config?: IConfig) => {
         logger.debug('Number of edges in connection: ', versionNodeConnection.edges.length);
 
         if (versionNodeConnection.edges.length === 0) {
-            logger.debug('Node edges found for version connection. Returning an empty connection');
+            logger.warn('No edges found for version connection. Returning an empty connection');
 
             const nodeConnection = new ConnectionManager<IGqlVersionNode>(resolverArgs[1], {});
             nodeConnection.addResult([{}]);

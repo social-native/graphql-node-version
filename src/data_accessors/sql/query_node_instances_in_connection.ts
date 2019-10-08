@@ -24,5 +24,12 @@ export default async <ResolverT extends (...args: any[]) => any>(
 
     logger.debug('Raw SQL:', query.toQuery());
 
-    return (await query) as Array<{nodeId: number; nodeName: string}>;
+    const result = (await query) as Array<{nodeId: number; nodeName: string}>;
+    const resultsWithCorrectTypes = result.map(n => ({...n, nodeId: n.nodeId.toString()}));
+
+    resultsWithCorrectTypes.push({
+        nodeId: originalNodeInstance.nodeId.toString(),
+        nodeName: originalNodeInstance.nodeName
+    });
+    return resultsWithCorrectTypes;
 };
