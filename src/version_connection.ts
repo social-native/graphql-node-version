@@ -1,7 +1,6 @@
 import {
     UnPromisify,
     IVersionConnectionExtractors,
-    // ITableAndColumnNames,
     IGqlVersionNode,
     IConfig,
     NodeInConnection
@@ -21,37 +20,6 @@ import {getLoggerFromConfig} from 'logger';
  * 2. Calculate full nodes for all revisions in range
  * 3. Get revisions in connection (filters may apply etc)
  */
-// export default (config?: IConfig) => <ResolverT extends (...args: [any, any, any, any]) => any>(
-//     extractors: IVersionConnectionExtractors<ResolverT>
-// ): MethodDecorator => {
-//     const tableAndColumnNames = setNames(config ? config.names : undefined);
-//     const loggerOptions = config && config.logOptions ? config.logOptions : {};
-//     const logger = config && config.logger ? config.logger : pino(loggerOptions);
-
-//     const versionConnectionLogger = logger.child({api: 'Version Connection'});
-//     return (_target, _property, descriptor: TypedPropertyDescriptor<any>) => {
-//         const {value} = descriptor;
-//         if (typeof value !== 'function') {
-//             throw new TypeError('Only functions can be decorated.');
-//         }
-
-//         // tslint:disable-next-line
-//         descriptor.value = (async (...args) => {
-//             const latestNode = (await value(args[0], args[1], args[2], args[3])) as UnPromisify<
-//                 ReturnType<ResolverT>
-//             >;
-//             return createVersionConnectionWithFullNodes<ResolverT>(
-//                 latestNode,
-//                 args as Parameters<ResolverT>,
-//                 extractors,
-//                 config
-//             );
-//         }) as ResolverT;
-
-//         return descriptor;
-//     };
-// };
-
 export const createVersionConnectionWithFullNodes = (config?: IConfig) => {
     const tableAndColumnNames = setNames(config ? config.names : undefined);
     const parentLogger = getLoggerFromConfig(config);
@@ -118,7 +86,7 @@ export const createVersionConnectionWithFullNodes = (config?: IConfig) => {
             {logger}
         );
 
-        logger.info('EVENTS WITH SNAPSHOTS', eventsWithSnapshots);
+        logger.debug('Number of snapshots found', eventsWithSnapshots.length);
         const versionsInConnectionById = versionNodeConnection.edges.reduce(
             (acc, {node}) => {
                 acc[node.id] = node;
@@ -126,21 +94,10 @@ export const createVersionConnectionWithFullNodes = (config?: IConfig) => {
             },
             {} as {[eventId: string]: NodeInConnection & {snapshot?: string}}
         );
-        // TODO FINISH
+
+        logger.debug('Building nodes for connection....');
         const {fullNodes: fullNodesByEventId} = eventsWithSnapshots.reverse().reduce(
             (acc, event, index) => {
-                // tslint:disable-next-line
-                // if (event.snapshot) {
-                //     // const node = JSON.parse(event.snapshot) as UnPromisify<ReturnType<ResolverT>>;
-                //     acc.mostRecentSnapshot[`${event.nodeId}-${event.nodeName}`] = event.snapshot;
-                // }
-                // const snapshot = acc.mostRecentSnapshot[`${event.nodeId}-${event.nodeName}`];
-                // if (snapshot) {
-                //     const calculatedNode = extractors.nodeBuilder(
-                //         nodes[previousRevision.revisionId],
-                //         revision
-                //     );
-                // }
                 if (index === 0 && !event.snapshot) {
                     logger.error('Missing initial snapshot for connection', event);
                     throw new Error('Missing initial snapshot for connection');
@@ -157,18 +114,9 @@ export const createVersionConnectionWithFullNodes = (config?: IConfig) => {
                     acc.lastNode = calculatedNode;
                 }
 
-                // if (event.snapshot) {
-                //     const calculatedNode = extractors.nodeBuilder(
-                //         acc.lastNode,
-                //         versionsInConnectionById[event.id]
-                //     );
-                // }
-
                 return acc;
             },
             {fullNodes: {}} as {
-                // mostRecentSnapshot: {[nodeIdAndNodeName: string]: string};
-                // lastVersion: {[nodeIdAndNodeName: string]: string};
                 lastNode: UnPromisify<ReturnType<ResolverT>>;
                 fullNodes: {[eventId: string]: UnPromisify<ReturnType<ResolverT>>};
             }
