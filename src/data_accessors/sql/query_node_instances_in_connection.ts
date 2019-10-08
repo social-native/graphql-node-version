@@ -1,12 +1,17 @@
 import Knex from 'knex';
-import {IVersionConnectionInfo, ITableAndColumnNames} from 'types';
+import {IVersionConnectionInfo, ITableAndColumnNames, ILoggerConfig} from 'types';
+import {getLoggerFromConfig} from 'logger';
 
 export default async <ResolverT extends (...args: any[]) => any>(
     knex: Knex,
     {table_names, event_node_fragment_register}: ITableAndColumnNames,
-    originalNodeInstance: Pick<IVersionConnectionInfo<ResolverT>, 'nodeId' | 'nodeName'>
+    originalNodeInstance: Pick<IVersionConnectionInfo<ResolverT>, 'nodeId' | 'nodeName'>,
+    loggerConfig?: ILoggerConfig
 ): Promise<Array<Pick<IVersionConnectionInfo<ResolverT>, 'nodeId' | 'nodeName'>>> => {
-    const allNodeInstancesInConnection = (await knex
+    const parentLogger = getLoggerFromConfig(loggerConfig);
+    const logger = parentLogger.child({query: 'Node instances in connection'});
+
+    const query = knex
         .table(table_names.event_node_fragment_register)
         .andWhere({
             [`${table_names.event_node_fragment_register}.${event_node_fragment_register.parent_node_id}`]: originalNodeInstance.nodeId, // tslint:disable-line
@@ -15,7 +20,9 @@ export default async <ResolverT extends (...args: any[]) => any>(
         .select(
             `${table_names.event_node_fragment_register}.${event_node_fragment_register.child_node_id} as nodeId`,
             `${table_names.event_node_fragment_register}.${event_node_fragment_register.child_node_name} as nodeName`
-        )) as Array<{nodeId: number; nodeName: string}>;
+        );
 
-    return allNodeInstancesInConnection;
+    logger.debug('Raw SQL:', query.toQuery());
+
+    return (await query) as Array<{nodeId: number; nodeName: string}>;
 };

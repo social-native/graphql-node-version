@@ -62,25 +62,31 @@ export const createVersionConnectionWithFullNodes = (config?: IConfig) => {
         extractors: IVersionConnectionExtractors<ResolverT>
     ) => {
         // tslint:disable-next-line
-        logger.debug('CURRENT NODE', currentVersionNode);
+        logger.debug('Current node', currentVersionNode);
         const {knex, nodeId, nodeName} = extractors;
 
+        logger.debug('Querying for node instances in connection');
         const nodeInstancesInConnection = await queryNodeInstancesInConnection(
             knex,
             tableAndColumnNames,
-            {nodeId, nodeName}
+            {nodeId, nodeName},
+            {logger}
         );
+        logger.debug('Node instances in connection', nodeInstancesInConnection);
 
+        logger.debug('Querying for version connection');
         const versionNodeConnection = await queryVersionConnection(
             resolverArgs[1],
             knex,
             tableAndColumnNames,
-            nodeInstancesInConnection
+            nodeInstancesInConnection,
+            {logger}
         );
+        logger.debug('Number of edges in connection: ', versionNodeConnection.edges.length);
 
-        console.log('2. CHECK IF THERE ARE NO NODE CHANGE REVISIONS');
-        // Step 2. If there are no revisions in the connection, return with no edges
         if (versionNodeConnection.edges.length === 0) {
+            logger.debug('Node edges found for version connection. Returning an empty connection');
+
             const nodeConnection = new ConnectionManager<IGqlVersionNode>(resolverArgs[1], {});
             nodeConnection.addResult([{}]);
             const {edges, pageInfo} = nodeConnection;
@@ -91,22 +97,27 @@ export const createVersionConnectionWithFullNodes = (config?: IConfig) => {
             };
         }
 
+        logger.debug('Querying for time range of connection');
         const timeRangeOfVersionConnection = await queryTimeRangeOfVersionConnection(
             knex,
             tableAndColumnNames,
             resolverArgs,
             versionNodeConnection.edges.map(e => e.node),
-            nodeInstancesInConnection
+            nodeInstancesInConnection,
+            {logger}
         );
+        logger.debug('Time range of version connection', timeRangeOfVersionConnection);
 
+        logger.debug('Querying for snapshots in time range');
         const eventsWithSnapshots = await queryEventsWithSnapshots(
             knex,
             tableAndColumnNames,
             timeRangeOfVersionConnection,
-            nodeInstancesInConnection
+            nodeInstancesInConnection,
+            {logger}
         );
 
-        console.log(eventsWithSnapshots);
+        console.log(eventsWithSnapshots.length);
         // TODO FINISH
         // const eventsWithFullNodes = eventsWithSnapshots.reverse().reduce(
         //     (acc, event) => {
@@ -131,12 +142,13 @@ export const createVersionConnectionWithFullNodes = (config?: IConfig) => {
         // );
 
         // Step 8. Build the connection
-        const edges = versionNodeConnection.edges.map(n => ({
+        logger.debug('Building final version connection');
+        const newEdges = versionNodeConnection.edges.map(n => ({
             cursor: n.cursor,
             node: undefined,
             version: n.node
         }));
-        return {pageInfo: versionNodeConnection.pageInfo, edges};
+        return {pageInfo: versionNodeConnection.pageInfo, edges: newEdges};
     };
 };
 

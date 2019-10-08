@@ -3,9 +3,11 @@ import {
     ITableAndColumnNames,
     ISqlEventTable,
     ISqlNodeSnapshotTable,
-    IVersionConnectionInfo
+    IVersionConnectionInfo,
+    ILoggerConfig
 } from '../../types';
 import {unixSecondsToSqlTimestamp, castDateToUTCSeconds} from 'lib/time';
+import {getLoggerFromConfig} from 'logger';
 
 export interface IEventWithSnapshot {
     createdAt: number;
@@ -20,9 +22,13 @@ export default async <ResolverT extends (...args: [any, any, any, any]) => any>(
     timeRange: {oldestCreatedAt: number; youngestCreatedAt: number},
     allNodeInstancesInConnection: Array<
         Pick<IVersionConnectionInfo<ResolverT>, 'nodeId' | 'nodeName'>
-    >
+    >,
+    loggerConfig?: ILoggerConfig
 ): Promise<IEventWithSnapshot[]> => {
-    const result = (await knex
+    const parentLogger = getLoggerFromConfig(loggerConfig);
+    const logger = parentLogger.child({query: 'Events with snapshots'});
+
+    const query = knex
         .table<ISqlEventTable>(table_names.event)
         .leftJoin<ISqlNodeSnapshotTable>(
             table_names.node_snapshot,
@@ -54,7 +60,11 @@ export default async <ResolverT extends (...args: [any, any, any, any]) => any>(
             `${table_names.event}.${event.node_id} as nodeName`,
             `${table_names.event}.${event.created_at} as createdAt`,
             `${table_names.node_snapshot}.${node_snapshot.snapshot} as snapshot`
-        )) as Array<{
+        );
+
+    logger.debug('Raw SQL:', query.toQuery());
+
+    const result = (await query) as Array<{
         id: number;
         nodeId: string;
         nodeName: string;
@@ -62,15 +72,16 @@ export default async <ResolverT extends (...args: [any, any, any, any]) => any>(
         snapshot?: string;
     }>;
 
-    return result.map(castNodeWithRevisionTimeInDateTimeToUnixSecs);
+    return result.map(r => castNodeWithRevisionTimeInDateTimeToUnixSecs(r, logger));
 };
 
 const castNodeWithRevisionTimeInDateTimeToUnixSecs = <T extends {createdAt: string}>(
-    node: T
+    node: T,
+    logger?: ILoggerConfig['logger']
 ): T & {createdAt: number} => {
     const {createdAt} = node;
     const newRevisionTime = castDateToUTCSeconds(createdAt);
-    console.log('~~~~~~~~~~~', `from: ${createdAt}`, 'to :', newRevisionTime);
+    logger && logger.debug('Casting dateTime -> unixSecs', createdAt, newRevisionTime); // tslint:disable-line
     return {
         ...node,
         createdAt: newRevisionTime
