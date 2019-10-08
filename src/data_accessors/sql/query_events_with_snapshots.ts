@@ -4,7 +4,8 @@ import {
     ISqlEventTable,
     ISqlNodeSnapshotTable,
     IVersionConnectionInfo,
-    ILoggerConfig
+    ILoggerConfig,
+    INodeBuilderVersionInfo
 } from '../../types';
 import {unixSecondsToSqlTimestamp, castDateToUTCSeconds} from 'lib/time';
 import {getLoggerFromConfig} from 'logger';
@@ -30,7 +31,7 @@ export default async <ResolverT extends (...args: [any, any, any, any]) => any>(
         Pick<IVersionConnectionInfo<ResolverT>, 'nodeId' | 'nodeName'>
     >,
     loggerConfig?: ILoggerConfig
-): Promise<IEventWithSnapshot[]> => {
+): Promise<Array<INodeBuilderVersionInfo<number>>> => {
     const parentLogger = getLoggerFromConfig(loggerConfig);
     const logger = parentLogger.child({query: 'Events with snapshots'});
 
@@ -87,23 +88,7 @@ export default async <ResolverT extends (...args: [any, any, any, any]) => any>(
         );
 
     logger.debug('Raw SQL:', query.toQuery());
-
-    const result = (await query) as Array<{
-        type: string;
-
-        id: number;
-        createdAt: string;
-        nodeName: string;
-        nodeId: string;
-        userId: string;
-        resolverOperation: string;
-
-        revisionData?: string;
-        nodeSchemaVersion?: string;
-
-        snapshot?: string;
-    }>;
-
+    const result = (await query) as Array<INodeBuilderVersionInfo<string>>;
     return result.map(r => castNodeWithRevisionTimeInDateTimeToUnixSecs(r, logger));
 };
 

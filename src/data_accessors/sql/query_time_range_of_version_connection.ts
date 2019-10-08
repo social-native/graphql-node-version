@@ -56,7 +56,6 @@ export default async <ResolverT extends (...args: [any, any, any, any]) => any>(
         ? oldestNodesWithPossibilityOfSnapshots.filter(node => node && node.snapshot == null) // tslint:disable-line
         : []) as NodeInConnection[] | undefined;
 
-    logger.error('filtered nodes', oldestNodes);
     if (oldestNodesWithPossibilityOfSnapshots.length === 0) {
         // TODO handle this case
         logger.error('No oldest nodes found');
@@ -64,7 +63,6 @@ export default async <ResolverT extends (...args: [any, any, any, any]) => any>(
 
     if (oldestNodes === undefined || oldestNodes.length === 0) {
         logger.debug('Oldest node has snapshot');
-        logger.warn('Oldest node', nodesInVersionConnection);
         return {
             oldestCreatedAt: nodesInVersionConnectionOrderedOldestToYoungest[0].createdAt,
             youngestCreatedAt
@@ -95,8 +93,6 @@ const getMinCreatedAtOfVersionWithSnapshot = async (
     oldestNodes: NodeInConnection[],
     logger?: ILoggerConfig['logger']
 ): Promise<number> => {
-    logger && logger.error('node in query', oldestNodes); // tslint:disable-line
-
     const oldestCreatedAts = await Bluebird.map(oldestNodes, async node => {
         const query = knex
             .queryBuilder()

@@ -172,7 +172,7 @@ export interface IVersionConnectionInfo<Resolver extends (...args: any[]) => any
     nodeName: string;
     nodeBuilder: (
         previousModel: UnPromisify<ReturnType<Resolver>>,
-        versionInfo: IGqlVersionNodeChangeNode
+        versionInfo: INodeBuilderVersionInfo
     ) => UnPromisify<ReturnType<any>>;
 }
 export interface IVersionConnectionExtractors<Resolver extends (...args: any[]) => any>
@@ -315,16 +315,23 @@ export interface IPersistVersionInfo {
     fragmentRegistration?: IEventNodeFragmentRegisterInfo;
 }
 
-export type PersistVersion = (
-    versionInfo: IPersistVersionInfo
-) => // config: Config
-Promise<void>;
+export type PersistVersion = (versionInfo: IPersistVersionInfo) => Promise<void>;
 
-// export interface IPersistVersionInfoConfigSql {
-//     knex: Knex;
-//     transaction: Knex.Transaction;
-//     tableAndColumnNames: ITableAndColumnNames;
-// }
+export interface INodeBuilderVersionInfo<CreatedAt = number> {
+    type: string;
+
+    id: number;
+    createdAt: CreatedAt;
+    nodeName: string;
+    nodeId: string;
+    userId: string;
+    resolverOperation: string;
+
+    revisionData?: string;
+    nodeSchemaVersion?: string;
+
+    snapshot?: string;
+}
 
 export type QueryShouldTakeNodeSnapshot = (eventInfo: IEventNodeChangeInfo) => Promise<boolean>;
 

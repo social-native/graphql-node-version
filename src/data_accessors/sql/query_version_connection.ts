@@ -213,7 +213,6 @@ Promise<IQueryResult<NodeInConnection & {snapshot?: string}>> => {
     logger.debug('Raw SQL:', query.toQuery());
     const nodeResult = (await query) as NodesInConnectionUnprocessed;
     const uniqueVersions = aggregateVersionsById(nodeResult);
-    logger.info('Unique Versions:', uniqueVersions);
     nodeConnection.addResult(uniqueVersions);
     const {pageInfo, edges} = nodeConnection;
     return {pageInfo, edges};

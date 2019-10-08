@@ -6,7 +6,7 @@ import {
     // versionConnectionDecorator as versionConnection,
     IVersionConnection,
     createRevisionConnection as unconfiguredCreateRevisionConnection,
-    IGqlVersionNodeChangeNode
+    INodeBuilderVersionInfo
 } from '../../src/index';
 
 const createRevisionConnection = unconfiguredCreateRevisionConnection({
@@ -149,7 +149,7 @@ const query: {
 //     }
 // };
 
-const nodeBuilder = (previousModel: any, versionInfo: IGqlVersionNodeChangeNode) => {
+const nodeBuilder = (previousModel: any, versionInfo: INodeBuilderVersionInfo) => {
     const {revisionData} = versionInfo;
     // TODO figure out why this is an object
     const data = revisionData as any;

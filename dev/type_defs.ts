@@ -121,7 +121,6 @@ export default gql`
     }
 
     type Query {
-        # user(id: ID!): User
         user(
             id: ID!
             first: First
@@ -162,9 +161,6 @@ export default gql`
             after: After
             filter: Filter
         ): QueryTodoItemVersionConnection
-        # todoList(id: ID!): TodoList
-        # todoItem(id: ID!): TodoItem
-        # team(id: ID!): Team
         team(
             id: ID!
             first: First
