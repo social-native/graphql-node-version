@@ -3,7 +3,8 @@ import {
     IVersionConnectionExtractors,
     // ITableAndColumnNames,
     IGqlVersionNode,
-    IConfig
+    IConfig,
+    NodeInConnection
 } from './types';
 import {ConnectionManager} from '@social-native/snpkg-snapi-connections';
 import queryVersionConnection from './data_accessors/sql/query_version_connection';
@@ -117,35 +118,67 @@ export const createVersionConnectionWithFullNodes = (config?: IConfig) => {
             {logger}
         );
 
-        console.log(eventsWithSnapshots.length);
+        logger.info('EVENTS WITH SNAPSHOTS', eventsWithSnapshots);
+        const versionsInConnectionById = versionNodeConnection.edges.reduce(
+            (acc, {node}) => {
+                acc[node.id] = node;
+                return acc;
+            },
+            {} as {[eventId: string]: NodeInConnection & {snapshot?: string}}
+        );
         // TODO FINISH
-        // const eventsWithFullNodes = eventsWithSnapshots.reverse().reduce(
-        //     (acc, event) => {
-        //         if (event.snapshot) {
-        //             // const node = JSON.parse(event.snapshot) as UnPromisify<ReturnType<ResolverT>>;
-        //             acc.mostRecentSnapshot[`${event.nodeId}-${event.nodeName}`] = event.snapshot;
-        //         }
-        //         const snapshot = acc.mostRecentSnapshot[`${event.nodeId}-${event.nodeName}`];
-        //         if (snapshot) {
-        //             const calculatedNode = extractors.nodeBuilder(
-        //                 nodes[previousRevision.revisionId],
-        //                 revision
-        //             );
-        //         }
-        //         return acc;
-        //     },
-        //     {mostRecentSnapshot: {}, fullNodes: {}} as {
-        //         mostRecentSnapshot: {[nodeIdAndNodeName: string]: string};
-        //         lastVersion: {[nodeIdAndNodeName: string]: string};
-        //         fullNodes: {[eventId: number]: object};
-        //     }
-        // );
+        const {fullNodes: fullNodesByEventId} = eventsWithSnapshots.reverse().reduce(
+            (acc, event, index) => {
+                // tslint:disable-next-line
+                // if (event.snapshot) {
+                //     // const node = JSON.parse(event.snapshot) as UnPromisify<ReturnType<ResolverT>>;
+                //     acc.mostRecentSnapshot[`${event.nodeId}-${event.nodeName}`] = event.snapshot;
+                // }
+                // const snapshot = acc.mostRecentSnapshot[`${event.nodeId}-${event.nodeName}`];
+                // if (snapshot) {
+                //     const calculatedNode = extractors.nodeBuilder(
+                //         nodes[previousRevision.revisionId],
+                //         revision
+                //     );
+                // }
+                if (index === 0 && !event.snapshot) {
+                    logger.error('Missing initial snapshot for connection', event);
+                    throw new Error('Missing initial snapshot for connection');
+                } else if (index === 0 && event.snapshot) {
+                    const lastNode = JSON.parse(event.snapshot);
+                    acc.fullNodes[event.id] = lastNode;
+                    acc.lastNode = lastNode;
+                } else {
+                    const calculatedNode = extractors.nodeBuilder(
+                        acc.lastNode,
+                        versionsInConnectionById[event.id] as any
+                    );
+                    acc.fullNodes[event.id] = calculatedNode;
+                    acc.lastNode = calculatedNode;
+                }
+
+                // if (event.snapshot) {
+                //     const calculatedNode = extractors.nodeBuilder(
+                //         acc.lastNode,
+                //         versionsInConnectionById[event.id]
+                //     );
+                // }
+
+                return acc;
+            },
+            {fullNodes: {}} as {
+                // mostRecentSnapshot: {[nodeIdAndNodeName: string]: string};
+                // lastVersion: {[nodeIdAndNodeName: string]: string};
+                lastNode: UnPromisify<ReturnType<ResolverT>>;
+                fullNodes: {[eventId: string]: UnPromisify<ReturnType<ResolverT>>};
+            }
+        );
 
         // Step 8. Build the connection
         logger.debug('Building final version connection');
         const newEdges = versionNodeConnection.edges.map(n => ({
             cursor: n.cursor,
-            node: undefined,
+            node: fullNodesByEventId[n.node.id],
             version: n.node
         }));
         return {pageInfo: versionNodeConnection.pageInfo, edges: newEdges};

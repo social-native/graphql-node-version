@@ -45,9 +45,9 @@ export default async <ResolverT extends (...args: [any, any, any, any]) => any>(
             '<=',
             unixSecondsToSqlTimestamp(timeRange.youngestCreatedAt)
         )
-        .orWhere((k: Knex) => {
+        .andWhere((k: Knex) => {
             allNodeInstancesInConnection.forEach(({nodeId, nodeName}) => {
-                k.andWhere({
+                k.orWhere({
                     [`${table_names.event}.${event.node_id}`]: nodeId,
                     [`${table_names.event}.${event.node_name}`]: nodeName
                 });
