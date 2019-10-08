@@ -15,6 +15,7 @@ import {
 } from '@social-native/snpkg-snapi-connections';
 import {unixSecondsToSqlTimestamp, castDateToUTCSeconds} from 'lib/time';
 import {getLoggerFromConfig} from 'logger';
+import {isGqlNodeChangeNode} from 'type_guards';
 
 const castUnixToDateTimeInFilter = (logger?: ILoggerConfig['logger']) => (filter: IFilter) => {
     if (filter.field === 'createdAt') {
@@ -46,6 +47,24 @@ const castNodeWithRevisionTimeInDateTimeToUnixSecs = (logger?: ILoggerConfig['lo
 };
 
 type NodesInConnectionUnprocessed = Array<NodeInConnection & {roleName: string}>;
+
+// extractors: IVersionConnectionExtractors<ResolverT>
+
+const nodeTransformer = (logger?: ILoggerConfig['logger']) => {
+    const firstTransformer = castNodeWithRevisionTimeInDateTimeToUnixSecs(logger);
+    return (node: any) => {
+        const unixSecTransformed = firstTransformer(node) as IGqlVersionNode;
+        if (isGqlNodeChangeNode(unixSecTransformed)) {
+            const {revisionData} = unixSecTransformed;
+            return {
+                ...unixSecTransformed,
+                revisionData:
+                    typeof revisionData === 'object' ? JSON.stringify(revisionData) : revisionData
+            };
+        }
+        return unixSecTransformed;
+    };
+};
 
 export default async <ResolverT extends (...args: any[]) => any>(
     connectionInputs: IInputArgs,
@@ -94,7 +113,7 @@ Promise<IQueryResult<NodeInConnection & {snapshot?: string}>> => {
             filterTransformer: castUnixToDateTimeInFilter(logger)
         },
         resultOptions: {
-            nodeTransformer: castNodeWithRevisionTimeInDateTimeToUnixSecs(logger)
+            nodeTransformer: nodeTransformer(logger)
         }
     });
 

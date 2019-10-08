@@ -3,7 +3,9 @@ import {
     IEventNodeChangeInfo,
     IEventNodeChangeWithSnapshotInfo,
     IEventNodeFragmentRegisterInfo,
-    IEventLinkChangeInfo
+    IEventLinkChangeInfo,
+    IGqlVersionNodeChangeNode,
+    IGqlVersionNode
 } from './types';
 
 export const isEventNodeChangeInfo = (e: AllEventInfo): e is IEventNodeChangeInfo => {
@@ -24,4 +26,10 @@ export const isEventNodeFragmentRegisterInfo = (
 
 export const isEventLinkChangeInfo = (e: AllEventInfo): e is IEventLinkChangeInfo => {
     return (e as IEventLinkChangeInfo).linkNodeId !== undefined;
+};
+
+export const isGqlNodeChangeNode = (
+    n: IGqlVersionNode | IGqlVersionNodeChangeNode
+): n is IGqlVersionNodeChangeNode => {
+    return (n as IGqlVersionNodeChangeNode).revisionData !== undefined;
 };

@@ -23,24 +23,57 @@ export default gql`
         node: User
     }
 
-
-
-    type Version {
-        userId: ID!
-        userRoles: [String]!
-        revisionId: ID!
-        revisionData: String!
-        revisionTime: ${unixTimeSec.type.name}!
-        nodeSchemaVersion: ID!
+    interface Version {
+        id: ID!
+        createdAt: ${unixTimeSec.type.name}!
+        nodeId: ID!
         nodeName: String!
         resolverOperation: String!
+        type: String!
+        userId: String!
+        userRoles: [String]!
     }
 
-    type VersionEdge {
-        edgeNodeId: Int!
-        edgeNodeName: String!
+    type VersionNodeChange implements Version {
+        id: ID!
+        createdAt: ${unixTimeSec.type.name}!
+        nodeId: ID!
+        nodeName: String!
         resolverOperation: String!
-        revisionTime: Int!
+        type: String!
+        userId: String!
+        userRoles: [String]!
+
+        revisionData: String!
+        nodeSchemaVersion: ID!
+    }
+
+    type VersionNodeFragmentChange implements Version {
+        id: ID!
+        createdAt: ${unixTimeSec.type.name}!
+        nodeId: ID!
+        nodeName: String!
+        resolverOperation: String!
+        type: String!
+        userId: String!
+        userRoles: [String]!
+
+        childNodeId: ID!
+        childNodeName: String!
+    }
+
+    type VersionNodeLinkChange implements Version {
+        id: ID!
+        createdAt: ${unixTimeSec.type.name}!
+        nodeId: ID!
+        nodeName: String!
+        resolverOperation: String!
+        type: String!
+        userId: String!
+        userRoles: [String]!
+
+        linkNodeId: ID!
+        linkNodeName: String!
     }
 
     type QueryTodoItemVersionConnection implements IConnection {
@@ -51,8 +84,7 @@ export default gql`
     type QueryTodoItemVersionEdge implements IEdge {
         cursor: String!
         node: TodoItem
-        nodeChange: Version
-        linkChange: VersionEdge
+        version: Version
     }
 
     type QueryTodoListVersionConnection implements IConnection {
@@ -63,8 +95,7 @@ export default gql`
     type QueryTodoListVersionEdge implements IEdge {
         cursor: String!
         node: TodoList
-        nodeChange: Version
-        linkChange: VersionEdge
+        version: Version
     }
 
     type QueryUserVersionConnection implements IConnection {
@@ -75,8 +106,7 @@ export default gql`
     type QueryUserVersionEdge implements IEdge {
         cursor: String!
         node: User
-        nodeChange: Version
-        linkChange: VersionEdge
+        version: Version
     }
 
     type QueryTeamVersionConnection implements IConnection {
@@ -87,8 +117,7 @@ export default gql`
     type QueryTeamVersionEdge implements IEdge {
         cursor: String!
         node: Team
-        nodeChange: Version
-        linkChange: VersionEdge
+        version: Version
     }
 
     type Query {

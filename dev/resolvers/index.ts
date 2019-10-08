@@ -7,8 +7,10 @@ import Query from './query';
 import Team from './team';
 import User from './user';
 import TodoList from './todo_list';
+import Version from './version';
 
 export default {
+    Version,
     Mutation,
     Query,
     Team,
