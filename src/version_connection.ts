@@ -87,6 +87,8 @@ export const createVersionConnectionWithFullNodes = (config?: IConfig) => {
         );
 
         logger.debug('Number of snapshots found', eventsWithSnapshots.length);
+        logger.info('snapshots', eventsWithSnapshots);
+
         const versionsInConnectionById = versionNodeConnection.edges.reduce(
             (acc, {node}) => {
                 acc[node.id] = node;

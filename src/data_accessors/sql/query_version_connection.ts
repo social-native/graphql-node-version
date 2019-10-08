@@ -93,7 +93,7 @@ Promise<IQueryResult<NodeInConnection & {snapshot?: string}>> => {
         createdAt: `${table_names.event}.${event.created_at}`,
         nodeName: `${table_names.event}.${event.node_name}`,
         nodeId: `${table_names.event}.${event.node_id}`,
-        userRoles: `${table_names.role}.${role.role}`,
+        // userRoles: `${table_names.role}.${role.role}`,
         userId: `${table_names.event}.${event.user_id}`,
         type: `${table_names.event_implementor_type}.${event_implementor_type.type}`,
         resolverOperation: `${table_names.event}.${event.resolver_operation}`,
@@ -103,7 +103,7 @@ Promise<IQueryResult<NodeInConnection & {snapshot?: string}>> => {
         nodeSchemaVersion: `${table_names.event_node_change}.${event_node_change.node_schema_version}`,
         childNodeId: `${table_names.event_node_fragment_register}.${event_node_fragment_register.child_node_id}`,
         childNodeName: `${table_names.event_node_fragment_register}.${event_node_fragment_register.parent_node_name}`
-    } as StringValueWithKey<IGqlVersionNode>;
+    } as Omit<StringValueWithKey<IGqlVersionNode>, 'userRoles'>; // TODO renable user roles
     logger.debug('Connection attribute map', attributeMap);
 
     // force orderDir to be 'desc' b/c last is most recent in versions
@@ -117,99 +117,98 @@ Promise<IQueryResult<NodeInConnection & {snapshot?: string}>> => {
         }
     });
 
-    // const query = knex
-    //     .queryBuilder()
-    //     .from(function() {
-    // const {roleName, snapshot: unusedSnapshot, ...attributes} = attributeMap;
     const query = knex
-        .table(table_names.event)
-        .leftJoin(
-            table_names.event_implementor_type,
-            `${table_names.event_implementor_type}.${event_implementor_type.id}`,
-            `${table_names.event}.${event.implementor_type_id}`
-        )
-        .leftJoin(
-            table_names.event_link_change,
-            `${table_names.event_link_change}.${event_link_change.event_id}`,
-            `${table_names.event}.${event.id}`
-        )
-        .leftJoin(
-            table_names.event_node_change,
-            `${table_names.event_node_change}.${event_node_change.event_id}`,
-            `${table_names.event}.${event.id}`
-        )
+        .queryBuilder()
+        .from(function() {
+            // const {roleName, snapshot: unusedSnapshot, ...attributes} = attributeMap;
+            const queryBuilder = this.table(table_names.event)
+                .leftJoin(
+                    table_names.event_implementor_type,
+                    `${table_names.event_implementor_type}.${event_implementor_type.id}`,
+                    `${table_names.event}.${event.implementor_type_id}`
+                )
+                .leftJoin(
+                    table_names.event_link_change,
+                    `${table_names.event_link_change}.${event_link_change.event_id}`,
+                    `${table_names.event}.${event.id}`
+                )
+                .leftJoin(
+                    table_names.event_node_change,
+                    `${table_names.event_node_change}.${event_node_change.event_id}`,
+                    `${table_names.event}.${event.id}`
+                )
+                // .leftJoin(
+                //     table_names.user_role,
+                //     `${table_names.user_role}.${user_role.event_id}`,
+                //     `${table_names.event}.${event.id}`
+                // )
+                // .leftJoin(
+                //     table_names.role,
+                //     `${table_names.role}.${role.id}`,
+                //     `${table_names.user_role}.${user_role.role_id}`
+                // )
+                .leftJoin(
+                    table_names.node_snapshot,
+                    `${table_names.node_snapshot}.${node_snapshot.event_id}`,
+                    `${table_names.event}.${event.id}`
+                )
+                .orWhere((k: Knex) => {
+                    nodeInstances.forEach(({nodeId, nodeName}) => {
+                        k.andWhere({
+                            [`${table_names.event}.${event.node_id}`]: nodeId,
+                            [`${table_names.event}.${event.node_name}`]: nodeName
+                        });
+                    });
+                })
+                .select(
+                    `${table_names.event_implementor_type}.${event_implementor_type.type} as type`,
+
+                    `${table_names.event}.${event.id} as id`,
+                    `${table_names.event}.${event.created_at} as createdAt`,
+                    `${table_names.event}.${event.node_name} as nodeName`,
+                    `${table_names.event}.${event.node_id} as nodeId`,
+                    `${table_names.event}.${event.user_id} as userId`,
+                    `${table_names.event}.${event.resolver_operation} as resolverOperation`,
+
+                    `${table_names.event_link_change}.${event_link_change.node_id} as linkNodeId`,
+                    `${table_names.event_link_change}.${event_link_change.node_name} as linkNodeName`,
+
+                    `${table_names.event_node_change}.${event_node_change.revision_data} as revisionData`,
+                    `${table_names.event_node_change}.${event_node_change.node_schema_version} as nodeSchemaVersion`,
+
+                    `${table_names.node_snapshot}.${node_snapshot.snapshot} as snapshot`
+
+                    // `${table_names.role}.${role.role} as roleName`
+                )
+                .orderBy(`${table_names.event}.${event.created_at}`, 'desc');
+
+            nodeConnection.createQuery(queryBuilder).as('main');
+        })
         .leftJoin(
             table_names.user_role,
             `${table_names.user_role}.${user_role.event_id}`,
-            `${table_names.event}.${event.id}`
+            `main.id`
         )
         .leftJoin(
             table_names.role,
             `${table_names.role}.${role.id}`,
             `${table_names.user_role}.${user_role.role_id}`
         )
-        .leftJoin(
-            table_names.node_snapshot,
-            `${table_names.node_snapshot}.${node_snapshot.event_id}`,
-            `${table_names.event}.${event.id}`
-        )
-        .orWhere((k: Knex) => {
-            nodeInstances.forEach(({nodeId, nodeName}) => {
-                k.andWhere({
-                    [`${table_names.event}.${event.node_id}`]: nodeId,
-                    [`${table_names.event}.${event.node_name}`]: nodeName
-                });
-            });
-        })
         .select(
-            `${table_names.event_implementor_type}.${event_implementor_type.type} as type`,
-
-            `${table_names.event}.${event.id} as id`,
-            `${table_names.event}.${event.created_at} as createdAt`,
-            `${table_names.event}.${event.node_name} as nodeName`,
-            `${table_names.event}.${event.node_id} as nodeId`,
-            `${table_names.event}.${event.user_id} as userId`,
-            `${table_names.event}.${event.resolver_operation} as resolverOperation`,
-
-            `${table_names.event_link_change}.${event_link_change.node_id} as linkNodeId`,
-            `${table_names.event_link_change}.${event_link_change.node_name} as linkNodeName`,
-
-            `${table_names.event_node_change}.${event_node_change.revision_data} as revisionData`,
-            `${table_names.event_node_change}.${event_node_change.node_schema_version} as nodeSchemaVersion`,
-
-            `${table_names.node_snapshot}.${node_snapshot.snapshot} as snapshot`,
-
+            'type',
+            'main.id as id',
+            'createdAt',
+            'revisionData',
+            'nodeName',
+            'nodeSchemaVersion',
+            'nodeId',
+            'resolverOperation',
+            'linkNodeId',
+            'linkNodeName',
+            'userId',
+            'snapshot',
             `${table_names.role}.${role.role} as roleName`
-        )
-        .orderBy(`${table_names.event}.${event.created_at}`, 'desc');
-
-    nodeConnection.createQuery(query); //.as('main');
-    // })
-    // .leftJoin(
-    //     table_names.user_role,
-    //     `${table_names.user_role}.${user_role.role_id}`,
-    //     `main.userId`
-    // )
-    // .leftJoin(
-    //     table_names.role,
-    //     `${table_names.role}.${role.id}`,
-    //     `${table_names.user_role}.${user_role.role_id}`
-    // )
-    // .select(
-    //     'type',
-    //     'main.id as id',
-    //     'createdAt',
-    //     'revisionData',
-    //     'nodeName',
-    //     'nodeSchemaVersion',
-    //     'nodeId',
-    //     'resolverOperation',
-    //     'linkNodeId',
-    //     'linkNodeName',
-    //     'userId',
-    //     'snapshot',
-    //     `${table_names.role}.${role.role} as roleName`
-    // );
+        );
 
     logger.debug('Raw SQL:', query.toQuery());
     const nodeResult = (await query) as NodesInConnectionUnprocessed;
