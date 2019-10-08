@@ -100,6 +100,7 @@ export const createVersionConnectionWithFullNodes = (config?: IConfig) => {
         logger.debug('Building nodes for connection....');
         const {fullNodes: fullNodesByEventId} = eventsWithSnapshots.reverse().reduce(
             (acc, event, index) => {
+                // tslint:disable-next-line
                 if (index === 0 && !event.snapshot) {
                     logger.error('Missing initial snapshot for connection', event);
                     throw new Error('Missing initial snapshot for connection');
@@ -108,12 +109,18 @@ export const createVersionConnectionWithFullNodes = (config?: IConfig) => {
                     acc.fullNodes[event.id] = lastNode;
                     acc.lastNode = lastNode;
                 } else {
-                    const calculatedNode = extractors.nodeBuilder(
-                        acc.lastNode,
-                        versionsInConnectionById[event.id] as any
-                    );
-                    acc.fullNodes[event.id] = calculatedNode;
-                    acc.lastNode = calculatedNode;
+                    if ((event as any).revisionData === undefined) {
+                        acc.fullNodes[event.id] = acc.lastNode;
+                    } else {
+                        logger.error(
+                            'building node',
+                            acc.lastNode,
+                            versionsInConnectionById[event.id]
+                        );
+                        const calculatedNode = extractors.nodeBuilder(acc.lastNode, event as any);
+                        acc.fullNodes[event.id] = calculatedNode;
+                        acc.lastNode = calculatedNode;
+                    }
                 }
 
                 return acc;
@@ -123,6 +130,7 @@ export const createVersionConnectionWithFullNodes = (config?: IConfig) => {
                 fullNodes: {[eventId: string]: UnPromisify<ReturnType<ResolverT>>};
             }
         );
+        logger.info('HUR', fullNodesByEventId);
 
         // Step 8. Build the connection
         logger.debug('Building final version connection');

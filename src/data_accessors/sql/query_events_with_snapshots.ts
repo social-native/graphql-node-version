@@ -18,7 +18,13 @@ export interface IEventWithSnapshot {
 }
 export default async <ResolverT extends (...args: [any, any, any, any]) => any>(
     knex: Knex,
-    {table_names, event, node_snapshot}: ITableAndColumnNames,
+    {
+        table_names,
+        event,
+        node_snapshot,
+        event_implementor_type,
+        event_node_change
+    }: ITableAndColumnNames,
     timeRange: {oldestCreatedAt: number; youngestCreatedAt: number},
     allNodeInstancesInConnection: Array<
         Pick<IVersionConnectionInfo<ResolverT>, 'nodeId' | 'nodeName'>
@@ -30,6 +36,16 @@ export default async <ResolverT extends (...args: [any, any, any, any]) => any>(
 
     const query = knex
         .table<ISqlEventTable>(table_names.event)
+        .leftJoin(
+            table_names.event_implementor_type,
+            `${table_names.event_implementor_type}.${event_implementor_type.id}`,
+            `${table_names.event}.${event.implementor_type_id}`
+        )
+        .leftJoin(
+            table_names.event_node_change,
+            `${table_names.event_node_change}.${event_node_change.event_id}`,
+            `${table_names.event}.${event.id}`
+        )
         .leftJoin<ISqlNodeSnapshotTable>(
             table_names.node_snapshot,
             `${table_names.event}.${event.id}`,
@@ -55,20 +71,36 @@ export default async <ResolverT extends (...args: [any, any, any, any]) => any>(
         })
         .orderBy(`${table_names.event}.${event.created_at}`, 'desc')
         .select(
+            `${table_names.event_implementor_type}.${event_implementor_type.type} as type`,
+
             `${table_names.event}.${event.id} as id`,
-            `${table_names.event}.${event.node_id} as nodeId`,
-            `${table_names.event}.${event.node_id} as nodeName`,
             `${table_names.event}.${event.created_at} as createdAt`,
+            `${table_names.event}.${event.node_name} as nodeName`,
+            `${table_names.event}.${event.node_id} as nodeId`,
+            `${table_names.event}.${event.user_id} as userId`,
+            `${table_names.event}.${event.resolver_operation} as resolverOperation`,
+
+            `${table_names.event_node_change}.${event_node_change.revision_data} as revisionData`,
+            `${table_names.event_node_change}.${event_node_change.node_schema_version} as nodeSchemaVersion`,
+
             `${table_names.node_snapshot}.${node_snapshot.snapshot} as snapshot`
         );
 
     logger.debug('Raw SQL:', query.toQuery());
 
     const result = (await query) as Array<{
+        type: string;
+
         id: number;
-        nodeId: string;
-        nodeName: string;
         createdAt: string;
+        nodeName: string;
+        nodeId: string;
+        userId: string;
+        resolverOperation: string;
+
+        revisionData?: string;
+        nodeSchemaVersion?: string;
+
         snapshot?: string;
     }>;
 
