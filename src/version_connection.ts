@@ -7,6 +7,8 @@ import queryEventsWithSnapshots from './data_accessors/sql/query_events_with_sna
 
 import {setNames} from 'sql_names';
 import {getLoggerFromConfig} from 'logger';
+import {EVENT_IMPLEMENTOR_TYPE_NAMES} from 'enums';
+import {isGqlNodeChangeNode} from 'type_guards';
 
 /**
  * Logic:
@@ -125,16 +127,22 @@ export const createVersionConnectionWithFullNodes = (config?: IConfig) => {
         logger.debug('Building final version connection');
         const newEdges = versionNodeConnection.edges.map(n => {
             const isFragment = n.node && (n.node.nodeId !== nodeId || n.node.nodeName !== nodeName);
-            const version = isFragment
-                ? {
-                      ...n.node,
-                      nodeId: nodeId as string,
-                      nodeName,
-                      type: 'NODE_FRAGMENT_CHANGE',
-                      childNodeName: n.node.nodeName,
-                      childNodeId: n.node.nodeId
-                  }
-                : n.node;
+            let version: typeof n.node;
+
+            if (isFragment && isGqlNodeChangeNode(n.node)) {
+                version = {
+                    ...n.node,
+                    nodeId: nodeId as string,
+                    nodeName,
+                    type: EVENT_IMPLEMENTOR_TYPE_NAMES.NODE_FRAGMENT_CHANGE,
+                    childNodeName: n.node.nodeName,
+                    childNodeId: n.node.nodeId,
+                    childRevisionData: n.node.revisionData,
+                    childNodeSchemaVersion: n.node.nodeSchemaVersion
+                };
+            } else {
+                version = n.node;
+            }
             return {
                 cursor: n.cursor,
                 node: fullNodesByEventId[n.node.id],

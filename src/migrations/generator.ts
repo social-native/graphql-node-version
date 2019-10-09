@@ -2,7 +2,7 @@ import * as Knex from 'knex';
 
 import {ITableAndColumnNames} from '../types';
 import {setNames} from '../sql_names';
-import {EVENT_IMPLEMENTOR_TYPE_IDS} from 'enums';
+import {EVENT_IMPLEMENTOR_TYPE_IDS, EVENT_IMPLEMENTOR_TYPE_NAMES} from 'enums';
 
 /**
  * Create tables for storing versions of a node through time
@@ -39,13 +39,20 @@ export default (config?: ITableAndColumnNames) => {
             t.string(event_implementor_type.type).notNullable();
         });
 
-        await knex
-            .table(table_names.event_implementor_type)
-            .insert([
-                {type: 'NODE_CHANGE', id: EVENT_IMPLEMENTOR_TYPE_IDS.NODE_CHANGE},
-                {type: 'NODE_FRAGMENT_CHANGE', id: EVENT_IMPLEMENTOR_TYPE_IDS.NODE_FRAGMENT_CHANGE},
-                {type: 'LINK_CHANGE', id: EVENT_IMPLEMENTOR_TYPE_IDS.LINK_CHANGE}
-            ]);
+        await knex.table(table_names.event_implementor_type).insert([
+            {
+                type: EVENT_IMPLEMENTOR_TYPE_NAMES.NODE_CHANGE,
+                id: EVENT_IMPLEMENTOR_TYPE_IDS.NODE_CHANGE
+            },
+            {
+                type: EVENT_IMPLEMENTOR_TYPE_NAMES.NODE_FRAGMENT_CHANGE,
+                id: EVENT_IMPLEMENTOR_TYPE_IDS.NODE_FRAGMENT_CHANGE
+            },
+            {
+                type: EVENT_IMPLEMENTOR_TYPE_NAMES.LINK_CHANGE,
+                id: EVENT_IMPLEMENTOR_TYPE_IDS.LINK_CHANGE
+            }
+        ]);
 
         await knex.schema.createTable(table_names.event, t => {
             t.increments(event.id)

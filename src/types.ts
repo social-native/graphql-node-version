@@ -124,6 +124,8 @@ export interface IGqlVersionNodeFragmentChangeNode extends IGqlVersionNodeBase {
 
     childNodeId: string;
     childNodeName: string;
+    childRevisionData: string;
+    childNodeSchemaVersion: string;
 }
 
 export interface IGqlVersionLinkChangeNode extends IGqlVersionNodeBase {

@@ -60,6 +60,8 @@ export default gql`
 
         childNodeId: ID!
         childNodeName: String!
+        childRevisionData: String!
+        childNodeSchemaVersion: ID!
     }
 
     type VersionNodeLinkChange implements Version {
