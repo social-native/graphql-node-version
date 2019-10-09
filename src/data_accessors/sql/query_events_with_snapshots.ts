@@ -71,6 +71,7 @@ export default async <ResolverT extends (...args: [any, any, any, any]) => any>(
             });
         })
         .orderBy(`${table_names.event}.${event.created_at}`, 'desc')
+        .orderBy(`${table_names.node_snapshot}.${node_snapshot.snapshot}`, 'asc')
         .select(
             `${table_names.event_implementor_type}.${event_implementor_type.type} as type`,
 

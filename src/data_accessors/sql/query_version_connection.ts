@@ -152,9 +152,9 @@ Promise<IQueryResult<NodeInConnection & {snapshot?: string}>> => {
                     `${table_names.node_snapshot}.${node_snapshot.event_id}`,
                     `${table_names.event}.${event.id}`
                 )
-                .orWhere((k: Knex) => {
+                .andWhere((k: Knex) => {
                     nodeInstances.forEach(({nodeId, nodeName}) => {
-                        k.andWhere({
+                        k.orWhere({
                             [`${table_names.event}.${event.node_id}`]: nodeId,
                             [`${table_names.event}.${event.node_name}`]: nodeName
                         });
@@ -180,7 +180,8 @@ Promise<IQueryResult<NodeInConnection & {snapshot?: string}>> => {
 
                     // `${table_names.role}.${role.role} as roleName`
                 )
-                .orderBy(`${table_names.event}.${event.created_at}`, 'desc');
+                .orderBy(`${table_names.event}.${event.created_at}`, 'desc')
+                .orderBy(`${table_names.event}.${event.id}`, 'desc');
 
             nodeConnection.createQuery(queryBuilder).as('main');
         })

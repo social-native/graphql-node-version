@@ -56,6 +56,7 @@ export default async <ResolverT extends (...args: [any, any, any, any]) => any>(
         ? oldestNodesWithPossibilityOfSnapshots.filter(node => node && node.snapshot == null) // tslint:disable-line
         : []) as NodeInConnection[] | undefined;
 
+    logger.error('oldestNodes', oldestNodesWithPossibilityOfSnapshots);
     if (oldestNodesWithPossibilityOfSnapshots.length === 0) {
         // TODO handle this case
         logger.error('No oldest nodes found');
@@ -93,6 +94,7 @@ const getMinCreatedAtOfVersionWithSnapshot = async (
     oldestNodes: NodeInConnection[],
     logger?: ILoggerConfig['logger']
 ): Promise<number> => {
+    logger && logger.info('!!!!!', oldestNodes); // tslint:disable-line
     const oldestCreatedAts = await Bluebird.map(oldestNodes, async node => {
         const query = knex
             .queryBuilder()
@@ -108,7 +110,7 @@ const getMinCreatedAtOfVersionWithSnapshot = async (
             })
             .andWhere(
                 `${table_names.event}.${event.created_at}`,
-                '<',
+                '<=',
                 unixSecondsToSqlTimestamp(node.createdAt)
             )
             .whereNotNull(`${table_names.node_snapshot}.${node_snapshot.snapshot}`)
@@ -118,6 +120,7 @@ const getMinCreatedAtOfVersionWithSnapshot = async (
 
         logger && logger.debug('Raw SQL:', query.toQuery()); // tslint:disable-line
         const result = (await query) as {createdAt: string};
+        logger && logger.error('RESULTTTT', result); // tslint:disable-line
         return castNodeWithRevisionTimeInDateTimeToUnixSecs(result, logger);
     });
 

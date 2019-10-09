@@ -80,15 +80,26 @@ export const createVersionConnectionWithFullNodes = (config?: IConfig) => {
             {logger}
         );
         logger.debug('Number of node builder versions found', eventsWithSnapshots.length);
+        logger.debug('Nodes for node builder:', eventsWithSnapshots);
 
         logger.debug('Building nodes for connection....');
+        // logger.error('ERRROR', eventsWithSnapshots.reverse());
         const {fullNodes: fullNodesByEventId} = eventsWithSnapshots.reverse().reduce(
             (acc, event, index) => {
                 // tslint:disable-next-line
+                logger.warn(event.type);
+
                 if (index === 0 && !event.snapshot) {
                     logger.error('Missing initial snapshot for connection', event);
-                    throw new Error('Missing initial snapshot for connection');
-                } else if (index === 0 && event.snapshot) {
+                    // throw new Error('Missing initial snapshot for connection');
+                    // } else if (index === 0 && event.snapshot) {
+                    //     const lastNode = JSON.parse(event.snapshot);
+                    //     acc.fullNodes[event.id] = lastNode;
+                    //     acc.lastNode = lastNode;
+
+                    // if is node fragment pass snapshot into optional third param
+                } else if (event.snapshot) {
+                    // if (event.type === 'fragment')
                     const lastNode = JSON.parse(event.snapshot);
                     acc.fullNodes[event.id] = lastNode;
                     acc.lastNode = lastNode;
