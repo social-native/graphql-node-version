@@ -123,11 +123,24 @@ export const createVersionConnectionWithFullNodes = (config?: IConfig) => {
 
         // Step 8. Build the connection
         logger.debug('Building final version connection');
-        const newEdges = versionNodeConnection.edges.map(n => ({
-            cursor: n.cursor,
-            node: fullNodesByEventId[n.node.id],
-            version: n.node
-        }));
+        const newEdges = versionNodeConnection.edges.map(n => {
+            const isFragment = n.node && (n.node.nodeId !== nodeId || n.node.nodeName !== nodeName);
+            const version = isFragment
+                ? {
+                      ...n.node,
+                      nodeId: nodeId as string,
+                      nodeName,
+                      type: 'NODE_FRAGMENT_CHANGE',
+                      childNodeName: n.node.nodeName,
+                      childNodeId: n.node.nodeId
+                  }
+                : n.node;
+            return {
+                cursor: n.cursor,
+                node: fullNodesByEventId[n.node.id],
+                version
+            };
+        });
         return {pageInfo: versionNodeConnection.pageInfo, edges: newEdges};
     };
 };
