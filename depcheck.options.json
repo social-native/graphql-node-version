@@ -20,7 +20,8 @@
         "mysql2",
         "@social-native/snpkg-dependency-check",
         "@social-native/snpkg-generate-config-ci",
-        "@social-native/snpkg-package-version-validation"
+        "@social-native/snpkg-package-version-validation",
+        "pino-pretty"
     ],
     "specials": []
 }
