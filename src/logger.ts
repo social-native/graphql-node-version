@@ -1,4 +1,4 @@
-import {ILoggerConfig} from 'types';
+import {ILoggerConfig} from './types';
 import pino from 'pino';
 
 export const getLoggerFromConfig = <T extends ILoggerConfig>(config?: T) => {

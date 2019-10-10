@@ -5,7 +5,7 @@ import {
     IEventNodeChangeInfo,
     ILoggerConfig
 } from '../types';
-import {getLoggerFromConfig} from 'logger';
+import {getLoggerFromConfig} from '../logger';
 
 export default async <ResolverT extends (...args: any[]) => any>(
     args: Parameters<ResolverT>,

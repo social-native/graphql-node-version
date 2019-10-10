@@ -2,7 +2,7 @@ import * as Knex from 'knex';
 
 import {ITableAndColumnNames} from '../types';
 import {setNames} from '../sql_names';
-import {EVENT_IMPLEMENTOR_TYPE_IDS, EVENT_IMPLEMENTOR_TYPE_NAMES} from 'enums';
+import {EVENT_IMPLEMENTOR_TYPE_IDS, EVENT_IMPLEMENTOR_TYPE_NAMES} from '../enums';
 
 /**
  * Create tables for storing versions of a node through time

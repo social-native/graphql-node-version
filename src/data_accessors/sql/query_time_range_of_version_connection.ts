@@ -1,15 +1,15 @@
 import {DateTime} from 'luxon';
-
+import Bluebird from 'bluebird';
 import Knex from 'knex';
+
 import {
     ITableAndColumnNames,
     IVersionConnectionInfo,
     NodeInConnection,
     ILoggerConfig
 } from '../../types';
-import {castDateToUTCSeconds, unixSecondsToSqlTimestamp} from 'lib/time';
-import {getLoggerFromConfig} from 'logger';
-import Bluebird from 'bluebird';
+import {castDateToUTCSeconds, unixSecondsToSqlTimestamp} from '../../lib/time';
+import {getLoggerFromConfig} from '../../logger';
 /**
  * Fetch the number of full node snapshots for the node id and node schema version
  * If a snapshot exists within the expected snapshot frequency, then we don't need to take another snapshot

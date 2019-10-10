@@ -11,7 +11,7 @@ import {
     persistVersion as initializePersistVersion,
     createQueryShouldStoreSnapshot
 } from './data_accessors/sql';
-import {getLoggerFromConfig} from 'logger';
+import {getLoggerFromConfig} from './logger';
 
 export default (config?: IConfig) => <ResolverT extends (...args: any[]) => any>(
     extractors: IVersionRecorderExtractors<ResolverT>

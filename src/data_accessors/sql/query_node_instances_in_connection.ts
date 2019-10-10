@@ -1,6 +1,6 @@
 import Knex from 'knex';
-import {IVersionConnectionInfo, ITableAndColumnNames, ILoggerConfig} from 'types';
-import {getLoggerFromConfig} from 'logger';
+import {IVersionConnectionInfo, ITableAndColumnNames, ILoggerConfig} from '../../types';
+import {getLoggerFromConfig} from '../../logger';
 
 export default async <ResolverT extends (...args: any[]) => any>(
     knex: Knex,

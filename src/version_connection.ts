@@ -11,16 +11,16 @@ import queryNodeInstancesInConnection from './data_accessors/sql/query_node_inst
 import queryTimeRangeOfVersionConnection from './data_accessors/sql/query_time_range_of_version_connection';
 import queryEventsWithSnapshots from './data_accessors/sql/query_events_with_snapshots';
 
-import {setNames} from 'sql_names';
-import {getLoggerFromConfig} from 'logger';
-import {EVENT_IMPLEMENTOR_TYPE_NAMES} from 'enums';
+import {setNames} from './sql_names';
+import {getLoggerFromConfig} from './logger';
+import {EVENT_IMPLEMENTOR_TYPE_NAMES} from './enums';
 import {
     isGqlNodeChangeNode,
     isNodeBuilderNodeVersionInfoWithSnapshot,
     isNodeBuilderNodeFragmentChangeVersionInfo,
     isNodeBuilderNodeChangeVersionInfo,
     shouldSkipNodeBuilderBecauseHasLinkChangeVersionInfo
-} from 'type_guards';
+} from './type_guards';
 
 /**
  * Logic:

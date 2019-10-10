@@ -1,4 +1,4 @@
-import {INodeBuilderNodeChangeVersionInfo, INodeBuilderFragmentNodes} from 'types';
+import {INodeBuilderNodeChangeVersionInfo, INodeBuilderFragmentNodes} from './types';
 
 export const computeNodeFromNodeChange = <Node extends any>(
     previousNode: Node,

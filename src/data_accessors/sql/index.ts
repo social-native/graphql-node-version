@@ -14,8 +14,8 @@ import storeEventNodeChange from './store_event_node_change';
 import storeEventNodeFragmentRegistration from './store_event_node_fragment_registration';
 import storeNodeSnapshot from './store_node_snapshot';
 import {isEventNodeChangeWithSnapshotInfo} from '../../type_guards';
-import {setNames} from 'sql_names';
-import {getLoggerFromConfig} from 'logger';
+import {setNames} from '../../sql_names';
+import {getLoggerFromConfig} from '../../logger';
 
 export {default as createQueryShouldStoreSnapshot} from './query_should_store_snapshot';
 

@@ -1,7 +1,7 @@
 import Knex from 'knex';
 import {ITableAndColumnNames, AllEventInfo, ISqlRoleTable, ILoggerConfig} from '../../types';
 import {isEventNodeFragmentRegisterInfo} from '../../type_guards';
-import {getLoggerFromConfig} from 'logger';
+import {getLoggerFromConfig} from './logger';
 
 /**
  * Write the event to the base event table in the database

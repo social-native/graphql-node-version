@@ -1,21 +1,22 @@
 import Knex from 'knex';
 import {
+    ConnectionManager,
+    IQueryResult,
+    IInputArgs,
+    IFilter
+} from '@social-native/snpkg-snapi-connections';
+
+import {
     ITableAndColumnNames,
     StringValueWithKey,
     IGqlVersionNode,
     IVersionConnectionInfo,
     NodeInConnection,
     ILoggerConfig
-} from 'types';
-import {
-    ConnectionManager,
-    IQueryResult,
-    IInputArgs,
-    IFilter
-} from '@social-native/snpkg-snapi-connections';
-import {unixSecondsToSqlTimestamp, castDateToUTCSeconds} from 'lib/time';
-import {getLoggerFromConfig} from 'logger';
-import {isGqlNodeChangeNode} from 'type_guards';
+} from '../../types';
+import {unixSecondsToSqlTimestamp, castDateToUTCSeconds} from '../../lib/time';
+import {getLoggerFromConfig} from '../../logger';
+import {isGqlNodeChangeNode} from '../../type_guards';
 
 const castUnixToDateTimeInFilter = (logger?: ILoggerConfig['logger']) => (filter: IFilter) => {
     if (filter.field === 'createdAt') {

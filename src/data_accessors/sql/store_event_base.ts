@@ -7,7 +7,7 @@ import {
 } from '../../type_guards';
 import {EVENT_IMPLEMENTOR_TYPE_IDS} from '../../enums';
 import {getTxInsertId} from './utils';
-import {getLoggerFromConfig} from 'logger';
+import {getLoggerFromConfig} from '../../logger';
 
 /**
  * Write the event to the base event table in the database
