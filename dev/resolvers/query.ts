@@ -158,7 +158,7 @@ const nodeBuilder = (
     previousModel: any,
     versionInfo: IAllNodeBuilderVersionInfo,
     fragmentNodes: any,
-    logger?: ILoggerConfig['logger']
+    _logger?: ILoggerConfig['logger']
 ) => {
     // tslint:disable-next-line
     if (isNodeBuilderNodeChangeVersionInfo(versionInfo)) {
@@ -169,7 +169,6 @@ const nodeBuilder = (
             ...data,
             items: previousModel ? previousModel.items || [] : []
         };
-        logger && logger.warn('****************n*******************', d); // tslint:disable-line
         return d;
     } else if (isNodeBuilderNodeFragmentChangeVersionInfo(versionInfo)) {
         const fragmentsByName = Object.keys(fragmentNodes).map((n: any) => fragmentNodes[n]);
@@ -179,7 +178,6 @@ const nodeBuilder = (
             return acc;
         }, []);
         const d = {...previousModel, items: fragmentNodesById || []};
-        logger && logger.warn('****************frag*******************', d); // tslint:disable-line
         return d;
     }
     // TODO figure out why this is an object

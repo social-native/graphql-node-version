@@ -120,7 +120,6 @@ Promise<IQueryResult<NodeInConnection & {snapshot?: string}>> => {
     const query = knex
         .queryBuilder()
         .from(function() {
-            // const {roleName, snapshot: unusedSnapshot, ...attributes} = attributeMap;
             const queryBuilder = this.table(table_names.event)
                 .leftJoin(
                     table_names.event_implementor_type,

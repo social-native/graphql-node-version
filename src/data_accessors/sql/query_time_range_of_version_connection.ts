@@ -68,8 +68,10 @@ export default async <ResolverT extends (...args: [any, any, any, any]) => any>(
         ? oldestNodesWithPossibilityOfSnapshots.filter(node => node && node.snapshot == null) // tslint:disable-line
         : []) as NodeInConnection[] | undefined;
 
-    logger.info('**************', oldestNodesWithPossibilityOfSnapshots);
-    logger.error('oldestNodes', oldestNodesWithPossibilityOfSnapshots.length);
+    logger.debug(
+        'Number of node types that dont have snapshots in initial connection',
+        oldestNodesWithPossibilityOfSnapshots.length
+    );
     if (oldestNodesWithPossibilityOfSnapshots.length === 0) {
         // TODO handle this case
         logger.error('No oldest nodes found');
@@ -90,7 +92,6 @@ export default async <ResolverT extends (...args: [any, any, any, any]) => any>(
         logger
     );
 
-    logger.info('OLDEST ********* >>>>>', oldestCreatedAt);
     // tslint:disable-next-line
     if (oldestCreatedAt == null) {
         logger.debug('Missing oldest version');
@@ -107,7 +108,6 @@ export default async <ResolverT extends (...args: [any, any, any, any]) => any>(
     }
 
     logger.debug('Found oldest snapshot in version connection');
-
     return {oldestCreatedAt, youngestCreatedAt};
 };
 
@@ -121,7 +121,7 @@ const getMinCreatedAtOfVersionWithSnapshot = async (
     oldestNodes: NodeInConnection[],
     logger?: ILoggerConfig['logger']
 ): Promise<number | undefined> => {
-    logger && logger.info('!!!!!', oldestNodes); // tslint:disable-line
+    logger && logger.debug('Querying oldest snapshots for nodes:', oldestNodes); // tslint:disable-line
     const oldestCreatedAts = await Bluebird.map(oldestNodes, async node => {
         const query = knex
             .queryBuilder()
@@ -147,7 +147,6 @@ const getMinCreatedAtOfVersionWithSnapshot = async (
 
         logger && logger.debug('Raw SQL:', query.toQuery()); // tslint:disable-line
         const result = (await query) as {createdAt: string};
-        logger && logger.error('RESULTTTT', result); // tslint:disable-line
         return result ? castNodeWithRevisionTimeInDateTimeToUnixSecs(result, logger) : undefined;
     });
 

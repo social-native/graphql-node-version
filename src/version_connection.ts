@@ -100,27 +100,24 @@ export const createVersionConnectionWithFullNodes = (config?: IConfig) => {
         } = minSetOfEventsInConnectionThatStartWithASnapshot.reverse().reduce(
             (acc, event, index) => {
                 // tslint:disable-next-line
-                logger.warn(event.type);
+                logger.debug('Building node for type: ', event.type);
 
                 if (index === 0 && !isNodeBuilderNodeVersionInfoWithSnapshot(event)) {
                     logger.error('Missing initial snapshot for connection', event);
+                    throw new Error('Missing initial snapshot');
                 } else if (isNodeBuilderNodeVersionInfoWithSnapshot(event)) {
                     const nodeSnapshot = JSON.parse(event.snapshot);
 
                     if (isNodeBuilderNodeFragmentChangeVersionInfo(event)) {
                         const currentFragmentNodes = acc.fragmentNodes;
                         const childNodeByIds = currentFragmentNodes[event.childNodeName] || {};
-                        logger.warn('1111');
                         childNodeByIds[event.childNodeId] = nodeSnapshot;
-                        logger.warn('2222');
 
                         acc.fragmentNodes = {
                             ...acc.fragmentNodes,
                             [event.childNodeName]: childNodeByIds
                         };
-                        logger.warn('33333');
 
-                        logger.warn('----------- FRAGMENT', event.type, acc.fragmentNodes);
                         const calculatedNode = extractors.nodeBuilder(
                             acc.lastNode,
                             event,
@@ -130,8 +127,6 @@ export const createVersionConnectionWithFullNodes = (config?: IConfig) => {
                         acc.fullNodes[event.id] = calculatedNode;
                         acc.lastNode = calculatedNode;
                     } else if (isNodeBuilderNodeChangeVersionInfo(event)) {
-                        logger.warn('----------- CHANGE WITH SNAPSHOT', event.type);
-
                         acc.fullNodes[event.id] = nodeSnapshot;
                         acc.lastNode = nodeSnapshot;
                     } else {
@@ -139,8 +134,6 @@ export const createVersionConnectionWithFullNodes = (config?: IConfig) => {
                     }
                 } else {
                     if (isNodeBuilderNodeChangeVersionInfo(event)) {
-                        logger.warn('----------- CHANGE WITHOUT SNAPSHOT', event.type);
-
                         const calculatedNode = extractors.nodeBuilder(
                             acc.lastNode,
                             event,
@@ -150,8 +143,6 @@ export const createVersionConnectionWithFullNodes = (config?: IConfig) => {
                         acc.fullNodes[event.id] = calculatedNode;
                         acc.lastNode = calculatedNode;
                     } else if (shouldSkipNodeBuilderBecauseHasLinkChangeVersionInfo(event)) {
-                        logger.warn('----------- LINK CHANGE', event.type);
-
                         acc.fullNodes[event.id] = acc.lastNode;
                     } else {
                         throw new Error('Undefined node event without snapshot');
@@ -167,7 +158,6 @@ export const createVersionConnectionWithFullNodes = (config?: IConfig) => {
             }
         );
 
-        logger.warn('HERRE', nodesOfConnectionByEventId);
         // Step 8. Build the connection
         logger.debug('Building final version connection');
         const newEdges = versionNodeConnection.edges.map(n => {
