@@ -90,9 +90,23 @@ export default async <ResolverT extends (...args: [any, any, any, any]) => any>(
         logger
     );
 
-    if (oldestCreatedAt === undefined) {
-        throw new Error('Missing oldest version');
+    logger.info('OLDEST ********* >>>>>', oldestCreatedAt);
+    // tslint:disable-next-line
+    if (oldestCreatedAt == null) {
+        logger.debug('Missing oldest version');
+        if (oldestNodeInVersionConnection.createdAt) {
+            return {
+                oldestCreatedAt: oldestNodeInVersionConnection.createdAt,
+                youngestCreatedAt
+            };
+        } else {
+            throw new Error(
+                'No oldest node to use in time range of version connection snapshot events'
+            );
+        }
     }
+
+    logger.debug('Found oldest snapshot in version connection');
 
     return {oldestCreatedAt, youngestCreatedAt};
 };
@@ -106,7 +120,7 @@ const getMinCreatedAtOfVersionWithSnapshot = async (
     {table_names, event, node_snapshot}: ITableAndColumnNames,
     oldestNodes: NodeInConnection[],
     logger?: ILoggerConfig['logger']
-): Promise<number> => {
+): Promise<number | undefined> => {
     logger && logger.info('!!!!!', oldestNodes); // tslint:disable-line
     const oldestCreatedAts = await Bluebird.map(oldestNodes, async node => {
         const query = knex
@@ -141,7 +155,9 @@ const getMinCreatedAtOfVersionWithSnapshot = async (
         throw new Error('Couldnt find oldest nodes for establishing connection range');
     }
     const existingOldestCreatedAts = oldestCreatedAts.filter(n => n) as Array<{createdAt: number}>;
-    return Math.min(...existingOldestCreatedAts.map(n => n.createdAt));
+    return existingOldestCreatedAts.length > 0
+        ? Math.min(...existingOldestCreatedAts.map(n => n.createdAt))
+        : undefined;
 };
 
 const castNodeWithRevisionTimeInDateTimeToUnixSecs = <T extends {createdAt: string}>(
