@@ -1,6 +1,5 @@
 import unixTimeSec from '@social-native/snpkg-graphql-scalar-unix-time-sec';
 import {EVENT_IMPLEMENTOR_TYPE_IDS} from './enums';
-import {Resolver} from '../dev/types';
 
 const contentFormatToGraphqlTypeName: {[K in keyof typeof EVENT_IMPLEMENTOR_TYPE_IDS]: string} = {
     NODE_CHANGE: 'VersionNodeChange',
@@ -66,11 +65,7 @@ type VersionNodeLinkChange implements Version {
 `;
 
 // tslint:disable-next-line
-const __resolveType: Resolver<string | undefined, {type: EVENT_IMPLEMENTOR_TYPE_IDS}> = async ({
-    type
-}: {
-    type: EVENT_IMPLEMENTOR_TYPE_IDS;
-}) => {
+const __resolveType = async ({type}: {type: EVENT_IMPLEMENTOR_TYPE_IDS}) => {
     const graphqlTypeName = contentFormatToGraphqlTypeName[type];
 
     if (!graphqlTypeName) {
