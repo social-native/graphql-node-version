@@ -1,3 +1,5 @@
+// tslint:disable
+
 const { keys } = require('lodash');
 
 /**
@@ -53,3 +55,5 @@ module.exports = {
   DEFAULT_EXT,
   DEFAULT_TABLE_NAME,
 };
+
+// tslint:enable

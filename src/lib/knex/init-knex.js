@@ -1,3 +1,5 @@
+// tslint:disable
+
 const path = require('path');
 const tildify = require('tildify');
 const color = require('colorette');
@@ -103,3 +105,5 @@ function resolveEnvironmentConfig(opts, allConfigs) {
 module.exports = {
     initKnex,
 };
+
+// tslint:enable

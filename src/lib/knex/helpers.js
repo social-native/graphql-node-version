@@ -4,6 +4,9 @@
  * ********************************************************************
  */
 
+ // tslint:disable
+
+
 /* eslint no-console:0 */
 const {
     isFunction,
@@ -79,3 +82,5 @@ const {
     normalizeArr,
     resolveClientNameWithAliases,
   };
+
+  // tslint:enable

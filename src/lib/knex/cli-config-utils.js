@@ -1,3 +1,5 @@
+// tslint:disable
+
 const { DEFAULT_EXT, DEFAULT_TABLE_NAME } = require('./constants');
 const { resolveClientNameWithAliases } = require('./helpers');
 const fs = require('fs');
@@ -65,3 +67,5 @@ module.exports = {
   mkConfigObj,
   resolveKnexFilePath,
 };
+
+// tslint:enable

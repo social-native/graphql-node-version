@@ -33,7 +33,7 @@ yargs.command({
         const knex = (kenxBin as any).initKnex(Object.assign({}, env), opts);
 
         await up(knex);
-        console.log('Created revision table');
+        console.log('Created revision table'); // tslint:disable-line
         process.exit(0);
     }
 });
@@ -57,7 +57,7 @@ yargs.command({
         const knex = (kenxBin as any).initKnex(Object.assign({}, env), opts);
 
         await down(knex);
-        console.log('Rolled back revision table');
+        console.log('Rolled back revision table'); // tslint:disable-line
         process.exit(0);
     }
 });
