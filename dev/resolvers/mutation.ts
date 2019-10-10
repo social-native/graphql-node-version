@@ -1,11 +1,14 @@
-import {getTxInsertId} from '../utils';
-import {Resolver, IUserNode} from '../types';
 import knex from 'knex';
 
+import {getTxInsertId} from '../utils';
+import {Resolver, IUserNode} from '../types';
 import query from './query';
 
-import {decorate, versionRecorderDecorator as unconfiguredVersionRecorder} from '../../src/index';
-import {IVersionRecorderExtractors} from '../../src/types';
+import {
+    decorate,
+    versionRecorderDecorator as unconfiguredVersionRecorder,
+    IVersionRecorderExtractors
+} from '../../src';
 
 const versionRecorder = unconfiguredVersionRecorder({
     logOptions: {level: 'debug', prettyPrint: true, base: null}

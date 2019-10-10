@@ -1,5 +1,6 @@
 import {Resolver} from '../types';
 import {EVENT_IMPLEMENTOR_TYPE_IDS} from '../../src';
+
 const contentFormatToGraphqlTypeName: {[K in keyof typeof EVENT_IMPLEMENTOR_TYPE_IDS]: string} = {
     NODE_CHANGE: 'VersionNodeChange',
     NODE_FRAGMENT_CHANGE: 'VersionNodeFragmentChange',

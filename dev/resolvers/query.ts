@@ -1,18 +1,15 @@
-import {Resolver, IUserNode, ITodoItem, ITodoList} from '../types';
 import {ConnectionManager, IInputArgs, IQueryResult} from '@social-native/snpkg-snapi-connections';
+import {Resolver, IUserNode, ITodoItem, ITodoList} from '../types';
 
 import {
     IVersionConnection,
-    createRevisionConnection as unconfiguredCreateRevisionConnection,
+    versionConnection as unconfiguredCreateRevisionConnection,
     IAllNodeBuilderVersionInfo,
     ILoggerConfig,
-    INodeBuilderFragmentNodes
-} from '../../src/index';
-import {
-    isNodeBuilderNodeChangeVersionInfo,
-    isNodeBuilderNodeFragmentChangeVersionInfo
-} from '../../src/type_guards';
-import {computeNodeFromNodeChange, computeNodeFromNodeChangeFragment} from 'node_builder_utils';
+    INodeBuilderFragmentNodes,
+    typeGuards,
+    nodeBuilder as versionNodeBuilder
+} from '../../src';
 
 const createRevisionConnection = unconfiguredCreateRevisionConnection({
     logOptions: {level: 'debug', prettyPrint: true, base: null}
@@ -119,13 +116,7 @@ const query: {
             bio: 'bio'
         };
 
-        const builderOptions = {
-            searchColumns: ['username', 'firstname', 'lastname', 'bio', 'haircolor'],
-            searchModifier: 'IN NATURAL LANGUAGE MODE'
-        };
-        const nodeConnection = new ConnectionManager<IUserNode>(inputArgs, attributeMap, {
-            builderOptions
-        });
+        const nodeConnection = new ConnectionManager<IUserNode>(inputArgs, attributeMap);
 
         const queryResult = nodeConnection.createQuery(queryBuilder.clone()).select();
         const result = (await queryResult) as KnexQueryResult;
@@ -145,14 +136,17 @@ const nodeBuilder = <Node extends any, FragmentNode extends object>(
     fragmentNodes?: INodeBuilderFragmentNodes<FragmentNode>,
     _logger?: ILoggerConfig['logger']
 ): Node => {
-    if (isNodeBuilderNodeChangeVersionInfo(versionInfo)) {
-        return computeNodeFromNodeChange(previousNode, versionInfo);
-    } else if (isNodeBuilderNodeFragmentChangeVersionInfo(versionInfo) && fragmentNodes) {
+    if (typeGuards.isNodeBuilderNodeChangeVersionInfo(versionInfo)) {
+        return versionNodeBuilder.computeNodeFromNodeChange(previousNode, versionInfo);
+    } else if (
+        typeGuards.isNodeBuilderNodeFragmentChangeVersionInfo(versionInfo) &&
+        fragmentNodes
+    ) {
         const computeNode = (pNode: Node, fragments: FragmentNode[]) => ({
             ...pNode,
             items: fragments || []
         });
-        return computeNodeFromNodeChangeFragment<Node, FragmentNode>(
+        return versionNodeBuilder.computeNodeFromNodeChangeFragment<Node, FragmentNode>(
             previousNode,
             fragmentNodes,
             computeNode

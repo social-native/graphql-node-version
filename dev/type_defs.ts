@@ -1,5 +1,4 @@
 import {gql} from 'apollo-server-koa';
-import unixTimeSec from '@social-native/snpkg-graphql-scalar-unix-time-sec';
 
 export default gql`
     type User {
@@ -21,61 +20,6 @@ export default gql`
     type QueryUserEdge implements IEdge {
         cursor: String!
         node: User
-    }
-
-    interface Version {
-        id: ID!
-        createdAt: ${unixTimeSec.type.name}!
-        nodeId: ID!
-        nodeName: String!
-        resolverOperation: String!
-        type: String!
-        userId: String!
-        userRoles: [String]!
-    }
-
-    type VersionNodeChange implements Version {
-        id: ID!
-        createdAt: ${unixTimeSec.type.name}!
-        nodeId: ID!
-        nodeName: String!
-        resolverOperation: String!
-        type: String!
-        userId: String!
-        userRoles: [String]!
-
-        revisionData: String!
-        nodeSchemaVersion: ID!
-    }
-
-    type VersionNodeFragmentChange implements Version {
-        id: ID!
-        createdAt: ${unixTimeSec.type.name}!
-        nodeId: ID!
-        nodeName: String!
-        resolverOperation: String!
-        type: String!
-        userId: String!
-        userRoles: [String]!
-
-        childNodeId: ID!
-        childNodeName: String!
-        childRevisionData: String!
-        childNodeSchemaVersion: ID!
-    }
-
-    type VersionNodeLinkChange implements Version {
-        id: ID!
-        createdAt: ${unixTimeSec.type.name}!
-        nodeId: ID!
-        nodeName: String!
-        resolverOperation: String!
-        type: String!
-        userId: String!
-        userRoles: [String]!
-
-        linkNodeId: ID!
-        linkNodeName: String!
     }
 
     type QueryTodoItemVersionConnection implements IConnection {
@@ -176,48 +120,17 @@ export default gql`
     }
 
     type Mutation {
-        teamCreate(
-            name: String!
-        ): CreationId
-        teamUpdate(
-            id: ID!
-            name: String
-        ): CreationId
-        teamDelete(
-            id: ID!
-        ): CreationId
-        teamUserCreate(
-            userId: ID!
-            teamId: ID!
-        ): CreationId
-        teamUserDelete(
-            userId: ID!
-            teamId: ID!
-        ): CreationId
-        todoListCreate(
-            userId: ID!
-            usage: String!
-        ): CreationId
-        todoListUpdate(
-            id: ID!
-            usage: String
-        ): CreationId
-        todoListDelete(
-            id: ID!
-        ): CreationId
-        todoItemCreate(
-            todoListId: ID!
-            note: String!
-            order: Int!
-        ): CreationId
-        todoItemUpdate(
-            id: ID!
-            note: String
-            order: Int
-        ): CreationId
-        todoItemDelete(
-            id: ID!
-        ): CreationId
+        teamCreate(name: String!): CreationId
+        teamUpdate(id: ID!, name: String): CreationId
+        teamDelete(id: ID!): CreationId
+        teamUserCreate(userId: ID!, teamId: ID!): CreationId
+        teamUserDelete(userId: ID!, teamId: ID!): CreationId
+        todoListCreate(userId: ID!, usage: String!): CreationId
+        todoListUpdate(id: ID!, usage: String): CreationId
+        todoListDelete(id: ID!): CreationId
+        todoItemCreate(todoListId: ID!, note: String!, order: Int!): CreationId
+        todoItemUpdate(id: ID!, note: String, order: Int): CreationId
+        todoItemDelete(id: ID!): CreationId
         userCreate(
             username: String!
             firstname: String!
@@ -235,9 +148,7 @@ export default gql`
             age: Int
             haircolor: String
         ): User
-        userDelete(
-            id: ID!
-        ): CreationId
+        userDelete(id: ID!): CreationId
     }
 
     type Team {
@@ -261,6 +172,4 @@ export default gql`
     type CreationId {
         id: ID!
     }
-
-    ${unixTimeSec.typedef}
 `;

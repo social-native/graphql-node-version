@@ -1,11 +1,10 @@
-// import {createVersionConnectionWithFullNodes} from './version_connection';
-
-export {
-    default as versionConnectionDecorator, // createRevisionConnection
-    createVersionConnectionWithFullNodes as createRevisionConnection
-} from './version_connection';
+export {default as versionConnection} from './version_connection';
 export {default as versionRecorderDecorator} from './version_recorder';
+export {typeDefs, resolvers} from './graphql_schema';
 export {default as createRevisionMigrations} from './migrations/generator';
 export {default as decorate} from './lib/mobx/decorate';
+import * as typeGuards from './type_guards';
+import * as nodeBuilder from './node_builder_utils';
+export {typeGuards, nodeBuilder};
 export * from './types';
-export {EVENT_IMPLEMENTOR_TYPE_IDS} from './enums';
+export * from './enums';

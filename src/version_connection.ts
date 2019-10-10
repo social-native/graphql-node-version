@@ -28,7 +28,7 @@ import {
  * 2. Calculate full nodes for all revisions in range
  * 3. Get revisions in connection (filters may apply etc)
  */
-export const createVersionConnectionWithFullNodes = (config?: IConfig) => {
+export default (config?: IConfig) => {
     const tableAndColumnNames = setNames(config ? config.names : undefined);
     const parentLogger = getLoggerFromConfig(config);
     const logger = parentLogger.child({api: 'Version Connection'});

@@ -70,3 +70,4 @@ typings/
 tmp
 
 dist
+.DS_Store
