@@ -6,7 +6,7 @@ import Mutation from './mutation';
 import Query from './query';
 import Team from './team';
 import User from './user';
-import TodoList from './todo_list';
+// import TodoList from './todo_list';
 import Version from './version';
 
 export default {
@@ -15,7 +15,7 @@ export default {
     Query,
     Team,
     User,
-    TodoList,
+    // TodoList,
     ...connectionResolvers,
     ...unixTimeSec.resolver
 } as IResolvers;

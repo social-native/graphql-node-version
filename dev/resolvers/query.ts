@@ -6,8 +6,13 @@ import {
     // versionConnectionDecorator as versionConnection,
     IVersionConnection,
     createRevisionConnection as unconfiguredCreateRevisionConnection,
-    INodeBuilderVersionInfo
+    IAllNodeBuilderVersionInfo,
+    ILoggerConfig
 } from '../../src/index';
+import {
+    isNodeBuilderNodeChangeVersionInfo,
+    isNodeBuilderNodeFragmentChangeVersionInfo
+} from '../../src/type_guards';
 
 const createRevisionConnection = unconfiguredCreateRevisionConnection({
     logOptions: {level: 'debug', prettyPrint: true, base: null}
@@ -149,11 +154,35 @@ const query: {
 //     }
 // };
 
-const nodeBuilder = (previousModel: any, versionInfo: INodeBuilderVersionInfo) => {
-    const {revisionData} = versionInfo;
+const nodeBuilder = (
+    previousModel: any,
+    versionInfo: IAllNodeBuilderVersionInfo,
+    fragmentNodes: any,
+    logger?: ILoggerConfig['logger']
+) => {
+    // tslint:disable-next-line
+    if (isNodeBuilderNodeChangeVersionInfo(versionInfo)) {
+        const {revisionData} = versionInfo;
+        const data = revisionData as any;
+        const d = {
+            ...previousModel,
+            ...data,
+            items: previousModel ? previousModel.items || [] : []
+        };
+        logger && logger.warn('****************n*******************', d); // tslint:disable-line
+        return d;
+    } else if (isNodeBuilderNodeFragmentChangeVersionInfo(versionInfo)) {
+        const fragmentsByName = Object.keys(fragmentNodes).map((n: any) => fragmentNodes[n]);
+        const fragmentNodesById = fragmentsByName.reduce((acc, f) => {
+            const nodes = Object.keys(f).map((n: any) => f[n]);
+            acc = [...acc, ...nodes];
+            return acc;
+        }, []);
+        const d = {...previousModel, items: fragmentNodesById || []};
+        logger && logger.warn('****************frag*******************', d); // tslint:disable-line
+        return d;
+    }
     // TODO figure out why this is an object
-    const data = revisionData as any;
-    return {...previousModel, ...data};
 };
 
 // decorate(query, {

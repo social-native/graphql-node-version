@@ -1,7 +1,11 @@
 import {DateTime} from 'luxon';
 
-export const castDateToUTCSeconds = (date: string | Date): number | null => {
-    return isDate(date) ? DateTime.fromJSDate(date, {zone: 'local'}).toSeconds() : null;
+export const castDateToUTCSeconds = (date: string | Date): number => {
+    if (isDate(date)) {
+        return DateTime.fromJSDate(date, {zone: 'local'}).toSeconds();
+    } else {
+        throw new Error('Error casting date to UTC secs');
+    }
 };
 
 export const isDate = (date?: Date | string): date is Date => {

@@ -174,7 +174,13 @@ export interface IVersionConnectionInfo<Resolver extends (...args: any[]) => any
     nodeName: string;
     nodeBuilder: (
         previousModel: UnPromisify<ReturnType<Resolver>>,
-        versionInfo: INodeBuilderVersionInfo
+        versionInfo: IAllNodeBuilderVersionInfo,
+        fragmentPreviousModel?: {
+            [nodeName: string]: {
+                [nodeId: string]: any;
+            };
+        },
+        logger?: ILoggerConfig['logger']
     ) => UnPromisify<ReturnType<any>>;
 }
 export interface IVersionConnectionExtractors<Resolver extends (...args: any[]) => any>
@@ -319,6 +325,10 @@ export interface IPersistVersionInfo {
 
 export type PersistVersion = (versionInfo: IPersistVersionInfo) => Promise<void>;
 
+export type IAllNodeBuilderVersionInfo<CreatedAt = number> =
+    | INodeBuilderNodeChangeVersionInfo<CreatedAt>
+    | INodeBuilderNodeFragmentChangeVersionInfo<CreatedAt>;
+
 export interface INodeBuilderVersionInfo<CreatedAt = number> {
     type: string;
 
@@ -328,9 +338,41 @@ export interface INodeBuilderVersionInfo<CreatedAt = number> {
     nodeId: string;
     userId: string;
     resolverOperation: string;
+}
 
-    revisionData?: string;
-    nodeSchemaVersion?: string;
+export interface INodeBuilderNodeChangeVersionInfo<CreatedAt = number>
+    extends INodeBuilderVersionInfo<CreatedAt> {
+    type: string;
+
+    id: number;
+    createdAt: CreatedAt;
+    nodeName: string;
+    nodeId: string;
+    userId: string;
+    resolverOperation: string;
+
+    revisionData: string;
+    nodeSchemaVersion: string;
+
+    snapshot?: string;
+}
+
+export interface INodeBuilderNodeFragmentChangeVersionInfo<CreatedAt = number>
+    extends INodeBuilderVersionInfo<CreatedAt> {
+    type: string;
+
+    id: number;
+    createdAt: CreatedAt;
+    nodeName: string;
+    nodeId: string;
+    userId: string;
+    resolverOperation: string;
+
+    childNodeName: string;
+    childNodeId: string;
+
+    childRevisionData: string;
+    childNodeSchemaVersion: string;
 
     snapshot?: string;
 }

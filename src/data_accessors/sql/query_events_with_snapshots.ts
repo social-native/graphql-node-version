@@ -5,18 +5,14 @@ import {
     ISqlNodeSnapshotTable,
     IVersionConnectionInfo,
     ILoggerConfig,
-    INodeBuilderVersionInfo
+    INodeBuilderNodeChangeVersionInfo,
+    IAllNodeBuilderVersionInfo,
+    INodeBuilderNodeFragmentChangeVersionInfo
 } from '../../types';
 import {unixSecondsToSqlTimestamp, castDateToUTCSeconds} from 'lib/time';
 import {getLoggerFromConfig} from 'logger';
+import {EVENT_IMPLEMENTOR_TYPE_NAMES} from 'enums';
 
-export interface IEventWithSnapshot {
-    createdAt: number;
-    id: number;
-    nodeId: string;
-    nodeName: string;
-    snapshot?: string;
-}
 export default async <ResolverT extends (...args: [any, any, any, any]) => any>(
     knex: Knex,
     {
@@ -30,8 +26,9 @@ export default async <ResolverT extends (...args: [any, any, any, any]) => any>(
     allNodeInstancesInConnection: Array<
         Pick<IVersionConnectionInfo<ResolverT>, 'nodeId' | 'nodeName'>
     >,
+    originalNodeInstance: Pick<IVersionConnectionInfo<ResolverT>, 'nodeId' | 'nodeName'>,
     loggerConfig?: ILoggerConfig
-): Promise<Array<INodeBuilderVersionInfo<number>>> => {
+): Promise<Array<IAllNodeBuilderVersionInfo<number>>> => {
     const parentLogger = getLoggerFromConfig(loggerConfig);
     const logger = parentLogger.child({query: 'Events with snapshots'});
 
@@ -89,14 +86,34 @@ export default async <ResolverT extends (...args: [any, any, any, any]) => any>(
         );
 
     logger.debug('Raw SQL:', query.toQuery());
-    const result = (await query) as Array<INodeBuilderVersionInfo<string>>;
-    return result.map(r => castNodeWithRevisionTimeInDateTimeToUnixSecs(r, logger));
+    const result = (await query) as Array<INodeBuilderNodeChangeVersionInfo<string>>;
+    return result.map(r => {
+        const rr = castNodeWithRevisionTimeInDateTimeToUnixSecs(r, logger);
+        const isFragment =
+            rr &&
+            (rr.nodeId !== originalNodeInstance.nodeId ||
+                rr.nodeName !== originalNodeInstance.nodeName);
+        if (isFragment) {
+            return {
+                ...rr,
+                nodeId: originalNodeInstance.nodeId,
+                nodeName: originalNodeInstance.nodeName,
+                type: EVENT_IMPLEMENTOR_TYPE_NAMES.NODE_FRAGMENT_CHANGE,
+                childNodeName: rr.nodeName,
+                childNodeId: rr.nodeId,
+                childRevisionData: rr.revisionData,
+                childNodeSchemaVersion: rr.nodeSchemaVersion
+            } as INodeBuilderNodeFragmentChangeVersionInfo;
+        } else {
+            return rr;
+        }
+    });
 };
 
-const castNodeWithRevisionTimeInDateTimeToUnixSecs = <T extends {createdAt: string}>(
-    node: T,
+const castNodeWithRevisionTimeInDateTimeToUnixSecs = (
+    node: INodeBuilderNodeChangeVersionInfo<string>,
     logger?: ILoggerConfig['logger']
-): T & {createdAt: number} => {
+): INodeBuilderNodeChangeVersionInfo<number> => {
     const {createdAt} = node;
     const newRevisionTime = castDateToUTCSeconds(createdAt);
     logger && logger.debug('Casting dateTime -> unixSecs', createdAt, newRevisionTime); // tslint:disable-line
