@@ -134,13 +134,14 @@ const getMinCreatedAtOfVersionWithSnapshot = async (
         logger && logger.debug('Raw SQL:', query.toQuery()); // tslint:disable-line
         const result = (await query) as {createdAt: string};
         logger && logger.error('RESULTTTT', result); // tslint:disable-line
-        return castNodeWithRevisionTimeInDateTimeToUnixSecs(result, logger);
+        return result ? castNodeWithRevisionTimeInDateTimeToUnixSecs(result, logger) : undefined;
     });
 
     if (!oldestCreatedAts || oldestCreatedAts.length === 0) {
         throw new Error('Couldnt find oldest nodes for establishing connection range');
     }
-    return Math.min(...oldestCreatedAts.map(n => n.createdAt));
+    const existingOldestCreatedAts = oldestCreatedAts.filter(n => n) as Array<{createdAt: number}>;
+    return Math.min(...existingOldestCreatedAts.map(n => n.createdAt));
 };
 
 const castNodeWithRevisionTimeInDateTimeToUnixSecs = <T extends {createdAt: string}>(
