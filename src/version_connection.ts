@@ -1,4 +1,10 @@
-import {UnPromisify, IVersionConnectionExtractors, IGqlVersionNode, IConfig} from './types';
+import {
+    UnPromisify,
+    IVersionConnectionExtractors,
+    IGqlVersionNode,
+    IConfig,
+    INodeBuilderFragmentNodes
+} from './types';
 import {ConnectionManager} from '@social-native/snpkg-snapi-connections';
 import queryVersionConnection from './data_accessors/sql/query_version_connection';
 import queryNodeInstancesInConnection from './data_accessors/sql/query_node_instances_in_connection';
@@ -152,7 +158,7 @@ export const createVersionConnectionWithFullNodes = (config?: IConfig) => {
                 return acc;
             },
             {fullNodes: {}, fragmentNodes: {}} as {
-                fragmentNodes: {[nodeName: string]: {[nodeId: string]: any}};
+                fragmentNodes: INodeBuilderFragmentNodes;
                 lastNode: UnPromisify<ReturnType<ResolverT>>;
                 fullNodes: {[eventId: string]: UnPromisify<ReturnType<ResolverT>>};
             }

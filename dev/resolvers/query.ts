@@ -2,17 +2,17 @@ import {Resolver, IUserNode, ITodoItem, ITodoList} from '../types';
 import {ConnectionManager, IInputArgs, IQueryResult} from '@social-native/snpkg-snapi-connections';
 
 import {
-    // decorate,
-    // versionConnectionDecorator as versionConnection,
     IVersionConnection,
     createRevisionConnection as unconfiguredCreateRevisionConnection,
     IAllNodeBuilderVersionInfo,
-    ILoggerConfig
+    ILoggerConfig,
+    INodeBuilderFragmentNodes
 } from '../../src/index';
 import {
     isNodeBuilderNodeChangeVersionInfo,
     isNodeBuilderNodeFragmentChangeVersionInfo
 } from '../../src/type_guards';
+import {computeNodeFromNodeChange, computeNodeFromNodeChangeFragment} from 'node_builder_utils';
 
 const createRevisionConnection = unconfiguredCreateRevisionConnection({
     logOptions: {level: 'debug', prettyPrint: true, base: null}
@@ -39,7 +39,6 @@ type QueryTodoItemResolver = Resolver<
     {id: string} & IInputArgs
 >;
 type QueryUsersResolver = Resolver<IQueryResult<IUserNode | null>, undefined, IInputArgs>;
-// type QueryUserResolver = Resolver<IUserNode, undefined, {id: string}>;
 type QueryUserResolver = Resolver<
     IVersionConnection<IUserNode | null>,
     undefined,
@@ -140,57 +139,27 @@ const query: {
     }
 };
 
-// const proxiedResolvers: {
-//     userVersion: QueryUserVersionResolver;
-// } = {
-//     async userVersion(parent, args, ctx, info) {
-//         const currentNode = query.user(parent, {id: args.id}, ctx, info);
-//         return await createRevisionConnection(currentNode, [parent, args, ctx, info], {
-//             knex: ctx.sqlClient,
-//             nodeBuilder,
-//             nodeId: args.id,
-//             nodeName: 'user'
-//         });
-//     }
-// };
-
-const nodeBuilder = (
-    previousModel: any,
+const nodeBuilder = <Node extends any, FragmentNode extends object>(
+    previousNode: Node,
     versionInfo: IAllNodeBuilderVersionInfo,
-    fragmentNodes: any,
+    fragmentNodes?: INodeBuilderFragmentNodes<FragmentNode>,
     _logger?: ILoggerConfig['logger']
-) => {
-    // tslint:disable-next-line
+): Node => {
     if (isNodeBuilderNodeChangeVersionInfo(versionInfo)) {
-        const {revisionData} = versionInfo;
-        const data = revisionData as any;
-        const d = {
-            ...previousModel,
-            ...data,
-            items: previousModel ? previousModel.items || [] : []
-        };
-        return d;
-    } else if (isNodeBuilderNodeFragmentChangeVersionInfo(versionInfo)) {
-        const fragmentsByName = Object.keys(fragmentNodes).map((n: any) => fragmentNodes[n]);
-        const fragmentNodesById = fragmentsByName.reduce((acc, f) => {
-            const nodes = Object.keys(f).map((n: any) => f[n]);
-            acc = [...acc, ...nodes];
-            return acc;
-        }, []);
-        const d = {...previousModel, items: fragmentNodesById || []};
-        return d;
+        return computeNodeFromNodeChange(previousNode, versionInfo);
+    } else if (isNodeBuilderNodeFragmentChangeVersionInfo(versionInfo) && fragmentNodes) {
+        const computeNode = (pNode: Node, fragments: FragmentNode[]) => ({
+            ...pNode,
+            items: fragments || []
+        });
+        return computeNodeFromNodeChangeFragment<Node, FragmentNode>(
+            previousNode,
+            fragmentNodes,
+            computeNode
+        );
+    } else {
+        throw new Error('Unknown versionInfo type. Could not build node');
     }
-    // TODO figure out why this is an object
 };
 
-// decorate(query, {
-//     user: versionConnection<QueryUserResolver>({
-//         knex: (_, __, {sqlClient}) => sqlClient,
-//         nodeBuilder,
-//         nodeId: (_parent, {id}) => id,
-//         nodeName: () => 'user'
-//     })
-// });
-
-// export default {...query, ...proxiedResolvers};
 export default query;

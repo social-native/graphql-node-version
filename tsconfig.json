@@ -69,6 +69,6 @@
         "src/**/*",
         "dev/**/*"
       ],
-      "exclude": ["node_modules", "dev"]
+      "exclude": ["node_modules"]
   }
   

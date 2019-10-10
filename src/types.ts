@@ -169,29 +169,28 @@ export interface IVersionConnection<Node> {
  *
  */
 
-export interface IVersionConnectionInfo<Resolver extends (...args: any[]) => any> {
+export interface IVersionConnectionInfo<Resolver extends (...args: any[]) => Promise<any> | any> {
     nodeId: string | number;
     nodeName: string;
-    nodeBuilder: (
-        previousModel: UnPromisify<ReturnType<Resolver>>,
+    nodeBuilder: <Node = UnPromisify<ReturnType<Resolver>>, FragmentNode extends object = object>(
+        previousNode: Node,
         versionInfo: IAllNodeBuilderVersionInfo,
-        fragmentPreviousModel?: {
-            [nodeName: string]: {
-                [nodeId: string]: any;
-            };
-        },
+        fragmentNodes?: INodeBuilderFragmentNodes<FragmentNode>,
         logger?: ILoggerConfig['logger']
-    ) => UnPromisify<ReturnType<any>>;
+    ) => Node;
 }
-export interface IVersionConnectionExtractors<Resolver extends (...args: any[]) => any>
-    extends IVersionConnectionInfo<Resolver> {
+export interface IVersionConnectionExtractors<
+    Resolver extends (...args: any[]) => Promise<any> | any
+> extends IVersionConnectionInfo<Resolver> {
     knex: Knex;
     nodeId: IVersionConnectionInfo<Resolver>['nodeId'];
     nodeName: IVersionConnectionInfo<Resolver>['nodeName'];
     nodeBuilder: IVersionConnectionInfo<Resolver>['nodeBuilder'];
 }
 
-export interface IVersionRecorderExtractors<Resolver extends (...args: any[]) => any> {
+export interface IVersionRecorderExtractors<
+    Resolver extends (...args: any[]) => Promise<any> | any
+> {
     userId: (
         parent: Parameters<Resolver>[0],
         args: Parameters<Resolver>[1],
@@ -409,6 +408,16 @@ export type BaseResolver<Node = any, P = undefined, A = undefined, C = {}, I = {
     ctx: C,
     info?: I
 ) => Node | Promise<Node>;
+
+/**
+ *
+ * Node Builder
+ *
+ */
+
+export interface INodeBuilderFragmentNodes<T = object> {
+    [nodeName: string]: {[nodeId: string]: T};
+}
 
 /**
  *
