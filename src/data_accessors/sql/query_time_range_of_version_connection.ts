@@ -44,10 +44,22 @@ export default async <ResolverT extends (...args: [any, any, any, any]) => any>(
     // tslint:disable-next-line
     // Find oldest versions of each node instance in the connection
     const nodesInVersionConnectionOrderedOldestToYoungest = nodesInVersionConnection.reverse();
+    const oldestNodeInVersionConnection = nodesInVersionConnection[0];
     const oldestNodesWithPossibilityOfSnapshots = allNodeInstancesInConnection.map(instanceNode => {
-        return nodesInVersionConnectionOrderedOldestToYoungest.find(
-            gqlNode =>
-                gqlNode.nodeId === instanceNode.nodeId && gqlNode.nodeName === instanceNode.nodeName
+        return (
+            nodesInVersionConnectionOrderedOldestToYoungest.find(
+                gqlNode =>
+                    gqlNode.nodeId === instanceNode.nodeId &&
+                    gqlNode.nodeName === instanceNode.nodeName
+            ) ||
+            // combine instance node with node in connection which 'gives' the instance node a min `createdAt` field
+            // so the search will start after this b/c the node is not in the connection but is required
+            // to compute the present connection node's state
+            ({
+                ...oldestNodeInVersionConnection,
+                ...instanceNode,
+                snapshot: undefined
+            } as typeof oldestNodeInVersionConnection)
         );
     });
 
@@ -56,7 +68,8 @@ export default async <ResolverT extends (...args: [any, any, any, any]) => any>(
         ? oldestNodesWithPossibilityOfSnapshots.filter(node => node && node.snapshot == null) // tslint:disable-line
         : []) as NodeInConnection[] | undefined;
 
-    logger.error('oldestNodes', oldestNodesWithPossibilityOfSnapshots);
+    logger.info('**************', oldestNodesWithPossibilityOfSnapshots);
+    logger.error('oldestNodes', oldestNodesWithPossibilityOfSnapshots.length);
     if (oldestNodesWithPossibilityOfSnapshots.length === 0) {
         // TODO handle this case
         logger.error('No oldest nodes found');
@@ -65,7 +78,7 @@ export default async <ResolverT extends (...args: [any, any, any, any]) => any>(
     if (oldestNodes === undefined || oldestNodes.length === 0) {
         logger.debug('Oldest node has snapshot');
         return {
-            oldestCreatedAt: nodesInVersionConnectionOrderedOldestToYoungest[0].createdAt,
+            oldestCreatedAt: oldestNodeInVersionConnection.createdAt,
             youngestCreatedAt
         };
     }
@@ -127,7 +140,7 @@ const getMinCreatedAtOfVersionWithSnapshot = async (
     if (!oldestCreatedAts || oldestCreatedAts.length === 0) {
         throw new Error('Couldnt find oldest nodes for establishing connection range');
     }
-    return Math.max(...oldestCreatedAts.map(n => n.createdAt));
+    return Math.min(...oldestCreatedAts.map(n => n.createdAt));
 };
 
 const castNodeWithRevisionTimeInDateTimeToUnixSecs = <T extends {createdAt: string}>(

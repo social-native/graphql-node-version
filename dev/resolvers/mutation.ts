@@ -385,7 +385,7 @@ const commonDecoratorConfig = <T extends Resolver<any, any, any>>() =>
     ({
         knex: (_, __, {sqlClient}) => sqlClient,
         userId: () => '1',
-        userRoles: () => ['operations', 'user', 'billing'],
+        userRoles: () => ['ethan', 'human'],
         revisionData: (_, args) => JSON.stringify(args),
         currentNodeSnapshotFrequency: 5
     } as Pick<

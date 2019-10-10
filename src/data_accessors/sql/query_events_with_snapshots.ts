@@ -49,6 +49,7 @@ export default async <ResolverT extends (...args: [any, any, any, any]) => any>(
             `${table_names.event}.${event.id}`,
             `${table_names.node_snapshot}.${node_snapshot.event_id}`
         )
+        // TODO fix error with this where statement
         .where(
             `${table_names.event}.${event.created_at}`,
             '>=',
