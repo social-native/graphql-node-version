@@ -28,7 +28,7 @@ export default async (
         .table<ISqlRoleTable>(table_names.role)
         .whereIn(role.role, eventInfo.userRoles);
 
-    logger.debug('Raw SQL:', rolesQuery.toQuery());
+    logger.debug('Raw SQL:', logger.level === 'debug' && rolesQuery.toQuery());
 
     const foundRolesQueryResult = (await rolesQuery) as ISqlRoleTable[];
     const foundRoleNames = foundRolesQueryResult.map((n: any) => n[role.role]);
@@ -46,7 +46,7 @@ export default async (
         const userRolesQuery = transaction
             .table(table_names.role)
             .whereIn(role.role, eventInfo.userRoles);
-        logger.debug('Raw SQL:', userRolesQuery.toQuery());
+        logger.debug('Raw SQL:', logger.level === 'debug' && userRolesQuery.toQuery());
 
         allRoles = (await userRolesQuery) as ISqlRoleTable[];
     } else {

@@ -86,7 +86,7 @@ export default async <ResolverT extends (...args: [any, any, any, any]) => any>(
             `${table_names.node_snapshot}.${node_snapshot.snapshot} as snapshot`
         );
 
-    logger.debug('Raw SQL:', query.toQuery());
+    logger.debug('Raw SQL:', logger.level === 'debug' && query.toQuery());
     const result = (await query) as Array<INodeBuilderNodeChangeVersionInfo<string>>;
     return result.map(r => {
         const rr = castNodeWithRevisionTimeInDateTimeToUnixSecs(r, logger);

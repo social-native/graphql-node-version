@@ -104,7 +104,7 @@ export const DEFAULT_COLUMN_NAMES_SNAPSHOT_TABLE: StringValueWithKey<ISqlNodeSna
  * Override default table and column names
  */
 
-export const setNames = (names?: ITableAndColumnNames): ITableAndColumnNames => {
+export const generateTableAndColumnNames = (names?: ITableAndColumnNames): ITableAndColumnNames => {
     // tslint:disable
     const tableNames = names && names.table_names;
     const event = names && names.event;

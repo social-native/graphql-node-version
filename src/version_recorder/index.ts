@@ -1,22 +1,24 @@
-import {UnPromisify, IVersionRecorderExtractors, IConfig} from './types';
-import {setNames} from './sql_names';
+import {IVersionRecorderExtractors, IConfig} from '../types';
+import {generateTableAndColumnNames} from '../sql_names';
 import {
     eventInfoBaseExtractor,
     eventLinkChangeInfoExtractor,
     eventNodeChangeInfoExtractor,
     eventNodeFragmentRegisterInfoExtractor
-} from './extractors';
-import {createKnexTransaction} from './data_accessors/sql/utils';
+} from '../extractors';
+import {createKnexTransaction} from '../data_accessors/sql/utils';
 import {
     persistVersion as initializePersistVersion,
     createQueryShouldStoreSnapshot
-} from './data_accessors/sql';
-import {getLoggerFromConfig} from './logger';
+} from '../data_accessors/sql';
+import {getLoggerFromConfig} from '../logger';
+import callDecoratedNode from './call_decorated_node';
+import getResolverOperation from './get_resolver_operation';
 
 export default (config?: IConfig) => <ResolverT extends (...args: any[]) => any>(
     extractors: IVersionRecorderExtractors<ResolverT>
 ): MethodDecorator => {
-    const tableAndColumnNames = setNames(config ? config.names : undefined);
+    const tableAndColumnNames = generateTableAndColumnNames(config ? config.names : undefined);
     const parentLogger = getLoggerFromConfig(config);
 
     const logger = parentLogger.child({api: 'Version Recorder'});
@@ -108,26 +110,4 @@ export default (config?: IConfig) => <ResolverT extends (...args: any[]) => any>
 
         return descriptor;
     };
-};
-
-const getResolverOperation = <T extends (...args: any[]) => any>(
-    extractors: IVersionRecorderExtractors<T>,
-    property: string | symbol
-) => {
-    const rawResolverOperation = extractors.resolverOperation
-        ? extractors.resolverOperation
-        : property;
-
-    return typeof rawResolverOperation === 'symbol'
-        ? rawResolverOperation.toString()
-        : rawResolverOperation;
-};
-
-const callDecoratedNode = async <ResolverT extends (...args: any[]) => any>(
-    value: (
-        ...resolverArgs: any[]
-    ) => Promise<UnPromisify<ReturnType<ResolverT>>> | UnPromisify<ReturnType<ResolverT>>,
-    args: Parameters<ResolverT>
-) => {
-    return await value(args[0], args[1], args[2], args[3]);
 };

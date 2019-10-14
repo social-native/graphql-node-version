@@ -22,14 +22,14 @@ export default async <ResolverT extends (...args: any[]) => any>(
             `${table_names.event_node_fragment_register}.${event_node_fragment_register.child_node_name} as nodeName`
         );
 
-    logger.debug('Raw SQL:', query.toQuery());
+    logger.debug('Raw SQL:', logger.level === 'debug' && query.toQuery());
 
     const result = (await query) as Array<{nodeId: number; nodeName: string}>;
     const resultsWithCorrectTypes = result.map(n => ({...n, nodeId: n.nodeId.toString()}));
 
-    resultsWithCorrectTypes.push({
+    const baseNodeInstance = {
         nodeId: originalNodeInstance.nodeId.toString(),
         nodeName: originalNodeInstance.nodeName
-    });
-    return resultsWithCorrectTypes;
+    };
+    return [...resultsWithCorrectTypes, baseNodeInstance];
 };

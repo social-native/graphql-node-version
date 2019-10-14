@@ -1,7 +1,7 @@
 import * as Knex from 'knex';
 
 import {ITableAndColumnNames} from '../types';
-import {setNames} from '../sql_names';
+import {generateTableAndColumnNames} from '../sql_names';
 import {EVENT_IMPLEMENTOR_TYPE_IDS, EVENT_IMPLEMENTOR_TYPE_NAMES} from '../enums';
 
 /**
@@ -29,7 +29,7 @@ export default (config?: ITableAndColumnNames) => {
         role,
         user_role,
         node_snapshot
-    } = setNames(config);
+    } = generateTableAndColumnNames(config);
 
     const up = async (knex: Knex) => {
         await knex.schema.createTable(table_names.event_implementor_type, t => {

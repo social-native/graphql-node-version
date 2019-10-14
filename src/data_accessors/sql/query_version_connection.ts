@@ -49,8 +49,6 @@ const castNodeWithRevisionTimeInDateTimeToUnixSecs = (logger?: ILoggerConfig['lo
 
 type NodesInConnectionUnprocessed = Array<NodeInConnection & {roleName: string}>;
 
-// extractors: IVersionConnectionExtractors<ResolverT>
-
 const nodeTransformer = (logger?: ILoggerConfig['logger']) => {
     const firstTransformer = castNodeWithRevisionTimeInDateTimeToUnixSecs(logger);
     return (node: any) => {
@@ -211,7 +209,7 @@ Promise<IQueryResult<NodeInConnection & {snapshot?: string}>> => {
             `${table_names.role}.${role.role} as roleName`
         );
 
-    logger.debug('Raw SQL:', query.toQuery());
+    logger.debug('Raw SQL:', logger.level === 'debug' && query.toQuery());
     const nodeResult = (await query) as NodesInConnectionUnprocessed;
     const uniqueVersions = aggregateVersionsById(nodeResult);
     nodeConnection.addResult(uniqueVersions);

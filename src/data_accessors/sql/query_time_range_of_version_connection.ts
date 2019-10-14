@@ -145,7 +145,7 @@ const getMinCreatedAtOfVersionWithSnapshot = async (
             .orderBy(`${table_names.event}.${event.created_at}`, 'desc')
             .first();
 
-        logger && logger.debug('Raw SQL:', query.toQuery()); // tslint:disable-line
+        logger && logger.debug('Raw SQL:', logger.level === 'debug' && query.toQuery()); // tslint:disable-line
         const result = (await query) as {createdAt: string};
         return result ? castNodeWithRevisionTimeInDateTimeToUnixSecs(result, logger) : undefined;
     });
