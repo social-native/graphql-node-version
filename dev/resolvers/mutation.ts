@@ -1,5 +1,3 @@
-import knex from 'knex';
-
 import {getTxInsertId} from '../utils';
 import {Resolver, IUserNode} from '../types';
 import query from './query';
@@ -87,82 +85,62 @@ interface IUserDeleteMutationInput {
     id: string;
 }
 
-type MutationTeamCreate = Resolver<
-    {id: number | undefined},
-    undefined,
-    ITeamCreationMutationInput & {transaction?: knex.Transaction<any, any>}
->;
+type MutationTeamCreate = Resolver<{id: number | undefined}, undefined, ITeamCreationMutationInput>;
 
-type MutationTeamUpdate = Resolver<
-    {id: number | undefined},
-    undefined,
-    ITeamUpdateMutationInput & {transaction?: knex.Transaction<any, any>}
->;
+type MutationTeamUpdate = Resolver<{id: number | undefined}, undefined, ITeamUpdateMutationInput>;
 
-type MutationTeamDelete = Resolver<
-    {id: number | undefined},
-    undefined,
-    ITeamDeleteMutationInput & {transaction?: knex.Transaction<any, any>}
->;
+type MutationTeamDelete = Resolver<{id: number | undefined}, undefined, ITeamDeleteMutationInput>;
 
 type MutationTeamUserCreate = Resolver<
     {id: number | undefined},
     undefined,
-    ITeamUserCreationMutationInput & {transaction?: knex.Transaction<any, any>}
+    ITeamUserCreationMutationInput
 >;
 
 type MutationTeamUserDelete = Resolver<
     {id: number | undefined},
     undefined,
-    ITeamUserDeleteMutationInput & {transaction?: knex.Transaction<any, any>}
+    ITeamUserDeleteMutationInput
 >;
 
 type MutationTodoListCreate = Resolver<
     {id: number | undefined},
     undefined,
-    ITodoListCreationMutationInput & {transaction?: knex.Transaction<any, any>}
+    ITodoListCreationMutationInput
 >;
 type MutationTodoListUpdate = Resolver<
     {id: number | undefined},
     undefined,
-    ITodoListUpdateMutationInput & {transaction?: knex.Transaction<any, any>}
+    ITodoListUpdateMutationInput
 >;
 type MutationTodoListDelete = Resolver<
     {id: number | undefined},
     undefined,
-    ITodoListDeleteMutationInput & {transaction?: knex.Transaction<any, any>}
+    ITodoListDeleteMutationInput
 >;
 type MutationTodoItemCreate = Resolver<
     {id: number | undefined},
     undefined,
-    ITodoItemCreationMutationInput & {transaction?: knex.Transaction<any, any>}
+    ITodoItemCreationMutationInput
 >;
 type MutationTodoItemUpdate = Resolver<
     {id: number | undefined},
     undefined,
-    ITodoItemUpdateMutationInput & {transaction?: knex.Transaction<any, any>}
+    ITodoItemUpdateMutationInput
 >;
 type MutationTodoItemDelete = Resolver<
     {id: number | undefined},
     undefined,
-    ITodoItemDeleteMutationInput & {transaction?: knex.Transaction<any, any>}
+    ITodoItemDeleteMutationInput
 >;
 
-type MutationUserCreateResolver = Resolver<
-    IUserNode,
-    undefined,
-    IUserCreationMutationInput & {transaction?: knex.Transaction<any, any>}
->;
-type MutationUserUpdateResolver = Resolver<
-    IUserNode,
-    undefined,
-    IUserUpdateMutationInput & {transaction?: knex.Transaction<any, any>}
->;
+type MutationUserCreateResolver = Resolver<IUserNode, undefined, IUserCreationMutationInput>;
+type MutationUserUpdateResolver = Resolver<IUserNode, undefined, IUserUpdateMutationInput>;
 
 type MutationUserDeleteResolver = Resolver<
     {id: number | undefined},
     undefined,
-    IUserDeleteMutationInput & {transaction?: knex.Transaction<any, any>}
+    IUserDeleteMutationInput
 >;
 
 const mutation: {
@@ -181,8 +159,8 @@ const mutation: {
     userUpdate: MutationUserUpdateResolver;
     userDelete: MutationUserDeleteResolver;
 } = {
-    teamCreate: async (_, {transaction, name}, {sqlClient}) => {
-        const tx = transaction || (await sqlClient.transaction());
+    teamCreate: async (_, {name}, {sqlClient}) => {
+        const tx = await sqlClient.transaction();
         try {
             await tx.table('team').insert({name});
             const teamId = await getTxInsertId(sqlClient, tx);
@@ -193,8 +171,8 @@ const mutation: {
             throw e;
         }
     },
-    teamUpdate: async (_, {transaction, id, ...updates}, {sqlClient}) => {
-        const tx = transaction || (await sqlClient.transaction());
+    teamUpdate: async (_, {id, ...updates}, {sqlClient}) => {
+        const tx = await sqlClient.transaction();
         try {
             if (updates.name) {
                 await tx
@@ -209,8 +187,8 @@ const mutation: {
             throw e;
         }
     },
-    teamDelete: async (_, {transaction, id}, {sqlClient}) => {
-        const tx = transaction || (await sqlClient.transaction());
+    teamDelete: async (_, {id}, {sqlClient}) => {
+        const tx = await sqlClient.transaction();
         try {
             await tx
                 .table('team')
@@ -224,8 +202,8 @@ const mutation: {
             throw e;
         }
     },
-    teamUserCreate: async (_, {transaction, userId, teamId}, {sqlClient}) => {
-        const tx = transaction || (await sqlClient.transaction());
+    teamUserCreate: async (_, {userId, teamId}, {sqlClient}) => {
+        const tx = await sqlClient.transaction();
         try {
             await tx.table('team_user').insert({user_id: userId, team_id: teamId});
             const teamUserId = await getTxInsertId(sqlClient, tx);
@@ -236,8 +214,8 @@ const mutation: {
             throw e;
         }
     },
-    teamUserDelete: async (_, {transaction, userId, teamId}, {sqlClient}) => {
-        const tx = transaction || (await sqlClient.transaction());
+    teamUserDelete: async (_, {userId, teamId}, {sqlClient}) => {
+        const tx = await sqlClient.transaction();
         try {
             await tx
                 .table('team_user')
@@ -251,8 +229,8 @@ const mutation: {
             throw e;
         }
     },
-    todoListCreate: async (_, {transaction, usage, userId}, {sqlClient}) => {
-        const tx = transaction || (await sqlClient.transaction());
+    todoListCreate: async (_, {usage, userId}, {sqlClient}) => {
+        const tx = await sqlClient.transaction();
         try {
             await tx.table('todo_list').insert({usage});
             const todoListId = await getTxInsertId(sqlClient, tx);
@@ -264,8 +242,8 @@ const mutation: {
             throw e;
         }
     },
-    todoListUpdate: async (_, {transaction, id, ...updates}, {sqlClient}) => {
-        const tx = transaction || (await sqlClient.transaction());
+    todoListUpdate: async (_, {id, ...updates}, {sqlClient}) => {
+        const tx = await sqlClient.transaction();
         try {
             if (updates.usage) {
                 await tx.table('todo_list').update({usage: updates.usage});
@@ -277,8 +255,8 @@ const mutation: {
             throw e;
         }
     },
-    todoListDelete: async (_, {transaction, id}, {sqlClient}) => {
-        const tx = transaction || (await sqlClient.transaction());
+    todoListDelete: async (_, {id}, {sqlClient}) => {
+        const tx = await sqlClient.transaction();
         try {
             await tx
                 .table('todo_list')
@@ -291,8 +269,8 @@ const mutation: {
             throw e;
         }
     },
-    todoItemCreate: async (_, {transaction, todoListId, order, note}, {sqlClient}) => {
-        const tx = transaction || (await sqlClient.transaction());
+    todoItemCreate: async (_, {todoListId, order, note}, {sqlClient}) => {
+        const tx = await sqlClient.transaction();
         try {
             await tx.table('todo_item').insert({order, note, todo_list_id: todoListId});
             const todoItemId = await getTxInsertId(sqlClient, tx);
@@ -303,8 +281,8 @@ const mutation: {
             throw e;
         }
     },
-    todoItemUpdate: async (_, {transaction, id, ...updates}, {sqlClient}) => {
-        const tx = transaction || (await sqlClient.transaction());
+    todoItemUpdate: async (_, {id, ...updates}, {sqlClient}) => {
+        const tx = await sqlClient.transaction();
         try {
             if (updates.note || updates.order) {
                 await tx
@@ -319,8 +297,8 @@ const mutation: {
             throw e;
         }
     },
-    todoItemDelete: async (_, {transaction, id}, {sqlClient}) => {
-        const tx = transaction || (await sqlClient.transaction());
+    todoItemDelete: async (_, {id}, {sqlClient}) => {
+        const tx = await sqlClient.transaction();
         try {
             await tx
                 .table('todo_item')
@@ -334,8 +312,8 @@ const mutation: {
             throw e;
         }
     },
-    userCreate: async (_, {transaction, ...input}, {sqlClient}) => {
-        const tx = transaction || (await sqlClient.transaction());
+    userCreate: async (_, {...input}, {sqlClient}) => {
+        const tx = await sqlClient.transaction();
         try {
             await tx.table('user').insert(input);
             const user = await tx
@@ -349,8 +327,8 @@ const mutation: {
             throw e;
         }
     },
-    userUpdate: async (_, {id, transaction, ...input}, {sqlClient}) => {
-        const tx = transaction || (await sqlClient.transaction());
+    userUpdate: async (_, {id, ...input}, {sqlClient}) => {
+        const tx = await sqlClient.transaction();
         try {
             await tx
                 .table('user')
@@ -367,8 +345,8 @@ const mutation: {
             throw e;
         }
     },
-    userDelete: async (_, {transaction, id}, {sqlClient}) => {
-        const tx = transaction || (await sqlClient.transaction());
+    userDelete: async (_, {id}, {sqlClient}) => {
+        const tx = await sqlClient.transaction();
         try {
             await tx
                 .table('user')

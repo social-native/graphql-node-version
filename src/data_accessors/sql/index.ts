@@ -14,13 +14,13 @@ import storeEventNodeChange from './store_event_node_change';
 import storeEventNodeFragmentRegistration from './store_event_node_fragment_registration';
 import storeNodeSnapshot from './store_node_snapshot';
 import {isEventNodeChangeWithSnapshotInfo} from '../../type_guards';
-import {setNames} from '../../sql_names';
+import {generateTableAndColumnNames} from '../../sql_names';
 import {getLoggerFromConfig} from '../../logger';
 
 export {default as createQueryShouldStoreSnapshot} from './query_should_store_snapshot';
 
 export const persistVersion = (knex: Knex, trx: Knex.Transaction, config: IConfig) => {
-    const tableAndColumnNames = setNames(config ? config.names : undefined);
+    const tableAndColumnNames = generateTableAndColumnNames(config ? config.names : undefined);
     const parentLogger = getLoggerFromConfig(config);
 
     const logger = parentLogger.child({api: 'Data Accessors - Persist Version'});

@@ -32,7 +32,7 @@ const common = {
             });
         }
     },
-    migrations: {directory: __dirname + '/db/mysql/migrations'},
+    migrations: {directory: __dirname + '/db/migrations'},
     seeds: {directory: __dirname + '/db/seeds'}
 };
 

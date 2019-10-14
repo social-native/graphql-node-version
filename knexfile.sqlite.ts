@@ -1,7 +1,7 @@
 const common = {
     client: 'sqlite3',
     useNullAsDefault: true,
-    migrations: {directory: __dirname + '/db/sqlite/migrations'},
+    migrations: {directory: __dirname + '/db/migrations'},
     seeds: {directory: __dirname + '/db/seeds'}
 };
 
