@@ -1,4 +1,5 @@
 import {IVersionRecorderExtractors, IEventInfoBase} from '../types';
+import {DateTime} from 'luxon';
 
 export default <ResolverT extends (...args: any[]) => any>(
     args: Parameters<ResolverT>,
@@ -16,10 +17,11 @@ export default <ResolverT extends (...args: any[]) => any>(
     const createdAt = extractors.eventTime
         ? extractors.eventTime(args[0], args[1], args[2], args[3])
         : // TODO check this
-          new Date()
-              .toISOString()
-              .split('Z')
-              .join('');
+          DateTime.utc().toISO({includeOffset: false});
+    // new Date()
+    //     .toISOString()
+    //     .split('Z')
+    //     .join('');
 
     const snapshotFrequency = extractors.currentNodeSnapshotFrequency
         ? extractors.currentNodeSnapshotFrequency

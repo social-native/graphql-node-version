@@ -12,7 +12,7 @@ import {
     createQueryShouldStoreSnapshot
 } from '../data_accessors/sql';
 import {getLoggerFromConfig} from '../logger';
-import callDecoratedNode from './call_decorated_node';
+import resolveDecoratedNode from './resolve_decorated_node';
 import getResolverOperation from './get_resolver_operation';
 
 export default (config?: IConfig) => <ResolverT extends (...args: any[]) => any>(
@@ -30,13 +30,8 @@ export default (config?: IConfig) => <ResolverT extends (...args: any[]) => any>
 
         // tslint:disable-next-line
         descriptor.value = (async (...args: Parameters<ResolverT>) => {
-            logger.debug('Extracting knex client');
-            const localKnexClient = extractors.knex(args[0], args[1], args[2], args[3]);
-            logger.debug('Creating knex transaction');
-            const transaction = await createKnexTransaction(localKnexClient);
-
             logger.debug('Getting current node');
-            const node = await callDecoratedNode(value, args);
+            const node = await resolveDecoratedNode(value, args);
 
             logger.debug('Extracting node id');
             const nodeId = extractors.nodeId(node, args[0], args[1], args[2], args[3]);
@@ -73,6 +68,11 @@ export default (config?: IConfig) => <ResolverT extends (...args: any[]) => any>
                 eventInfoBase
             );
             logger.debug('Event node fragment change info:', eventNodeFragmentRegisterInfo);
+
+            logger.debug('Extracting knex client');
+            const localKnexClient = extractors.knex(args[0], args[1], args[2], args[3]);
+            logger.debug('Creating knex transaction');
+            const transaction = await createKnexTransaction(localKnexClient);
 
             logger.debug('Building query fn to determine if snapshot should be retrieved');
             const queryShouldStoreSnapshot = createQueryShouldStoreSnapshot(

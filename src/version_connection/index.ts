@@ -9,12 +9,16 @@ import {generateTableAndColumnNames} from '../sql_names';
 import {getLoggerFromConfig} from '../logger';
 import buildConnectionNodesAndSortByEventId from './build_nodes';
 import buildConnection from './build_connection';
+
 /**
  * Logic:
- * 1. Get all revisions in range of connection
- * 2. Calculate full nodes for all revisions in range
- * 3. Get revisions in connection (filters may apply etc)
+ * 1. Get current node
+ * 2. Get all versions in connection
+ * 3. For each node instance (nodeId and nodeName) in connection, find youngest snapshot older than connection
+ * 4. Map version diff to snapshot or previous node state to calculate next node state
+ * 5. Return connection
  */
+
 export default (config?: IConfig) => {
     const tableAndColumnNames = generateTableAndColumnNames(config ? config.names : undefined);
     const parentLogger = getLoggerFromConfig(config);
@@ -93,7 +97,7 @@ export default (config?: IConfig) => {
             extractors,
             {logger}
         );
-        // Step 8. Build the connection
+
         logger.debug('Building final version connection');
         return buildConnection(
             versionNodeConnection,
