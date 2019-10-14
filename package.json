@@ -1,6 +1,6 @@
 {
-    "name": "snpkg-snapi-graphql-node-version",
-    "version": "0.1.0",
+    "name": "@social-native/snpkg-snapi-graphql-node-version",
+    "version": "0.1.1",
     "description": "Handle versioning of graphql nodes",
     "main": "dist/index.cjs.js",
     "module": "dist/index.es.js",
