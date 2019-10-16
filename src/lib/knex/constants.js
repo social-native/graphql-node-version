@@ -9,7 +9,7 @@ const { keys } = require('lodash');
  */
 
 const DEFAULT_EXT = 'js';
-const DEFAULT_TABLE_NAME = 'knex_migrations';
+const DEFAULT_TABLE_NAME = 'knex_migrations_version';
 
 /**
  * ********************************************************************

@@ -3,10 +3,11 @@
 import {createRevisionMigrations} from './index';
 import yargs from 'yargs';
 import path from 'path';
+import fs from 'fs';
 
 import * as _kenxBin from './lib/knex/init-knex'; // tslint:disable-line
 
-const {up, down} = createRevisionMigrations();
+// const {up, down} = createRevisionMigrations();
 
 const kenxBin = (_kenxBin as any).default || _kenxBin;
 
@@ -31,10 +32,26 @@ yargs.command({
         opts.client = opts.client || 'sqlite3'; // We don't really care about client when creating migrations
 
         const knex = (kenxBin as any).initKnex(Object.assign({}, env), opts);
+        // const list = await knex.migrate.latest({tableName: 'knex_migration_versions'});
+        const versionFileName = await knex.migrate.make('$_create_graphql_node_version_tables');
+        const versionFileNamePath = path.resolve(knex.migrate.config.directory, versionFileName);
+        const migrationContents = createRevisionMigrations(
+            undefined,
+            knex.migrate.config.extension
+        );
+        fs.writeFile(versionFileNamePath, migrationContents.migration, err => {
+            if (err) {
+                throw err;
+            }
 
-        await up(knex);
-        console.log('Created revision table'); // tslint:disable-line
-        process.exit(0);
+            console.log('Migration saved!');
+        });
+        // console.log(versionFileNamePath);
+        console.log(knex.migrate);
+        // // console.log('LIST', list);
+        // await up(knex);
+        // console.log('Created revision table'); // tslint:disable-line
+        // process.exit(0);
     }
 });
 
@@ -55,8 +72,8 @@ yargs.command({
         } as any;
 
         const knex = (kenxBin as any).initKnex(Object.assign({}, env), opts);
-
-        await down(knex);
+        console.log(knex);
+        // await down(knex);
         console.log('Rolled back revision table'); // tslint:disable-line
         process.exit(0);
     }

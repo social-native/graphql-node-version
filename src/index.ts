@@ -1,7 +1,7 @@
 export {default as versionConnection} from './version_connection';
 export {default as versionRecorderDecorator} from './version_recorder';
 export {typeDefs, resolvers} from './graphql_schema';
-export {default as createRevisionMigrations} from './migrations/generator';
+export {default as createRevisionMigrations} from './migrations/1';
 export {default as decorate} from './lib/mobx/decorate';
 import * as typeGuards from './type_guards';
 import * as nodeBuilder from './node_builder_utils';

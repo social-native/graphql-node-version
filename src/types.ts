@@ -196,7 +196,7 @@ export interface IVersionRecorderExtractors<
         args: Parameters<Resolver>[1],
         ctx: Parameters<Resolver>[2],
         info: Parameters<Resolver>[3]
-    ) => string;
+    ) => string | number;
     userRoles: (
         parent: Parameters<Resolver>[0],
         args: Parameters<Resolver>[1],
@@ -258,7 +258,7 @@ export interface INode {
 
 export interface IEventInfoBase {
     createdAt: string;
-    userId: string;
+    userId: string | number;
     nodeName: string;
     nodeId: string | number;
     resolverOperation: string;
@@ -268,7 +268,7 @@ export interface IEventInfoBase {
 
 export interface IEventNodeChangeInfo extends IEventInfoBase {
     createdAt: string;
-    userId: string;
+    userId: string | number;
     nodeName: string;
     nodeId: string | number;
     resolverOperation: string;
@@ -294,7 +294,7 @@ export interface IEventNodeFragmentRegisterInfo {
 
 export interface IEventLinkChangeInfo extends IEventInfoBase {
     createdAt: string;
-    userId: string;
+    userId: string | number;
     nodeName: string;
     nodeId: string | number;
     resolverOperation: string;
