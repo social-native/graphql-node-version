@@ -222,7 +222,7 @@ export interface IVersionRecorderExtractors<
         info: Parameters<Resolver>[3]
     ) => Knex;
     nodeId: (
-        node: UnPromisify<ReturnType<Resolver>>,
+        node: UnPromisify<UnPromisify<ReturnType<Resolver>>>,
         parent: Parameters<Resolver>[0],
         args: Parameters<Resolver>[1],
         ctx: Parameters<Resolver>[2],

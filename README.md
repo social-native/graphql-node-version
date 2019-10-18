@@ -2,11 +2,23 @@
 
 ## Install
 
-Install by referencing the github location and the release number:
+```
+npm install --save @social-native/snpkg-snapi-graphql-node-version
+```
 
+## Migrations
+
+This package installs knex migrations into the dependent service. A binary is published that you can call to add the migrations. For example, you can add this to your npm scripts:
+
+```typescript
+    scripts: {
+        "add-version-migrations": "ts-node --project tsconfig.json node_modules/.bin/snpkg-snapi-graphql-node-version --knexfile src/knexfile.ts",
+        ...
+        "post-install": "npm run add-version-migrations"
+    },
 ```
-npm install --save social-native/snpkg-snapi-graphql-node-version#v1.0.0
-```
+
+# ------- OLD -------
 
 # RFC:
 

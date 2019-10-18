@@ -2,12 +2,11 @@ import {ITableAndColumnNames} from '../types';
 import {generateTableAndColumnNames} from '../sql_names';
 import {EVENT_IMPLEMENTOR_TYPE_IDS, EVENT_IMPLEMENTOR_TYPE_NAMES} from '../enums';
 import {
-    warningHeader,
-    importStatements,
-    upMigrationDeclaration,
-    MigrationFileExtension,
-    downMigrationDeclaration
-} from '../lib/migration';
+    templateFragments,
+    MigrationFileExtension
+} from '@social-native/snpkg-knex-migration-generator';
+
+const {importStatements, upMigrationDeclaration, downMigrationDeclaration} = templateFragments;
 /**
  * Create tables for storing versions of a node through time
  *
@@ -35,10 +34,9 @@ export default (config?: ITableAndColumnNames) => {
         node_snapshot
     } = generateTableAndColumnNames(config);
 
-    return (libraryName: string, extension: MigrationFileExtension = 'js') => {
+    return (extension: MigrationFileExtension = 'js') => {
         const migration = `
 ${importStatements(extension)}
-${warningHeader(libraryName)}
 ${upMigrationDeclaration(extension)}
     await knex.schema.createTable('${table_names.event_implementor_type}', t => {
         t.increments('${event_implementor_type.id}')
