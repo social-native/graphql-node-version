@@ -1,13 +1,19 @@
-import {IVersionRecorderExtractors, IEventInfoBase, IEventNodeFragmentRegisterInfo} from '../types';
+import {
+    IVersionRecorderExtractors,
+    IEventInfoBase,
+    IEventNodeFragmentRegisterInfo,
+    UnPromisify
+} from '../types';
 
 export default <ResolverT extends (...args: any[]) => any>(
+    node: UnPromisify<UnPromisify<ReturnType<ResolverT>>>,
     args: Parameters<ResolverT>,
     extractors: IVersionRecorderExtractors<ResolverT>,
     eventInfoBase: IEventInfoBase
 ): IEventNodeFragmentRegisterInfo | undefined => {
     // tslint:disable-next-line
     const fragmentToRecord = extractors.parentNode
-        ? extractors.parentNode(args[0], args[1], args[2], args[3])
+        ? extractors.parentNode(node, args[0], args[1], args[2], args[3])
         : undefined;
 
     if (!fragmentToRecord) {

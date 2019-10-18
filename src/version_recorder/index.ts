@@ -55,6 +55,7 @@ export default (config?: IConfig) => <ResolverT extends (...args: any[]) => any>
 
             logger.debug('Extracting event link change info');
             const eventLinkChangeInfo = eventLinkChangeInfoExtractor(
+                node,
                 args,
                 extractors,
                 eventInfoBase
@@ -63,6 +64,7 @@ export default (config?: IConfig) => <ResolverT extends (...args: any[]) => any>
 
             logger.debug('Extracting event node fragment change info');
             const eventNodeFragmentRegisterInfo = eventNodeFragmentRegisterInfoExtractor(
+                node,
                 args,
                 extractors,
                 eventInfoBase

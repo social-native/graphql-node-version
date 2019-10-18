@@ -238,12 +238,14 @@ export interface IVersionRecorderExtractors<
     ) => Promise<any>; // tslint:disable-line
     currentNodeSnapshotFrequency?: number;
     parentNode?: (
+        node: UnPromisify<UnPromisify<ReturnType<Resolver>>>,
         parent: Parameters<Resolver>[0],
         args: Parameters<Resolver>[1],
         ctx: Parameters<Resolver>[2],
         info: Parameters<Resolver>[3]
-    ) => INode;
+    ) => INode | undefined;
     edges?: (
+        node: UnPromisify<UnPromisify<ReturnType<Resolver>>>,
         parent: Parameters<Resolver>[0],
         args: Parameters<Resolver>[1],
         ctx: Parameters<Resolver>[2],

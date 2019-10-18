@@ -1,16 +1,22 @@
-import {IVersionRecorderExtractors, IEventLinkChangeInfo, IEventInfoBase} from '../types';
+import {
+    IVersionRecorderExtractors,
+    IEventLinkChangeInfo,
+    IEventInfoBase,
+    UnPromisify
+} from '../types';
 
 export default <ResolverT extends (...args: any[]) => any>(
+    node: UnPromisify<UnPromisify<ReturnType<ResolverT>>>,
     args: Parameters<ResolverT>,
     extractors: IVersionRecorderExtractors<ResolverT>,
     eventInfoBase: IEventInfoBase
 ): IEventLinkChangeInfo[] => {
     const edgesToRecord = extractors.edges
-        ? extractors.edges(args[0], args[1], args[2], args[3])
+        ? extractors.edges(node, args[0], args[1], args[2], args[3])
         : [];
 
     const edgesToRecordErrors = edgesToRecord
-        ? edgesToRecord.filter(node => node.nodeId === undefined || node.nodeName === undefined)
+        ? edgesToRecord.filter(n => n.nodeId === undefined || n.nodeName === undefined)
         : [];
 
     if (edgesToRecordErrors.length > 0) {
