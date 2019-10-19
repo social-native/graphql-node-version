@@ -177,9 +177,7 @@ Promise<IQueryResult<NodeInConnection & {snapshot?: string}>> => {
                     `${table_names.node_snapshot}.${node_snapshot.snapshot} as snapshot`
 
                     // `${table_names.role}.${role.role} as roleName`
-                )
-                .orderBy(`${table_names.event}.${event.created_at}`, 'desc')
-                .orderBy(`${table_names.event}.${event.id}`, 'desc');
+                );
 
             nodeConnection.createQuery(queryBuilder).as('main');
         })
@@ -207,7 +205,9 @@ Promise<IQueryResult<NodeInConnection & {snapshot?: string}>> => {
             'userId',
             'snapshot',
             `${table_names.role}.${role.role} as roleName`
-        );
+        )
+        .orderBy(`main.createdAt`, 'desc')
+        .orderBy(`main.id`, 'desc');
 
     logger.debug('Raw SQL:', logger.level === 'debug' && query.toQuery());
     const nodeResult = (await query) as NodesInConnectionUnprocessed;

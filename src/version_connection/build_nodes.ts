@@ -35,6 +35,8 @@ export default <ResolverT extends (...args: [any, any, any, any]) => any>(
                 const nodeSnapshot = JSON.parse(event.snapshot);
 
                 if (isNodeBuilderNodeFragmentChangeVersionInfo(event)) {
+                    logger.debug('Building node fragment change');
+
                     const currentFragmentNodes = acc.fragmentNodes;
                     const childNodeByIds = currentFragmentNodes[event.childNodeName] || {};
                     childNodeByIds[event.childNodeId] = nodeSnapshot;
@@ -53,6 +55,8 @@ export default <ResolverT extends (...args: [any, any, any, any]) => any>(
                     acc.fullNodes[event.id] = calculatedNode;
                     acc.lastNode = calculatedNode;
                 } else if (isNodeBuilderNodeChangeVersionInfo(event)) {
+                    logger.debug('Building node change using snapshot');
+
                     acc.fullNodes[event.id] = nodeSnapshot;
                     acc.lastNode = nodeSnapshot;
                 } else {
@@ -60,6 +64,8 @@ export default <ResolverT extends (...args: [any, any, any, any]) => any>(
                 }
             } else {
                 if (isNodeBuilderNodeChangeVersionInfo(event)) {
+                    logger.debug('Building node change and calling node builder');
+
                     const calculatedNode = extractors.nodeBuilder(
                         acc.lastNode,
                         event,
@@ -69,6 +75,8 @@ export default <ResolverT extends (...args: [any, any, any, any]) => any>(
                     acc.fullNodes[event.id] = calculatedNode;
                     acc.lastNode = calculatedNode;
                 } else if (shouldSkipNodeBuilderBecauseHasLinkChangeVersionInfo(event)) {
+                    logger.debug('Building node link change using last node');
+
                     acc.fullNodes[event.id] = acc.lastNode;
                 } else {
                     throw new Error('Undefined node event without snapshot');
