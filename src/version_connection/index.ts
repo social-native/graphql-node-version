@@ -77,7 +77,7 @@ export default (config?: IConfig) => {
         logger.debug('Time range of version connection', timeRangeOfVersionConnection);
 
         logger.debug('Querying for snapshots in time range');
-        const minSetOfEventsInConnectionThatStartWithASnapshot = await queryEventsWithSnapshots(
+        const allEventsInConnectionAndBeyondExtendToFirstSnapshot = await queryEventsWithSnapshots(
             knex,
             tableAndColumnNames,
             timeRangeOfVersionConnection,
@@ -87,13 +87,16 @@ export default (config?: IConfig) => {
         );
         logger.debug(
             'Number of node builder versions found',
-            minSetOfEventsInConnectionThatStartWithASnapshot.length
+            allEventsInConnectionAndBeyondExtendToFirstSnapshot.length
         );
-        logger.debug('Nodes for node builder:', minSetOfEventsInConnectionThatStartWithASnapshot);
+        logger.debug(
+            'Nodes for node builder:',
+            allEventsInConnectionAndBeyondExtendToFirstSnapshot
+        );
 
         logger.debug('Building nodes for connection....');
         const nodesOfConnectionByEventId = buildConnectionNodesAndSortByEventId(
-            minSetOfEventsInConnectionThatStartWithASnapshot,
+            allEventsInConnectionAndBeyondExtendToFirstSnapshot,
             extractors,
             {logger}
         );
