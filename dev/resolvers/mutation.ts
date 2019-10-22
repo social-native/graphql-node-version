@@ -85,60 +85,76 @@ interface IUserDeleteMutationInput {
     id: string;
 }
 
-type MutationTeamCreate = Resolver<{id: number | undefined}, undefined, ITeamCreationMutationInput>;
+type MutationTeamCreate = Resolver<
+    Promise<{id: number | undefined}>,
+    undefined,
+    ITeamCreationMutationInput
+>;
 
-type MutationTeamUpdate = Resolver<{id: number | undefined}, undefined, ITeamUpdateMutationInput>;
+type MutationTeamUpdate = Resolver<
+    Promise<{id: number | undefined}>,
+    undefined,
+    ITeamUpdateMutationInput
+>;
 
-type MutationTeamDelete = Resolver<{id: number | undefined}, undefined, ITeamDeleteMutationInput>;
+type MutationTeamDelete = Resolver<
+    Promise<{id: number | undefined}>,
+    undefined,
+    ITeamDeleteMutationInput
+>;
 
 type MutationTeamUserCreate = Resolver<
-    {id: number | undefined},
+    Promise<{id: number | undefined}>,
     undefined,
     ITeamUserCreationMutationInput
 >;
 
 type MutationTeamUserDelete = Resolver<
-    {id: number | undefined},
+    Promise<{id: number | undefined}>,
     undefined,
     ITeamUserDeleteMutationInput
 >;
 
 type MutationTodoListCreate = Resolver<
-    {id: number | undefined},
+    Promise<{id: number | undefined}>,
     undefined,
     ITodoListCreationMutationInput
 >;
 type MutationTodoListUpdate = Resolver<
-    {id: number | undefined},
+    Promise<{id: number | undefined}>,
     undefined,
     ITodoListUpdateMutationInput
 >;
 type MutationTodoListDelete = Resolver<
-    {id: number | undefined},
+    Promise<{id: number | undefined}>,
     undefined,
     ITodoListDeleteMutationInput
 >;
 type MutationTodoItemCreate = Resolver<
-    {id: number | undefined},
+    Promise<{id: number | undefined}>,
     undefined,
     ITodoItemCreationMutationInput
 >;
 type MutationTodoItemUpdate = Resolver<
-    {id: number | undefined},
+    Promise<{id: number | undefined}>,
     undefined,
     ITodoItemUpdateMutationInput
 >;
 type MutationTodoItemDelete = Resolver<
-    {id: number | undefined},
+    Promise<{id: number | undefined}>,
     undefined,
     ITodoItemDeleteMutationInput
 >;
 
-type MutationUserCreateResolver = Resolver<IUserNode, undefined, IUserCreationMutationInput>;
-type MutationUserUpdateResolver = Resolver<IUserNode, undefined, IUserUpdateMutationInput>;
+type MutationUserCreateResolver = Resolver<
+    Promise<IUserNode>,
+    undefined,
+    IUserCreationMutationInput
+>;
+type MutationUserUpdateResolver = Resolver<Promise<IUserNode>, undefined, IUserUpdateMutationInput>;
 
 type MutationUserDeleteResolver = Resolver<
-    {id: number | undefined},
+    Promise<{id: number | undefined}>,
     undefined,
     IUserDeleteMutationInput
 >;

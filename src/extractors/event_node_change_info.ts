@@ -7,7 +7,7 @@ import {
 } from '../types';
 import {getLoggerFromConfig} from '../logger';
 
-export default async <ResolverT extends (...args: any[]) => any>(
+export default async <ResolverT extends (...args: any[]) => Promise<any>>(
     args: Parameters<ResolverT>,
     extractors: IVersionRecorderExtractors<ResolverT>,
     eventInfoBase: IEventInfoBase,

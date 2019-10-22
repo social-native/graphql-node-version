@@ -32,12 +32,10 @@ export default (config?: IConfig) => {
     const parentLogger = getLoggerFromConfig(config);
     const logger = parentLogger.child({api: 'Version Connection'});
 
-    return async <
-        ResolverT extends (
-            ...args: any[]
-        ) => Promise<IVersionConnection<any>> | IVersionConnection<any>
-    >(
-        currentVersionNode: UnPromisify<ExtractNodeFromVersionConnection<ReturnType<ResolverT>>>,
+    return async <ResolverT extends (...args: any[]) => Promise<IVersionConnection<any>>>(
+        currentVersionNode: UnPromisify<
+            UnPromisify<ExtractNodeFromVersionConnection<UnPromisify<ReturnType<ResolverT>>>>
+        >,
         resolverArgs: Parameters<ResolverT>,
         extractors: IVersionConnectionExtractors<ResolverT>
     ) => {

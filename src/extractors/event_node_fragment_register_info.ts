@@ -5,8 +5,8 @@ import {
     UnPromisify
 } from '../types';
 
-export default <ResolverT extends (...args: any[]) => any>(
-    node: UnPromisify<UnPromisify<ReturnType<ResolverT>>>,
+export default <ResolverT extends (...args: any[]) => Promise<any>>(
+    node: UnPromisify<ReturnType<ResolverT>>,
     args: Parameters<ResolverT>,
     extractors: IVersionRecorderExtractors<ResolverT>,
     eventInfoBase: IEventInfoBase

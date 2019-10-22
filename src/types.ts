@@ -172,12 +172,12 @@ export interface IVersionConnection<Node> {
 type ExtractNodeFromVersionConnection<P> = P extends IVersionConnection<infer T> ? T : never;
 
 export interface IVersionConnectionInfo<
-    Resolver extends (...args: any[]) => Promise<IVersionConnection<any>> | IVersionConnection<any>
+    Resolver extends (...args: any[]) => Promise<IVersionConnection<any>>
 > {
     nodeId: string | number;
     nodeName: string;
     nodeBuilder: <
-        GqlNode = UnPromisify<ExtractNodeFromVersionConnection<ReturnType<Resolver>>>,
+        GqlNode = ExtractNodeFromVersionConnection<UnPromisify<ReturnType<Resolver>>>,
         RevisionData = any,
         FragmentNode extends object = object
     >(
@@ -188,7 +188,7 @@ export interface IVersionConnectionInfo<
     ) => GqlNode;
 }
 export interface IVersionConnectionExtractors<
-    Resolver extends (...args: any[]) => Promise<any> | any
+    Resolver extends (...args: any[]) => Promise<IVersionConnection<any>>
 > extends IVersionConnectionInfo<Resolver> {
     knex: Knex;
     nodeId: IVersionConnectionInfo<Resolver>['nodeId'];
@@ -197,7 +197,7 @@ export interface IVersionConnectionExtractors<
 }
 
 export interface IVersionRecorderExtractors<
-    Resolver extends (...args: any[]) => Promise<any> | any,
+    Resolver extends (...args: any[]) => Promise<any>,
     RevisionData = any
 > {
     userId: (
@@ -231,7 +231,7 @@ export interface IVersionRecorderExtractors<
         info: Parameters<Resolver>[3]
     ) => Knex;
     nodeId: (
-        node: UnPromisify<UnPromisify<ReturnType<Resolver>>>,
+        node: UnPromisify<ReturnType<Resolver>>,
         parent: Parameters<Resolver>[0],
         args: Parameters<Resolver>[1],
         ctx: Parameters<Resolver>[2],
@@ -247,14 +247,14 @@ export interface IVersionRecorderExtractors<
     ) => Promise<any>; // tslint:disable-line
     currentNodeSnapshotFrequency?: number;
     parentNode?: (
-        node: UnPromisify<UnPromisify<ReturnType<Resolver>>>,
+        node: UnPromisify<ReturnType<Resolver>>,
         parent: Parameters<Resolver>[0],
         args: Parameters<Resolver>[1],
         ctx: Parameters<Resolver>[2],
         info: Parameters<Resolver>[3]
     ) => INode | undefined;
     edges?: (
-        node: UnPromisify<UnPromisify<ReturnType<Resolver>>>,
+        node: UnPromisify<ReturnType<Resolver>>,
         parent: Parameters<Resolver>[0],
         args: Parameters<Resolver>[1],
         ctx: Parameters<Resolver>[2],
@@ -418,7 +418,7 @@ export type BaseResolver<Node = any, P = undefined, A = undefined, C = {}, I = {
     args: A,
     ctx: C,
     info?: I
-) => Node | Promise<Node>;
+) => Node;
 
 /**
  *

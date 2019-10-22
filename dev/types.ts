@@ -13,7 +13,7 @@ export type BaseResolver<Node = any, P = undefined, A = undefined, C = {}, I = {
     args: A,
     ctx: C & BaseResolverContext,
     info?: I & BaseResolverInfo
-) => Node | Promise<Node>;
+) => Node;
 
 export interface IResolvers {
     Query: IRootResolvers;

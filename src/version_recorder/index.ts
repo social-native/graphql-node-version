@@ -15,7 +15,7 @@ import {getLoggerFromConfig} from '../logger';
 import resolveDecoratedNode from './resolve_decorated_node';
 import getResolverOperation from './get_resolver_operation';
 
-export default (config?: IConfig) => <ResolverT extends (...args: any[]) => any>(
+export default (config?: IConfig) => <ResolverT extends (...args: any[]) => Promise<any>>(
     extractors: IVersionRecorderExtractors<ResolverT>
 ): MethodDecorator => {
     const tableAndColumnNames = generateTableAndColumnNames(config ? config.names : undefined);

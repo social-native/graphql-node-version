@@ -22,23 +22,23 @@ interface ITeam {
 }
 
 type QueryTeamResolver = Resolver<
-    IVersionConnection<ITeam | null>,
+    Promise<IVersionConnection<ITeam | null>>,
     undefined,
     {id: string} & IInputArgs
 >;
 type QueryTodoListResolver = Resolver<
-    IVersionConnection<ITodoList | undefined>,
+    Promise<IVersionConnection<ITodoList | undefined>>,
     undefined,
     {id: string} & IInputArgs
 >;
 type QueryTodoItemResolver = Resolver<
-    IVersionConnection<ITodoItem | undefined>,
+    Promise<IVersionConnection<ITodoItem | undefined>>,
     undefined,
     {id: string} & IInputArgs
 >;
-type QueryUsersResolver = Resolver<IQueryResult<IUserNode | null>, undefined, IInputArgs>;
+type QueryUsersResolver = Resolver<Promise<IQueryResult<IUserNode | null>>, undefined, IInputArgs>;
 type QueryUserResolver = Resolver<
-    IVersionConnection<IUserNode | null>,
+    Promise<IVersionConnection<IUserNode | null>>,
     undefined,
     {id: string} & IInputArgs
 >;
