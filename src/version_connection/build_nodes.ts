@@ -9,12 +9,23 @@ import {
     UnPromisify,
     IVersionConnectionExtractors,
     IAllNodeBuilderVersionInfo,
-    ILoggerConfig
+    ILoggerConfig,
+    ExtractNodeFromVersionConnection,
+    IVersionConnection
 } from '../types';
 import {getLoggerFromConfig} from '../logger';
 
-export default <ResolverT extends (...args: [any, any, any, any]) => any>(
-    minSetOfEventsInConnectionThatStartWithASnapshot: Array<IAllNodeBuilderVersionInfo<number>>,
+export default <
+    ResolverT extends (...args: [any, any, any, any]) => Promise<IVersionConnection<any>>,
+    RevisionData = any
+>(
+    minSetOfEventsInConnectionThatStartWithASnapshot: Array<
+        IAllNodeBuilderVersionInfo<
+            number,
+            ExtractNodeFromVersionConnection<UnPromisify<ReturnType<ResolverT>>>,
+            RevisionData
+        >
+    >,
     extractors: IVersionConnectionExtractors<ResolverT>,
     loggerConfig?: ILoggerConfig
 ) => {
@@ -32,13 +43,17 @@ export default <ResolverT extends (...args: [any, any, any, any]) => any>(
                 logger.error('Missing initial snapshot for connection', event);
                 throw new Error('Missing initial snapshot');
             } else if (isNodeBuilderNodeVersionInfoWithSnapshot(event)) {
-                const nodeSnapshot = event.snapshot as any;
+                const nodeSnapshot = event.snapshot;
 
                 if (isNodeBuilderNodeFragmentChangeVersionInfo(event)) {
                     logger.debug('Building node fragment change');
 
                     const currentFragmentNodes = acc.fragmentNodes;
-                    const childNodeByIds = currentFragmentNodes[event.childNodeName] || {};
+                    const childNodeByIds = (currentFragmentNodes[event.childNodeName] || {}) as {
+                        [id: string]: ExtractNodeFromVersionConnection<
+                            UnPromisify<ReturnType<ResolverT>>
+                        >;
+                    };
                     childNodeByIds[event.childNodeId] = nodeSnapshot;
 
                     acc.fragmentNodes = {
@@ -88,8 +103,12 @@ export default <ResolverT extends (...args: [any, any, any, any]) => any>(
         },
         {fullNodes: {}, fragmentNodes: {}} as {
             fragmentNodes: INodeBuilderFragmentNodes;
-            lastNode: UnPromisify<ReturnType<ResolverT>>;
-            fullNodes: {[eventId: string]: UnPromisify<ReturnType<ResolverT>>};
+            lastNode: ExtractNodeFromVersionConnection<UnPromisify<ReturnType<ResolverT>>>;
+            fullNodes: {
+                [eventId: string]: ExtractNodeFromVersionConnection<
+                    UnPromisify<ReturnType<ResolverT>>
+                >;
+            };
         }
     );
     return nodesOfConnectionByEventId;

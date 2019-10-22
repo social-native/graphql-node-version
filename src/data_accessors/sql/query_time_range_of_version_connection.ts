@@ -6,7 +6,10 @@ import {
     ITableAndColumnNames,
     IVersionConnectionInfo,
     NodeInConnection,
-    ILoggerConfig
+    ILoggerConfig,
+    IVersionConnection,
+    ExtractNodeFromVersionConnection,
+    UnPromisify
 } from '../../types';
 import {castDateToUTCSeconds, unixSecondsToSqlTimestamp} from '../../lib/time';
 import {getLoggerFromConfig} from '../../logger';
@@ -14,11 +17,14 @@ import {getLoggerFromConfig} from '../../logger';
  * Fetch the number of full node snapshots for the node id and node schema version
  * If a snapshot exists within the expected snapshot frequency, then we don't need to take another snapshot
  */
-export default async <ResolverT extends (...args: [any, any, any, any]) => any>(
+export default async <
+    ResolverT extends (...args: [any, any, any, any]) => Promise<IVersionConnection<any>>,
+    Snapshot = ExtractNodeFromVersionConnection<UnPromisify<ReturnType<ResolverT>>>
+>(
     knex: Knex,
     tableAndColumnNames: ITableAndColumnNames,
     resolverArgs: Parameters<ResolverT>,
-    nodesInVersionConnection: NodeInConnection[],
+    nodesInVersionConnection: Array<NodeInConnection<Snapshot>>,
     allNodeInstancesInConnection: Array<
         Pick<IVersionConnectionInfo<ResolverT>, 'nodeId' | 'nodeName'>
     >,
@@ -66,7 +72,7 @@ export default async <ResolverT extends (...args: [any, any, any, any]) => any>(
     // Filter out any nodes that have snapshots
     const oldestNodes = (oldestNodesWithPossibilityOfSnapshots
         ? oldestNodesWithPossibilityOfSnapshots.filter(node => node && node.snapshot == null) // tslint:disable-line
-        : []) as NodeInConnection[] | undefined;
+        : []) as Array<NodeInConnection<Snapshot>> | undefined;
 
     logger.debug(
         'Number of node types that dont have snapshots in initial connection',
@@ -85,7 +91,7 @@ export default async <ResolverT extends (...args: [any, any, any, any]) => any>(
         };
     }
     // Determine the oldest version with a full node snapshot
-    const oldestCreatedAt = await getMinCreatedAtOfVersionWithSnapshot(
+    const oldestCreatedAt = await getMinCreatedAtOfVersionWithSnapshot<Snapshot>(
         knex,
         tableAndColumnNames,
         oldestNodes,
@@ -115,10 +121,10 @@ export default async <ResolverT extends (...args: [any, any, any, any]) => any>(
  * Gets the closest revision with a snapshot to the oldest revision of interest
  * This will be the initial snapshot that full nodes are calculated off of
  */
-const getMinCreatedAtOfVersionWithSnapshot = async (
+const getMinCreatedAtOfVersionWithSnapshot = async <Snapshot>(
     knex: Knex,
     {table_names, event, node_snapshot}: ITableAndColumnNames,
-    oldestNodes: NodeInConnection[],
+    oldestNodes: Array<NodeInConnection<Snapshot>>,
     logger?: ILoggerConfig['logger']
 ): Promise<number | undefined> => {
     logger && logger.debug('Querying oldest snapshots for nodes:', oldestNodes); // tslint:disable-line

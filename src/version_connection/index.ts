@@ -3,7 +3,8 @@ import {
     IVersionConnectionExtractors,
     IGqlVersionNode,
     IConfig,
-    IVersionConnection
+    IVersionConnection,
+    ExtractNodeFromVersionConnection
 } from '../types';
 import {ConnectionManager} from '@social-native/snpkg-snapi-connections';
 
@@ -25,19 +26,19 @@ import buildConnection from './build_connection';
  * 5. Return connection
  */
 
-type ExtractNodeFromVersionConnection<P> = P extends IVersionConnection<infer T> ? T : never;
-
 export default (config?: IConfig) => {
     const tableAndColumnNames = generateTableAndColumnNames(config ? config.names : undefined);
     const parentLogger = getLoggerFromConfig(config);
     const logger = parentLogger.child({api: 'Version Connection'});
 
-    return async <ResolverT extends (...args: any[]) => Promise<IVersionConnection<any>>>(
-        currentVersionNode: UnPromisify<
-            UnPromisify<ExtractNodeFromVersionConnection<UnPromisify<ReturnType<ResolverT>>>>
-        >,
+    return async <
+        ResolverT extends (...args: any[]) => Promise<IVersionConnection<any>>,
+        RevisionData = any,
+        Node = ExtractNodeFromVersionConnection<UnPromisify<ReturnType<ResolverT>>>
+    >(
+        currentVersionNode: Node,
         resolverArgs: Parameters<ResolverT>,
-        extractors: IVersionConnectionExtractors<ResolverT>
+        extractors: IVersionConnectionExtractors<ResolverT, RevisionData>
     ) => {
         // tslint:disable-next-line
         logger.debug('Current node', currentVersionNode);
@@ -53,7 +54,7 @@ export default (config?: IConfig) => {
         logger.debug('Node instances in connection', nodeInstancesInConnection);
 
         logger.debug('Querying for version connection');
-        const versionNodeConnection = await queryVersionConnection(
+        const versionNodeConnection = await queryVersionConnection<ResolverT>(
             resolverArgs[1],
             knex,
             tableAndColumnNames,
@@ -105,14 +106,13 @@ export default (config?: IConfig) => {
         );
 
         logger.debug('Building nodes for connection....');
-        const nodesOfConnectionByEventId = buildConnectionNodesAndSortByEventId(
-            allEventsInConnectionAndBeyondExtendToFirstSnapshot,
-            extractors,
-            {logger}
-        );
+        const nodesOfConnectionByEventId = buildConnectionNodesAndSortByEventId<
+            ResolverT,
+            RevisionData
+        >(allEventsInConnectionAndBeyondExtendToFirstSnapshot, extractors, {logger});
 
         logger.debug('Building final version connection');
-        return buildConnection(
+        return buildConnection<ResolverT>(
             versionNodeConnection,
             nodesOfConnectionByEventId,
             {

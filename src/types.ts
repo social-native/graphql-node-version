@@ -147,7 +147,7 @@ export type IGqlVersionNode =
     | IGqlVersionNodeFragmentChangeNode
     | IGqlVersionLinkChangeNode;
 
-export type NodeInConnection = IGqlVersionNode & {snapshot?: string};
+export type NodeInConnection<Snapshot> = IGqlVersionNode & {snapshot?: Snapshot};
 
 export interface IVersionConnection<Node> {
     edges: Array<{
@@ -169,17 +169,19 @@ export interface IVersionConnection<Node> {
  *
  */
 
-type ExtractNodeFromVersionConnection<P> = P extends IVersionConnection<infer T> ? T : never;
+export type ExtractNodeFromVersionConnection<P> = P extends IVersionConnection<infer T> ? T : never;
 
 export interface IVersionConnectionInfo<
-    Resolver extends (...args: any[]) => Promise<IVersionConnection<any>>
+    Resolver extends (...args: any[]) => Promise<IVersionConnection<any>>,
+    RevisionData = any,
+    FragmentNode = any
 > {
     nodeId: string | number;
     nodeName: string;
     nodeBuilder: <
-        GqlNode = ExtractNodeFromVersionConnection<UnPromisify<ReturnType<Resolver>>>,
-        RevisionData = any,
-        FragmentNode extends object = object
+        GqlNode = ExtractNodeFromVersionConnection<UnPromisify<ReturnType<Resolver>>>
+        // RevisionData = any,
+        // FragmentNode = any
     >(
         previousNode: GqlNode,
         versionInfo: IAllNodeBuilderVersionInfo<number, RevisionData>,
@@ -188,12 +190,14 @@ export interface IVersionConnectionInfo<
     ) => GqlNode;
 }
 export interface IVersionConnectionExtractors<
-    Resolver extends (...args: any[]) => Promise<IVersionConnection<any>>
+    Resolver extends (...args: any[]) => Promise<IVersionConnection<any>>,
+    RevisionData = any,
+    FragmentNode = any
 > extends IVersionConnectionInfo<Resolver> {
     knex: Knex;
     nodeId: IVersionConnectionInfo<Resolver>['nodeId'];
     nodeName: IVersionConnectionInfo<Resolver>['nodeName'];
-    nodeBuilder: IVersionConnectionInfo<Resolver>['nodeBuilder'];
+    nodeBuilder: IVersionConnectionInfo<Resolver, RevisionData, FragmentNode>['nodeBuilder'];
 }
 
 export interface IVersionRecorderExtractors<
@@ -335,9 +339,9 @@ export interface IPersistVersionInfo {
 
 export type PersistVersion = (versionInfo: IPersistVersionInfo) => Promise<void>;
 
-export type IAllNodeBuilderVersionInfo<CreatedAt = number, RevisionData = any> =
-    | INodeBuilderNodeChangeVersionInfo<CreatedAt, RevisionData>
-    | INodeBuilderNodeFragmentChangeVersionInfo<CreatedAt, RevisionData>;
+export type IAllNodeBuilderVersionInfo<CreatedAt = number, Snapshot = any, RevisionData = any> =
+    | INodeBuilderNodeChangeVersionInfo<CreatedAt, Snapshot, RevisionData>
+    | INodeBuilderNodeFragmentChangeVersionInfo<CreatedAt, Snapshot, RevisionData>;
 
 export interface INodeBuilderVersionInfo<CreatedAt = number> {
     type: string;
@@ -350,8 +354,11 @@ export interface INodeBuilderVersionInfo<CreatedAt = number> {
     resolverOperation: string;
 }
 
-export interface INodeBuilderNodeChangeVersionInfo<CreatedAt = number, RevisionData = any>
-    extends INodeBuilderVersionInfo<CreatedAt> {
+export interface INodeBuilderNodeChangeVersionInfo<
+    CreatedAt = number,
+    Snapshot = any,
+    RevisionData = any
+> extends INodeBuilderVersionInfo<CreatedAt> {
     type: string;
 
     id: number;
@@ -364,11 +371,14 @@ export interface INodeBuilderNodeChangeVersionInfo<CreatedAt = number, RevisionD
     revisionData: RevisionData;
     nodeSchemaVersion: string;
 
-    snapshot?: string;
+    snapshot?: Snapshot;
 }
 
-export interface INodeBuilderNodeFragmentChangeVersionInfo<CreatedAt = number, RevisionData = any>
-    extends INodeBuilderVersionInfo<CreatedAt> {
+export interface INodeBuilderNodeFragmentChangeVersionInfo<
+    CreatedAt = number,
+    Snapshot = any,
+    RevisionData = any
+> extends INodeBuilderVersionInfo<CreatedAt> {
     type: string;
 
     id: number;
@@ -384,7 +394,7 @@ export interface INodeBuilderNodeFragmentChangeVersionInfo<CreatedAt = number, R
     childRevisionData: RevisionData;
     childNodeSchemaVersion: string;
 
-    snapshot?: string;
+    snapshot?: Snapshot;
 }
 
 export type QueryShouldTakeNodeSnapshot = (eventInfo: IEventNodeChangeInfo) => Promise<boolean>;

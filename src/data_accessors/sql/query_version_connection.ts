@@ -12,7 +12,10 @@ import {
     IGqlVersionNode,
     IVersionConnectionInfo,
     NodeInConnection,
-    ILoggerConfig
+    ILoggerConfig,
+    ExtractNodeFromVersionConnection,
+    UnPromisify,
+    IVersionConnection
 } from '../../types';
 import {unixSecondsToSqlTimestamp, castDateToUTCSeconds} from '../../lib/time';
 import {getLoggerFromConfig} from '../../logger';
@@ -47,7 +50,9 @@ const castNodeWithRevisionTimeInDateTimeToUnixSecs = (logger?: ILoggerConfig['lo
     };
 };
 
-type NodesInConnectionUnprocessed = Array<NodeInConnection & {roleName: string}>;
+type NodesInConnectionUnprocessed<Snapshot> = Array<
+    NodeInConnection<Snapshot> & {roleName: string}
+>;
 
 const nodeTransformer = (logger?: ILoggerConfig['logger']) => {
     const firstTransformer = castNodeWithRevisionTimeInDateTimeToUnixSecs(logger);
@@ -65,7 +70,10 @@ const nodeTransformer = (logger?: ILoggerConfig['logger']) => {
     };
 };
 
-export default async <ResolverT extends (...args: any[]) => any>(
+export default async <
+    ResolverT extends (...args: any[]) => Promise<IVersionConnection<any>>,
+    Snapshot = ExtractNodeFromVersionConnection<UnPromisify<ReturnType<ResolverT>>>
+>(
     connectionInputs: IInputArgs,
     knex: Knex,
     {
@@ -83,7 +91,13 @@ export default async <ResolverT extends (...args: any[]) => any>(
     loggerConfig?: ILoggerConfig
 ): //  INamesForTablesAndColumns,
 // extractors: IVersionConnectionExtractors<ResolverT>
-Promise<IQueryResult<NodeInConnection & {snapshot?: string}>> => {
+Promise<
+    IQueryResult<
+        NodeInConnection<Snapshot> & {
+            snapshot?: Snapshot;
+        }
+    >
+> => {
     const parentLogger = getLoggerFromConfig(loggerConfig);
     const logger = parentLogger.child({query: 'Version connection'});
 
@@ -210,8 +224,8 @@ Promise<IQueryResult<NodeInConnection & {snapshot?: string}>> => {
         .orderBy(`main.id`, 'desc');
 
     logger.debug('Raw SQL:', logger.level === 'debug' && query.toQuery());
-    const nodeResult = (await query) as NodesInConnectionUnprocessed;
-    const uniqueVersions = aggregateVersionsById(nodeResult);
+    const nodeResult = (await query) as NodesInConnectionUnprocessed<Snapshot>;
+    const uniqueVersions = aggregateVersionsById<Snapshot>(nodeResult);
     nodeConnection.addResult(uniqueVersions);
     const {pageInfo, edges} = nodeConnection;
     return {pageInfo, edges};
@@ -222,8 +236,8 @@ Promise<IQueryResult<NodeInConnection & {snapshot?: string}>> => {
  * for each user role. Thus, we need to combine user roles together into an array for
  * each duplicate of a revision.
  */
-const aggregateVersionsById = (
-    nodeVersions: NodesInConnectionUnprocessed,
+const aggregateVersionsById = <Snapshot>(
+    nodeVersions: NodesInConnectionUnprocessed<Snapshot>,
     _logger?: ILoggerConfig['logger']
 ) => {
     // extract all the user roles for the version
@@ -259,7 +273,7 @@ const aggregateVersionsById = (
             return uniqueVersions;
         },
         {} as {
-            [id: string]: NodeInConnection;
+            [id: string]: NodeInConnection<Snapshot>;
         }
     );
 

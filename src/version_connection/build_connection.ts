@@ -1,12 +1,27 @@
 import {isGqlNodeChangeNode} from 'type_guards';
 import {EVENT_IMPLEMENTOR_TYPE_NAMES} from 'enums';
 import {getLoggerFromConfig} from 'logger';
-import {ILoggerConfig, UnPromisify, NodeInConnection, IVersionConnection} from 'types';
+import {
+    ILoggerConfig,
+    UnPromisify,
+    NodeInConnection,
+    IVersionConnection,
+    ExtractNodeFromVersionConnection
+} from 'types';
 import {IQueryResult} from '@social-native/snpkg-snapi-connections';
 
-export default <ResolverT extends (...args: [any, any, any, any]) => IVersionConnection<any>>(
-    versionNodeConnection: IQueryResult<NodeInConnection & {snapshot?: string}>,
-    nodesOfConnectionByEventId: {[eventId: string]: UnPromisify<ReturnType<ResolverT>>},
+export default <
+    ResolverT extends (...args: [any, any, any, any]) => Promise<IVersionConnection<any>>,
+    Snapshot = ExtractNodeFromVersionConnection<UnPromisify<ReturnType<ResolverT>>>
+>(
+    versionNodeConnection: IQueryResult<
+        NodeInConnection<Snapshot> & {
+            snapshot?: Snapshot;
+        }
+    >,
+    nodesOfConnectionByEventId: {
+        [eventId: string]: Snapshot;
+    },
     originNodeInstance: {nodeName: string; nodeId: string | number},
     loggerConfig?: ILoggerConfig
 ) => {

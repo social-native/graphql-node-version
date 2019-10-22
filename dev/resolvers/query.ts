@@ -58,19 +58,23 @@ const query: {
             .where({id: args.id})
             .first()) as {id: string; name: string};
 
-        return await versionConnection<QueryTeamResolver>(currentNode, [parent, args, ctx, info], {
-            knex: ctx.sqlClient,
-            // nodeBuilder,
-            nodeBuilder: (previousNode, versionInfo: IAllNodeBuilderVersionInfo<number>) => {
-                if (typeGuards.isNodeBuilderNodeChangeVersionInfo(versionInfo)) {
-                    const a = versionInfo.revisionData;
-                    return {...previousNode, ...a};
-                }
-                return previousNode;
-            },
-            nodeId: args.id,
-            nodeName: 'team'
-        });
+        return await versionConnection<QueryTeamResolver, {id: 'hi'}>(
+            currentNode,
+            [parent, args, ctx, info],
+            {
+                knex: ctx.sqlClient,
+                // nodeBuilder,
+                nodeBuilder: (previousNode, versionInfo) => {
+                    if (typeGuards.isNodeBuilderNodeChangeVersionInfo(versionInfo)) {
+                        const a = versionInfo.revisionData;
+                        return {...previousNode, ...a};
+                    }
+                    return previousNode;
+                },
+                nodeId: args.id,
+                nodeName: 'team'
+            }
+        );
     },
     async todoList(parent, args, ctx, info) {
         const currentNode = await ctx.sqlClient
