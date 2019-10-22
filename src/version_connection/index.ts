@@ -34,11 +34,12 @@ export default (config?: IConfig) => {
     return async <
         ResolverT extends (...args: any[]) => Promise<IVersionConnection<any>>,
         RevisionData = any,
+        FragmentData = any,
         Node = ExtractNodeFromVersionConnection<UnPromisify<ReturnType<ResolverT>>>
     >(
         currentVersionNode: Node,
         resolverArgs: Parameters<ResolverT>,
-        extractors: IVersionConnectionExtractors<ResolverT, RevisionData>
+        extractors: IVersionConnectionExtractors<ResolverT, RevisionData, FragmentData>
     ) => {
         // tslint:disable-next-line
         logger.debug('Current node', currentVersionNode);

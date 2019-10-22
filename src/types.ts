@@ -184,7 +184,7 @@ export interface IVersionConnectionInfo<
         // FragmentNode = any
     >(
         previousNode: GqlNode,
-        versionInfo: IAllNodeBuilderVersionInfo<number, RevisionData>,
+        versionInfo: IAllNodeBuilderVersionInfo<number, GqlNode, RevisionData>,
         fragmentNodes?: INodeBuilderFragmentNodes<FragmentNode>,
         logger?: ILoggerConfig['logger']
     ) => GqlNode;

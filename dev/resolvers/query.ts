@@ -58,7 +58,7 @@ const query: {
             .where({id: args.id})
             .first()) as {id: string; name: string};
 
-        return await versionConnection<QueryTeamResolver, {id: 'hi'}>(
+        return await versionConnection<QueryTeamResolver, {id: 'hi'}, {id: 'hello'}>(
             currentNode,
             [parent, args, ctx, info],
             {
@@ -67,6 +67,10 @@ const query: {
                 nodeBuilder: (previousNode, versionInfo) => {
                     if (typeGuards.isNodeBuilderNodeChangeVersionInfo(versionInfo)) {
                         const a = versionInfo.revisionData;
+                        return {...previousNode, ...a};
+                    }
+                    if (typeGuards.isNodeBuilderNodeFragmentChangeVersionInfo(versionInfo)) {
+                        const a = versionInfo;
                         return {...previousNode, ...a};
                     }
                     return previousNode;
