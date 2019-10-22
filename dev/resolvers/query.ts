@@ -134,14 +134,17 @@ const nodeBuilder = <Node extends any, FragmentNode extends object>(
     previousNode: Node,
     versionInfo: IAllNodeBuilderVersionInfo,
     fragmentNodes?: INodeBuilderFragmentNodes<FragmentNode>,
-    _logger?: ILoggerConfig['logger']
+    logger?: ILoggerConfig['logger']
 ): Node => {
+    logger && logger.child({part: 'nodeBuilder'}); // tslint:disable-line
     if (typeGuards.isNodeBuilderNodeChangeVersionInfo(versionInfo)) {
+        logger && logger.debug('Node Builder: node change info'); // tslint:disable-line
         return versionNodeBuilder.computeNodeFromNodeChange(previousNode, versionInfo);
     } else if (
         typeGuards.isNodeBuilderNodeFragmentChangeVersionInfo(versionInfo) &&
         fragmentNodes
     ) {
+        logger && logger.debug('Node Builder: node fragment change info'); // tslint:disable-line
         const computeNode = (pNode: Node, fragments: FragmentNode[]) => ({
             ...pNode,
             items: fragments || []
