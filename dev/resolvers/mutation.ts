@@ -367,7 +367,7 @@ const commonDecoratorConfig = <T extends Resolver<any, any, any>>() =>
         knex: (_, __, {sqlClient}) => sqlClient,
         userId: () => '1',
         userRoles: () => ['ethan', 'human'],
-        revisionData: (_, args) => JSON.stringify(args),
+        revisionData: (_, args) => args,
         currentNodeSnapshotFrequency: 5
     } as Pick<
         IVersionRecorderExtractors<T>,
@@ -488,7 +488,7 @@ decorate(mutation, {
             );
             return connectionResult.edges[0].node;
         },
-        edges: (_, {teamId}) => [{nodeId: teamId, nodeName: 'team'}]
+        edges: (_node, _parent, {teamId}) => [{nodeId: teamId, nodeName: 'team'}]
     }),
     teamUserDelete: versionRecorder<MutationTeamUserDelete>({
         ...commonDecoratorConfig<MutationTeamUserDelete>(),
@@ -505,7 +505,7 @@ decorate(mutation, {
             );
             return connectionResult.edges[0].node;
         },
-        edges: (_, {teamId}) => [{nodeId: teamId, nodeName: 'team'}]
+        edges: (_node, _parent, {teamId}) => [{nodeId: teamId, nodeName: 'team'}]
     }),
     todoListCreate: versionRecorder<MutationTodoListCreate>({
         ...commonDecoratorConfig<MutationTodoListCreate>(),
@@ -522,7 +522,7 @@ decorate(mutation, {
             );
             return connectionResult.edges[0].node;
         },
-        edges: (_, {userId}) => [{nodeId: userId, nodeName: 'user'}]
+        edges: (_node, _parent, {userId}) => [{nodeId: userId, nodeName: 'user'}]
     }),
     todoListUpdate: versionRecorder<MutationTodoListUpdate>({
         ...commonDecoratorConfig<MutationTodoListUpdate>(),
@@ -571,7 +571,7 @@ decorate(mutation, {
             );
             return connectionResult.edges[0].node;
         },
-        parentNode: (_, {todoListId}) => ({nodeName: 'todoList', nodeId: todoListId})
+        parentNode: (_, __, {todoListId}) => ({nodeName: 'todoList', nodeId: todoListId})
     }),
     todoItemUpdate: versionRecorder<MutationTodoItemUpdate>({
         ...commonDecoratorConfig<MutationTodoItemUpdate>(),
