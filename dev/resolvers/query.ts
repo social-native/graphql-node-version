@@ -8,15 +8,16 @@ import {
     ILoggerConfig,
     INodeBuilderFragmentNodes,
     typeGuards,
-    nodeBuilder as versionNodeBuilder
+    nodeBuilder as versionNodeBuilder,
+    UnPromisify
 } from '../../src';
 
-const createRevisionConnection = unconfiguredCreateRevisionConnection({
+const versionConnection = unconfiguredCreateRevisionConnection({
     logOptions: {level: 'debug', prettyPrint: true, base: null}
 });
 
 interface ITeam {
-    id: number;
+    id: string;
     name: string;
 }
 
@@ -55,11 +56,18 @@ const query: {
         const currentNode = (await ctx.sqlClient
             .from('team')
             .where({id: args.id})
-            .first()) as {id: number; name: string};
+            .first()) as {id: string; name: string};
 
-        return await createRevisionConnection(currentNode, [parent, args, ctx, info], {
+        return await versionConnection<QueryTeamResolver>(currentNode, [parent, args, ctx, info], {
             knex: ctx.sqlClient,
-            nodeBuilder,
+            // nodeBuilder,
+            nodeBuilder: (previousNode, versionInfo: IAllNodeBuilderVersionInfo<number>) => {
+                if (typeGuards.isNodeBuilderNodeChangeVersionInfo(versionInfo)) {
+                    const a = versionInfo.revisionData;
+                    return {...previousNode, ...a};
+                }
+                return previousNode;
+            },
             nodeId: args.id,
             nodeName: 'team'
         });
@@ -70,7 +78,7 @@ const query: {
             .where({'todo_list.id': args.id})
             .first();
 
-        return await createRevisionConnection(currentNode, [parent, args, ctx, info], {
+        return await versionConnection(currentNode, [parent, args, ctx, info], {
             knex: ctx.sqlClient,
             nodeBuilder,
             nodeId: args.id,
@@ -83,7 +91,7 @@ const query: {
             .where({id: args.id})
             .first();
 
-        return await createRevisionConnection(currentNode, [parent, args, ctx, info], {
+        return await versionConnection(currentNode, [parent, args, ctx, info], {
             knex: ctx.sqlClient,
             nodeBuilder,
             nodeId: args.id,
@@ -96,7 +104,7 @@ const query: {
             .where({id: args.id})
             .first();
 
-        return await createRevisionConnection(currentNode, [parent, args, ctx, info], {
+        return await versionConnection(currentNode, [parent, args, ctx, info], {
             knex: ctx.sqlClient,
             nodeBuilder,
             nodeId: args.id,
@@ -130,9 +138,9 @@ const query: {
     }
 };
 
-const nodeBuilder = <Node extends any, FragmentNode extends object>(
+const nodeBuilder = <Node extends any, RevisionData, FragmentNode extends object>(
     previousNode: Node,
-    versionInfo: IAllNodeBuilderVersionInfo,
+    versionInfo: IAllNodeBuilderVersionInfo<number, RevisionData>,
     fragmentNodes?: INodeBuilderFragmentNodes<FragmentNode>,
     logger?: ILoggerConfig['logger']
 ): Node => {

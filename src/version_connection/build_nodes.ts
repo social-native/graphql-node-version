@@ -32,7 +32,7 @@ export default <ResolverT extends (...args: [any, any, any, any]) => any>(
                 logger.error('Missing initial snapshot for connection', event);
                 throw new Error('Missing initial snapshot');
             } else if (isNodeBuilderNodeVersionInfoWithSnapshot(event)) {
-                const nodeSnapshot = JSON.parse(event.snapshot);
+                const nodeSnapshot = event.snapshot as any;
 
                 if (isNodeBuilderNodeFragmentChangeVersionInfo(event)) {
                     logger.debug('Building node fragment change');
@@ -79,6 +79,7 @@ export default <ResolverT extends (...args: [any, any, any, any]) => any>(
 
                     acc.fullNodes[event.id] = acc.lastNode;
                 } else {
+                    logger.error('Undefined node event without snapshot', event);
                     throw new Error('Undefined node event without snapshot');
                 }
             }

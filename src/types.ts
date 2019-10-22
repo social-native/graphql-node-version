@@ -169,15 +169,23 @@ export interface IVersionConnection<Node> {
  *
  */
 
-export interface IVersionConnectionInfo<Resolver extends (...args: any[]) => Promise<any> | any> {
+type ExtractNodeFromVersionConnection<P> = P extends IVersionConnection<infer T> ? T : never;
+
+export interface IVersionConnectionInfo<
+    Resolver extends (...args: any[]) => Promise<IVersionConnection<any>> | IVersionConnection<any>
+> {
     nodeId: string | number;
     nodeName: string;
-    nodeBuilder: <Node = UnPromisify<ReturnType<Resolver>>, FragmentNode extends object = object>(
-        previousNode: Node,
-        versionInfo: IAllNodeBuilderVersionInfo,
+    nodeBuilder: <
+        GqlNode = UnPromisify<ExtractNodeFromVersionConnection<ReturnType<Resolver>>>,
+        RevisionData = any,
+        FragmentNode extends object = object
+    >(
+        previousNode: GqlNode,
+        versionInfo: IAllNodeBuilderVersionInfo<number, RevisionData>,
         fragmentNodes?: INodeBuilderFragmentNodes<FragmentNode>,
         logger?: ILoggerConfig['logger']
-    ) => Node;
+    ) => GqlNode;
 }
 export interface IVersionConnectionExtractors<
     Resolver extends (...args: any[]) => Promise<any> | any
@@ -189,7 +197,8 @@ export interface IVersionConnectionExtractors<
 }
 
 export interface IVersionRecorderExtractors<
-    Resolver extends (...args: any[]) => Promise<any> | any
+    Resolver extends (...args: any[]) => Promise<any> | any,
+    RevisionData = any
 > {
     userId: (
         parent: Parameters<Resolver>[0],
@@ -208,7 +217,7 @@ export interface IVersionRecorderExtractors<
         args: Parameters<Resolver>[1],
         ctx: Parameters<Resolver>[2],
         info: Parameters<Resolver>[3]
-    ) => string;
+    ) => RevisionData;
     eventTime?: (
         parent: Parameters<Resolver>[0],
         args: Parameters<Resolver>[1],
@@ -326,9 +335,9 @@ export interface IPersistVersionInfo {
 
 export type PersistVersion = (versionInfo: IPersistVersionInfo) => Promise<void>;
 
-export type IAllNodeBuilderVersionInfo<CreatedAt = number> =
-    | INodeBuilderNodeChangeVersionInfo<CreatedAt>
-    | INodeBuilderNodeFragmentChangeVersionInfo<CreatedAt>;
+export type IAllNodeBuilderVersionInfo<CreatedAt = number, RevisionData = any> =
+    | INodeBuilderNodeChangeVersionInfo<CreatedAt, RevisionData>
+    | INodeBuilderNodeFragmentChangeVersionInfo<CreatedAt, RevisionData>;
 
 export interface INodeBuilderVersionInfo<CreatedAt = number> {
     type: string;
@@ -341,7 +350,7 @@ export interface INodeBuilderVersionInfo<CreatedAt = number> {
     resolverOperation: string;
 }
 
-export interface INodeBuilderNodeChangeVersionInfo<CreatedAt = number>
+export interface INodeBuilderNodeChangeVersionInfo<CreatedAt = number, RevisionData = any>
     extends INodeBuilderVersionInfo<CreatedAt> {
     type: string;
 
@@ -352,13 +361,13 @@ export interface INodeBuilderNodeChangeVersionInfo<CreatedAt = number>
     userId: string;
     resolverOperation: string;
 
-    revisionData: string;
+    revisionData: RevisionData;
     nodeSchemaVersion: string;
 
     snapshot?: string;
 }
 
-export interface INodeBuilderNodeFragmentChangeVersionInfo<CreatedAt = number>
+export interface INodeBuilderNodeFragmentChangeVersionInfo<CreatedAt = number, RevisionData = any>
     extends INodeBuilderVersionInfo<CreatedAt> {
     type: string;
 
@@ -372,7 +381,7 @@ export interface INodeBuilderNodeFragmentChangeVersionInfo<CreatedAt = number>
     childNodeName: string;
     childNodeId: string;
 
-    childRevisionData: string;
+    childRevisionData: RevisionData;
     childNodeSchemaVersion: string;
 
     snapshot?: string;

@@ -8,9 +8,12 @@ export const computeNodeFromNodeChange = <Node extends any>(
     let data;
     try {
         data = JSON.parse(revisionData) as object;
-    } catch {
-        data = undefined;
+    } catch (e) {
+        console.log(e);
+        data = (revisionData as any) as object;
     }
+    console.log('**************');
+    console.log(versionInfo);
     return {
         ...previousNode,
         ...data

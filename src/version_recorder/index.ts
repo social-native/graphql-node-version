@@ -83,7 +83,7 @@ export default (config?: IConfig) => <ResolverT extends (...args: any[]) => any>
             );
 
             logger.debug('Extracting event node change info');
-            const eventNodeChangeInfo = await eventNodeChangeInfoExtractor(
+            const eventNodeChangeInfo = await eventNodeChangeInfoExtractor<ResolverT>(
                 args,
                 extractors,
                 eventInfoBase,

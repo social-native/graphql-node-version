@@ -1,4 +1,10 @@
-import {UnPromisify, IVersionConnectionExtractors, IGqlVersionNode, IConfig} from '../types';
+import {
+    UnPromisify,
+    IVersionConnectionExtractors,
+    IGqlVersionNode,
+    IConfig,
+    IVersionConnection
+} from '../types';
 import {ConnectionManager} from '@social-native/snpkg-snapi-connections';
 
 import queryVersionConnection from '../data_accessors/sql/query_version_connection';
@@ -19,13 +25,19 @@ import buildConnection from './build_connection';
  * 5. Return connection
  */
 
+type ExtractNodeFromVersionConnection<P> = P extends IVersionConnection<infer T> ? T : never;
+
 export default (config?: IConfig) => {
     const tableAndColumnNames = generateTableAndColumnNames(config ? config.names : undefined);
     const parentLogger = getLoggerFromConfig(config);
     const logger = parentLogger.child({api: 'Version Connection'});
 
-    return async <ResolverT extends (...args: [any, any, any, any]) => any>(
-        currentVersionNode: UnPromisify<ReturnType<ResolverT>>,
+    return async <
+        ResolverT extends (
+            ...args: any[]
+        ) => Promise<IVersionConnection<any>> | IVersionConnection<any>
+    >(
+        currentVersionNode: UnPromisify<ExtractNodeFromVersionConnection<ReturnType<ResolverT>>>,
         resolverArgs: Parameters<ResolverT>,
         extractors: IVersionConnectionExtractors<ResolverT>
     ) => {
