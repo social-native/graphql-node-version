@@ -7,13 +7,20 @@ import {
     ILoggerConfig,
     INodeBuilderNodeChangeVersionInfo,
     IAllNodeBuilderVersionInfo,
-    INodeBuilderNodeFragmentChangeVersionInfo
+    INodeBuilderNodeFragmentChangeVersionInfo,
+    IVersionConnection,
+    ExtractNodeFromVersionConnection,
+    UnPromisify
 } from '../../types';
 import {unixSecondsToSqlTimestamp, castDateToUTCSeconds} from '../../lib/time';
 import {getLoggerFromConfig} from '../../logger';
 import {EVENT_IMPLEMENTOR_TYPE_NAMES} from '../../enums';
 
-export default async <ResolverT extends (...args: [any, any, any, any]) => any>(
+export default async <
+    ResolverT extends (...args: [any, any, any, any]) => Promise<IVersionConnection<any>>,
+    RevisionData = any,
+    ChildRevisionData = any
+>(
     knex: Knex,
     {
         table_names,
@@ -28,7 +35,16 @@ export default async <ResolverT extends (...args: [any, any, any, any]) => any>(
     >,
     originalNodeInstance: Pick<IVersionConnectionInfo<ResolverT>, 'nodeId' | 'nodeName'>,
     loggerConfig?: ILoggerConfig
-): Promise<Array<IAllNodeBuilderVersionInfo<number>>> => {
+): Promise<
+    Array<
+        IAllNodeBuilderVersionInfo<
+            number,
+            ExtractNodeFromVersionConnection<UnPromisify<ReturnType<ResolverT>>>,
+            RevisionData,
+            ChildRevisionData
+        >
+    >
+> => {
     const parentLogger = getLoggerFromConfig(loggerConfig);
     const logger = parentLogger.child({query: 'Events with snapshots'});
 

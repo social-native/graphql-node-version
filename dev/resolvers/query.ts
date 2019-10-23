@@ -68,9 +68,8 @@ const query: {
                     if (typeGuards.isNodeBuilderNodeChangeVersionInfo(versionInfo)) {
                         const a = versionInfo.revisionData;
                         return {...previousNode, ...a};
-                    }
-                    if (typeGuards.isNodeBuilderNodeFragmentChangeVersionInfo(versionInfo)) {
-                        const a = versionInfo;
+                    } else if (typeGuards.isNodeBuilderNodeFragmentChangeVersionInfo(versionInfo)) {
+                        const a = versionInfo.childRevisionData;
                         return {...previousNode, ...a};
                     }
                     return previousNode;
@@ -146,7 +145,7 @@ const query: {
     }
 };
 
-const nodeBuilder = <Node extends any, RevisionData, FragmentNode extends object>(
+const nodeBuilder = <Node extends any, RevisionData, FragmentNode>(
     previousNode: Node,
     versionInfo: IAllNodeBuilderVersionInfo<number, RevisionData>,
     fragmentNodes?: INodeBuilderFragmentNodes<FragmentNode>,

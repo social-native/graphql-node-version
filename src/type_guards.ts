@@ -38,40 +38,40 @@ export const isGqlNodeChangeNode = (
     return (n as IGqlVersionNodeChangeNode).revisionData !== undefined;
 };
 
-export const isNodeBuilderNodeVersionInfoWithSnapshot = <A, B, C>(
+export const isNodeBuilderNodeVersionInfoWithSnapshot = <A, B, C, D>(
     n:
-        | IAllNodeBuilderVersionInfo<A, B, C>
+        | IAllNodeBuilderVersionInfo<A, B, C, D>
         | Required<INodeBuilderNodeChangeVersionInfo<A, B, C>>
-        | Required<INodeBuilderNodeFragmentChangeVersionInfo<A, B, C>>
+        | Required<INodeBuilderNodeFragmentChangeVersionInfo<A, B, D>>
 ): n is
     | Required<INodeBuilderNodeChangeVersionInfo<A, B, C>>
-    | Required<INodeBuilderNodeFragmentChangeVersionInfo<A, B, C>> => {
+    | Required<INodeBuilderNodeFragmentChangeVersionInfo<A, B, D>> => {
     return (
         (n as
             | Required<INodeBuilderNodeChangeVersionInfo<A, B, C>>
-            | Required<INodeBuilderNodeFragmentChangeVersionInfo<A, B, C>>).snapshot != null // tslint:disable-line
+            | Required<INodeBuilderNodeFragmentChangeVersionInfo<A, B, D>>).snapshot != null // tslint:disable-line
     );
 };
 
-export const isNodeBuilderNodeChangeVersionInfo = <A, B, C>(
-    n: IAllNodeBuilderVersionInfo<A, B, C> | INodeBuilderNodeChangeVersionInfo<A, B, C>
+export const isNodeBuilderNodeChangeVersionInfo = <A, B, C, D>(
+    n: IAllNodeBuilderVersionInfo<A, B, C, D> | INodeBuilderNodeChangeVersionInfo<A, B, C>
 ): n is INodeBuilderNodeChangeVersionInfo<A, B, C> => {
     return (
         (n as INodeBuilderNodeChangeVersionInfo<A, B, C>).revisionData !== undefined &&
-        (n as INodeBuilderNodeFragmentChangeVersionInfo<A, B, C>).childRevisionData === undefined
+        (n as INodeBuilderNodeFragmentChangeVersionInfo<A, B, D>).childRevisionData === undefined
     );
 };
 
-export const isNodeBuilderNodeFragmentChangeVersionInfo = <A, B, C>(
-    n: IAllNodeBuilderVersionInfo<A, B, C> | INodeBuilderNodeFragmentChangeVersionInfo<A, B, C>
-): n is INodeBuilderNodeFragmentChangeVersionInfo<A, B, C> => {
+export const isNodeBuilderNodeFragmentChangeVersionInfo = <A, B, C, D>(
+    n: IAllNodeBuilderVersionInfo<A, B, C, D> | INodeBuilderNodeFragmentChangeVersionInfo<A, B, D>
+): n is INodeBuilderNodeFragmentChangeVersionInfo<A, B, D> => {
     return (
-        (n as INodeBuilderNodeFragmentChangeVersionInfo<A, B, C>).childRevisionData !== undefined
+        (n as INodeBuilderNodeFragmentChangeVersionInfo<A, B, D>).childRevisionData !== undefined
     );
 };
 
-export const shouldSkipNodeBuilderBecauseHasLinkChangeVersionInfo = (
-    n: IAllNodeBuilderVersionInfo | INodeBuilderVersionInfo
+export const shouldSkipNodeBuilderBecauseHasLinkChangeVersionInfo = <A, B, C, D>(
+    n: IAllNodeBuilderVersionInfo<A, B, C, D> | INodeBuilderVersionInfo
 ): n is INodeBuilderVersionInfo => {
     return (n as any).revisionData === undefined;
 };

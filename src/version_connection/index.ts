@@ -34,12 +34,12 @@ export default (config?: IConfig) => {
     return async <
         ResolverT extends (...args: any[]) => Promise<IVersionConnection<any>>,
         RevisionData = any,
-        FragmentData = any,
+        ChildRevisionData = any,
         Node = ExtractNodeFromVersionConnection<UnPromisify<ReturnType<ResolverT>>>
     >(
         currentVersionNode: Node,
         resolverArgs: Parameters<ResolverT>,
-        extractors: IVersionConnectionExtractors<ResolverT, RevisionData, FragmentData>
+        extractors: IVersionConnectionExtractors<ResolverT, RevisionData, ChildRevisionData>
     ) => {
         // tslint:disable-next-line
         logger.debug('Current node', currentVersionNode);
@@ -89,7 +89,11 @@ export default (config?: IConfig) => {
         logger.debug('Time range of version connection', timeRangeOfVersionConnection);
 
         logger.debug('Querying for snapshots in time range');
-        const allEventsInConnectionAndBeyondExtendToFirstSnapshot = await queryEventsWithSnapshots(
+        const allEventsInConnectionAndBeyondExtendToFirstSnapshot = await queryEventsWithSnapshots<
+            ResolverT,
+            RevisionData,
+            ChildRevisionData
+        >(
             knex,
             tableAndColumnNames,
             timeRangeOfVersionConnection,
@@ -109,7 +113,8 @@ export default (config?: IConfig) => {
         logger.debug('Building nodes for connection....');
         const nodesOfConnectionByEventId = buildConnectionNodesAndSortByEventId<
             ResolverT,
-            RevisionData
+            RevisionData,
+            ChildRevisionData
         >(allEventsInConnectionAndBeyondExtendToFirstSnapshot, extractors, {logger});
 
         logger.debug('Building final version connection');

@@ -17,16 +17,18 @@ import {getLoggerFromConfig} from '../logger';
 
 export default <
     ResolverT extends (...args: [any, any, any, any]) => Promise<IVersionConnection<any>>,
-    RevisionData = any
+    RevisionData = any,
+    ChildRevisionData = any
 >(
     minSetOfEventsInConnectionThatStartWithASnapshot: Array<
         IAllNodeBuilderVersionInfo<
             number,
             ExtractNodeFromVersionConnection<UnPromisify<ReturnType<ResolverT>>>,
-            RevisionData
+            RevisionData,
+            ChildRevisionData
         >
     >,
-    extractors: IVersionConnectionExtractors<ResolverT>,
+    extractors: IVersionConnectionExtractors<ResolverT, RevisionData, ChildRevisionData>,
     loggerConfig?: ILoggerConfig
 ) => {
     const parentLogger = getLoggerFromConfig(loggerConfig);
@@ -102,7 +104,7 @@ export default <
             return acc;
         },
         {fullNodes: {}, fragmentNodes: {}} as {
-            fragmentNodes: INodeBuilderFragmentNodes;
+            fragmentNodes: INodeBuilderFragmentNodes<ChildRevisionData>;
             lastNode: ExtractNodeFromVersionConnection<UnPromisify<ReturnType<ResolverT>>>;
             fullNodes: {
                 [eventId: string]: ExtractNodeFromVersionConnection<
