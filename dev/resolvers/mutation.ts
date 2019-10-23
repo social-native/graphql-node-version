@@ -12,57 +12,57 @@ const versionRecorder = unconfiguredVersionRecorder({
     logOptions: {level: 'debug', prettyPrint: true, base: null}
 });
 
-interface ITeamCreationMutationInput {
+export interface ITeamCreationMutationInput {
     name: string;
 }
 
-interface ITeamUpdateMutationInput {
+export interface ITeamUpdateMutationInput {
     id: number;
     name?: string;
 }
 
-interface ITeamDeleteMutationInput {
+export interface ITeamDeleteMutationInput {
     id: number;
 }
 
-interface ITeamUserCreationMutationInput {
+export interface ITeamUserCreationMutationInput {
     userId: number;
     teamId: number;
 }
 
-interface ITeamUserDeleteMutationInput {
+export interface ITeamUserDeleteMutationInput {
     userId: number;
     teamId: number;
 }
 
-interface ITodoListCreationMutationInput {
+export interface ITodoListCreationMutationInput {
     userId: number;
     usage: string;
 }
-interface ITodoListUpdateMutationInput {
+export interface ITodoListUpdateMutationInput {
     id: number;
     usage: string;
 }
-interface ITodoListDeleteMutationInput {
+export interface ITodoListDeleteMutationInput {
     id: number;
 }
-interface ITodoItemCreationMutationInput {
+export interface ITodoItemCreationMutationInput {
     todoListId: number;
     note: string;
     order: number;
 }
 
-interface ITodoItemUpdateMutationInput {
+export interface ITodoItemUpdateMutationInput {
     id: number;
     note: string;
     order: number;
 }
 
-interface ITodoItemDeleteMutationInput {
+export interface ITodoItemDeleteMutationInput {
     id: number;
 }
 
-interface IUserCreationMutationInput {
+export interface IUserCreationMutationInput {
     username: string;
     firstname: string;
     lastname?: string;
@@ -71,7 +71,7 @@ interface IUserCreationMutationInput {
     bio?: string;
 }
 
-interface IUserUpdateMutationInput {
+export interface IUserUpdateMutationInput {
     id: string;
     username?: string;
     firstname?: string;
@@ -81,7 +81,7 @@ interface IUserUpdateMutationInput {
     bio?: string;
 }
 
-interface IUserDeleteMutationInput {
+export interface IUserDeleteMutationInput {
     id: string;
 }
 

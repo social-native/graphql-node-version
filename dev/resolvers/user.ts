@@ -1,6 +1,6 @@
 import {Resolver, ITodoList} from '../types';
 
-type UserTodosResolver = Resolver<ITodoList[] | undefined, {id: string}>;
+type UserTodosResolver = Resolver<Promise<ITodoList[] | undefined>, {id: string}>;
 
 const user: {
     todos: UserTodosResolver;

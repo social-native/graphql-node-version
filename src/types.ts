@@ -174,26 +174,54 @@ export type ExtractNodeFromVersionConnection<P> = P extends IVersionConnection<i
 export interface IVersionConnectionInfo<
     Resolver extends (...args: any[]) => Promise<IVersionConnection<any>>,
     RevisionData = any,
+    ChildNode = any,
     ChildRevisionData = any
 > {
     nodeId: string | number;
     nodeName: string;
-    nodeBuilder: <GqlNode = ExtractNodeFromVersionConnection<UnPromisify<ReturnType<Resolver>>>>(
-        previousNode: GqlNode,
-        versionInfo: IAllNodeBuilderVersionInfo<number, GqlNode, RevisionData>,
-        fragmentNodes?: INodeBuilderFragmentNodes<ChildRevisionData>,
+    nodeBuilder: <Node = ExtractNodeFromVersionConnection<UnPromisify<ReturnType<Resolver>>>>(
+        previousNode: Node,
+        versionInfo: IAllNodeBuilderVersionInfo<
+            number,
+            Node,
+            RevisionData,
+            ChildNode,
+            ChildRevisionData
+        >,
+        fragmentNodes?: INodeBuilderFragmentNodes<ChildNode>,
         logger?: ILoggerConfig['logger']
-    ) => GqlNode;
+    ) => Node;
+    fragmentNodeBuilder?: (
+        previousNode: ChildNode,
+        versionInfo: INodeBuilderNodeFragmentChangeVersionInfo<
+            number,
+            ChildNode,
+            ChildRevisionData
+        >,
+        logger?: ILoggerConfig['logger']
+    ) => ChildNode;
 }
 export interface IVersionConnectionExtractors<
     Resolver extends (...args: any[]) => Promise<IVersionConnection<any>>,
     RevisionData = any,
+    ChildNode = any,
     ChildRevisionData = any
 > extends IVersionConnectionInfo<Resolver> {
     knex: Knex;
     nodeId: IVersionConnectionInfo<Resolver>['nodeId'];
     nodeName: IVersionConnectionInfo<Resolver>['nodeName'];
-    nodeBuilder: IVersionConnectionInfo<Resolver, RevisionData, ChildRevisionData>['nodeBuilder'];
+    nodeBuilder: IVersionConnectionInfo<
+        Resolver,
+        RevisionData,
+        ChildNode,
+        ChildRevisionData
+    >['nodeBuilder'];
+    fragmentNodeBuilder?: IVersionConnectionInfo<
+        Resolver,
+        RevisionData,
+        ChildNode,
+        ChildRevisionData
+    >['fragmentNodeBuilder'];
 }
 
 export interface IVersionRecorderExtractors<
@@ -337,12 +365,13 @@ export type PersistVersion = (versionInfo: IPersistVersionInfo) => Promise<void>
 
 export type IAllNodeBuilderVersionInfo<
     CreatedAt = number,
-    Snapshot = any,
+    Node = any,
     RevisionData = any,
+    ChildNode = any,
     ChildRevisionData = any
 > =
-    | INodeBuilderNodeChangeVersionInfo<CreatedAt, Snapshot, RevisionData>
-    | INodeBuilderNodeFragmentChangeVersionInfo<CreatedAt, Snapshot, ChildRevisionData>;
+    | INodeBuilderNodeChangeVersionInfo<CreatedAt, Node, RevisionData>
+    | INodeBuilderNodeFragmentChangeVersionInfo<CreatedAt, ChildNode, ChildRevisionData>;
 
 export interface INodeBuilderVersionInfo<CreatedAt = number> {
     type: string;
@@ -357,7 +386,7 @@ export interface INodeBuilderVersionInfo<CreatedAt = number> {
 
 export interface INodeBuilderNodeChangeVersionInfo<
     CreatedAt = number,
-    Snapshot = any,
+    Node = any,
     RevisionData = any
 > extends INodeBuilderVersionInfo<CreatedAt> {
     type: string;
@@ -372,12 +401,12 @@ export interface INodeBuilderNodeChangeVersionInfo<
     revisionData: RevisionData;
     nodeSchemaVersion: string;
 
-    snapshot?: Snapshot;
+    snapshot?: Node;
 }
 
 export interface INodeBuilderNodeFragmentChangeVersionInfo<
     CreatedAt = number,
-    Snapshot = any,
+    ChildNode = any,
     ChildRevisionData = any
 > extends INodeBuilderVersionInfo<CreatedAt> {
     type: string;
@@ -395,7 +424,7 @@ export interface INodeBuilderNodeFragmentChangeVersionInfo<
     childRevisionData: ChildRevisionData;
     childNodeSchemaVersion: string;
 
-    snapshot?: Snapshot;
+    childSnapshot?: ChildNode;
 }
 
 export type QueryShouldTakeNodeSnapshot = (eventInfo: IEventNodeChangeInfo) => Promise<boolean>;
@@ -437,8 +466,8 @@ export type BaseResolver<Node = any, P = undefined, A = undefined, C = {}, I = {
  *
  */
 
-export interface INodeBuilderFragmentNodes<ChildRevisionData> {
-    [nodeName: string]: {[nodeId: string]: ChildRevisionData};
+export interface INodeBuilderFragmentNodes<ChildNode> {
+    [nodeName: string]: {[nodeId: string]: ChildNode};
 }
 
 /**

@@ -34,12 +34,18 @@ export default (config?: IConfig) => {
     return async <
         ResolverT extends (...args: any[]) => Promise<IVersionConnection<any>>,
         RevisionData = any,
+        ChildNode = any,
         ChildRevisionData = any,
         Node = ExtractNodeFromVersionConnection<UnPromisify<ReturnType<ResolverT>>>
     >(
         currentVersionNode: Node,
         resolverArgs: Parameters<ResolverT>,
-        extractors: IVersionConnectionExtractors<ResolverT, RevisionData, ChildRevisionData>
+        extractors: IVersionConnectionExtractors<
+            ResolverT,
+            RevisionData,
+            ChildNode,
+            ChildRevisionData
+        >
     ) => {
         // tslint:disable-next-line
         logger.debug('Current node', currentVersionNode);
@@ -92,6 +98,7 @@ export default (config?: IConfig) => {
         const allEventsInConnectionAndBeyondExtendToFirstSnapshot = await queryEventsWithSnapshots<
             ResolverT,
             RevisionData,
+            ChildNode,
             ChildRevisionData
         >(
             knex,
@@ -114,6 +121,7 @@ export default (config?: IConfig) => {
         const nodesOfConnectionByEventId = buildConnectionNodesAndSortByEventId<
             ResolverT,
             RevisionData,
+            ChildNode,
             ChildRevisionData
         >(allEventsInConnectionAndBeyondExtendToFirstSnapshot, extractors, {logger});
 

@@ -19,6 +19,7 @@ import {EVENT_IMPLEMENTOR_TYPE_NAMES} from '../../enums';
 export default async <
     ResolverT extends (...args: [any, any, any, any]) => Promise<IVersionConnection<any>>,
     RevisionData = any,
+    ChildNode = any,
     ChildRevisionData = any
 >(
     knex: Knex,
@@ -41,6 +42,7 @@ export default async <
             number,
             ExtractNodeFromVersionConnection<UnPromisify<ReturnType<ResolverT>>>,
             RevisionData,
+            ChildNode,
             ChildRevisionData
         >
     >
@@ -119,7 +121,8 @@ export default async <
                 childNodeName: rr.nodeName,
                 childNodeId: rr.nodeId,
                 childRevisionData: rr.revisionData,
-                childNodeSchemaVersion: rr.nodeSchemaVersion
+                childNodeSchemaVersion: rr.nodeSchemaVersion,
+                childSnapshot: rr.snapshot
             } as INodeBuilderNodeFragmentChangeVersionInfo;
         } else {
             return rr;
