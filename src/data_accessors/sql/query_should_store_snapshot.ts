@@ -19,6 +19,11 @@ export default (
     const parentLogger = getLoggerFromConfig(loggerConfig);
     const logger = parentLogger.child({query: 'Should store snapshots'});
 
+    // exit early if we know we want to store a snapshot
+    if (eventInfo.snapshotFrequency <= 1) {
+        return true;
+    }
+
     const sql = transaction
         .table<ISqlEventTable>(table_names.event)
         .leftJoin<ISqlNodeSnapshotTable>(
