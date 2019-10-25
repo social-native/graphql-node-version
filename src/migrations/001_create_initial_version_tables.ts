@@ -74,6 +74,8 @@ ${upMigrationDeclaration(extension)}
         t.string('${event.node_name}').notNullable();
         t.string('${event.node_id}').notNullable();
         t.string('${event.resolver_operation}').notNullable();
+
+        t.index(['${event.node_name}', '${event.node_id}'], 'version_node_name_and_id');
     });
 
     await knex.schema.createTable('${table_names.event_link_change}', t => {
@@ -110,6 +112,11 @@ ${upMigrationDeclaration(extension)}
         t.string('${event_node_fragment_register.parent_node_name}').notNullable();
         t.string('${event_node_fragment_register.child_node_id}').notNullable();
         t.string('${event_node_fragment_register.child_node_name}').notNullable();
+
+        t.index(['${event_node_fragment_register.parent_node_name}', '${
+            event_node_fragment_register.parent_node_id
+        }'], 'version_parent_name_and_id');
+
     });
 
     await knex.schema.createTable('${table_names.node_snapshot}', t => {

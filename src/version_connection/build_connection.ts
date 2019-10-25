@@ -14,6 +14,8 @@ export default <
     ResolverT extends (...args: [any, any, any, any]) => Promise<IVersionConnection<any>>,
     Snapshot = ExtractNodeFromVersionConnection<UnPromisify<ReturnType<ResolverT>>>
 >(
+    isUsingCursorConnection: boolean,
+    currentVersionNode: Snapshot,
     versionNodeConnection: IQueryResult<
         NodeInConnection<Snapshot> & {
             snapshot?: Snapshot;
@@ -30,7 +32,8 @@ export default <
         step: 'Building connection using connection edges and full nodes for each edge'
     });
 
-    const newEdges = versionNodeConnection.edges.map(n => {
+    // tslint:disable-next-line
+    const newEdges = versionNodeConnection.edges.map((n, index) => {
         const isFragment =
             n.node &&
             (n.node.nodeId !== originNodeInstance.nodeId ||
@@ -53,12 +56,16 @@ export default <
         }
         return {
             cursor: n.cursor,
-            node: nodesOfConnectionByEventId[n.node.id],
+            node:
+                // if this is the most recent node use the node that was fetched from the data store
+                index === 0 && !isUsingCursorConnection
+                    ? currentVersionNode
+                    : nodesOfConnectionByEventId[n.node.id],
             version
         };
     });
     const connection = {pageInfo: versionNodeConnection.pageInfo, edges: newEdges};
-    logger.debug('Finished building connection', connection);
+    logger.debug('Finished building connection');
 
     return connection;
 };

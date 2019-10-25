@@ -51,6 +51,14 @@ export default (config?: IConfig) => {
         logger.debug('Current node', currentVersionNode);
         const {knex, nodeId, nodeName} = extractors;
 
+        // Get all revisions in range from the newest revision of interest to the
+        //   oldest revision with a snapshot
+        const isUsingConnectionCursor = !!(
+            resolverArgs[1] &&
+            (resolverArgs[1].before || resolverArgs[1].after)
+        );
+        logger.debug('Is using connection cursor', isUsingConnectionCursor);
+
         logger.debug('Querying for node instances in connection');
         const nodeInstancesInConnection = await queryNodeInstancesInConnection(
             knex,
@@ -87,7 +95,7 @@ export default (config?: IConfig) => {
         const timeRangeOfVersionConnection = await queryTimeRangeOfVersionConnection(
             knex,
             tableAndColumnNames,
-            resolverArgs,
+            isUsingConnectionCursor,
             versionNodeConnection.edges.map(e => e.node),
             nodeInstancesInConnection,
             {logger}
@@ -113,8 +121,8 @@ export default (config?: IConfig) => {
             allEventsInConnectionAndBeyondExtendToFirstSnapshot.length
         );
         logger.debug(
-            'Nodes for node builder:',
-            allEventsInConnectionAndBeyondExtendToFirstSnapshot
+            'Nodes for node builder:'
+            // allEventsInConnectionAndBeyondExtendToFirstSnapshot
         );
 
         logger.debug('Building nodes for connection....');
@@ -126,7 +134,9 @@ export default (config?: IConfig) => {
         >(allEventsInConnectionAndBeyondExtendToFirstSnapshot, extractors, {logger});
 
         logger.debug('Building final version connection');
-        return buildConnection<ResolverT>(
+        return buildConnection<ResolverT, Node>(
+            isUsingConnectionCursor,
+            currentVersionNode,
             versionNodeConnection,
             nodesOfConnectionByEventId,
             {

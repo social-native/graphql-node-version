@@ -23,7 +23,7 @@ export default async <
 >(
     knex: Knex,
     tableAndColumnNames: ITableAndColumnNames,
-    resolverArgs: Parameters<ResolverT>,
+    isUsingConnectionCursor: boolean,
     nodesInVersionConnection: Array<NodeInConnection<Snapshot>>,
     allNodeInstancesInConnection: Array<
         Pick<IVersionConnectionInfo<ResolverT>, 'nodeId' | 'nodeName'>
@@ -32,14 +32,6 @@ export default async <
 ): Promise<{oldestCreatedAt: number; youngestCreatedAt: number}> => {
     const parentLogger = getLoggerFromConfig(loggerConfig);
     const logger = parentLogger.child({query: 'Time range of version connection'});
-
-    // Get all revisions in range from the newest revision of interest to the
-    //   oldest revision with a snapshot
-    const isUsingConnectionCursor = !!(
-        resolverArgs[1] &&
-        (resolverArgs[1].before || resolverArgs[1].after)
-    );
-    logger.debug('Is using connection cursor', isUsingConnectionCursor);
 
     const {createdAt} = nodesInVersionConnection[0];
     const youngestCreatedAt = isUsingConnectionCursor

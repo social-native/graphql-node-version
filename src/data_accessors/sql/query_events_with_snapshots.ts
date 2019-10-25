@@ -110,8 +110,9 @@ export default async <
         const rr = castNodeWithRevisionTimeInDateTimeToUnixSecs(r, logger);
         const isFragment =
             rr &&
-            (rr.nodeId !== originalNodeInstance.nodeId ||
+            (rr.nodeId !== originalNodeInstance.nodeId.toString() ||
                 rr.nodeName !== originalNodeInstance.nodeName);
+
         if (isFragment) {
             return {
                 ...rr,
