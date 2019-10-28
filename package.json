@@ -1,6 +1,6 @@
 {
     "name": "@social-native/snpkg-snapi-graphql-node-version",
-    "version": "0.1.1",
+    "version": "0.2.0",
     "description": "Handle versioning of graphql nodes",
     "main": "dist/index.cjs.js",
     "module": "dist/index.es.js",
@@ -63,7 +63,7 @@
     "homepage": "https://github.com/social-native/snpkg-snapi-graphql-node-version#readme",
     "dependencies": {
         "@social-native/snpkg-generate-config-ci": "^0.2.0",
-        "@social-native/snpkg-knex-migration-generator": "../snpkg-knex-migration-generator",
+        "@social-native/snpkg-knex-migration-generator": "^0.1.1",
         "@social-native/snpkg-snapi-connections": "^5.0.1",
         "bluebird": "^3.7.0",
         "colorette": "^1.1.0",
