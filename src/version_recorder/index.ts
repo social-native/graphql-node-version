@@ -15,7 +15,7 @@ import {getLoggerFromConfig} from '../logger';
 import resolveDecoratedNode from './resolve_decorated_node';
 import getResolverOperation from './get_resolver_operation';
 
-export default (config?: IConfig) => <ResolverT extends (...args: any[]) => any>(
+export default (config?: IConfig) => <ResolverT extends (...args: any[]) => Promise<any>>(
     extractors: IVersionRecorderExtractors<ResolverT>
 ): MethodDecorator => {
     const tableAndColumnNames = generateTableAndColumnNames(config ? config.names : undefined);
@@ -55,6 +55,7 @@ export default (config?: IConfig) => <ResolverT extends (...args: any[]) => any>
 
             logger.debug('Extracting event link change info');
             const eventLinkChangeInfo = eventLinkChangeInfoExtractor(
+                node,
                 args,
                 extractors,
                 eventInfoBase
@@ -63,6 +64,7 @@ export default (config?: IConfig) => <ResolverT extends (...args: any[]) => any>
 
             logger.debug('Extracting event node fragment change info');
             const eventNodeFragmentRegisterInfo = eventNodeFragmentRegisterInfoExtractor(
+                node,
                 args,
                 extractors,
                 eventInfoBase
@@ -81,7 +83,7 @@ export default (config?: IConfig) => <ResolverT extends (...args: any[]) => any>
             );
 
             logger.debug('Extracting event node change info');
-            const eventNodeChangeInfo = await eventNodeChangeInfoExtractor(
+            const eventNodeChangeInfo = await eventNodeChangeInfoExtractor<ResolverT>(
                 args,
                 extractors,
                 eventInfoBase,

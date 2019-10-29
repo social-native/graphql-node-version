@@ -16,7 +16,7 @@ export default async (
             .table<ISqlEventNodeChangeTable>(table_names.event_node_change)
             .insert<ISqlEventNodeChangeTable>({
                 [event_node_change.event_id]: eventId,
-                [event_node_change.revision_data]: eventInfo.revisionData,
+                [event_node_change.revision_data]: JSON.stringify(eventInfo.revisionData),
                 [event_node_change.node_schema_version]: eventInfo.nodeSchemaVersion
             });
     } else {

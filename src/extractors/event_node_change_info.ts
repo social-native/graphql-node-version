@@ -7,7 +7,7 @@ import {
 } from '../types';
 import {getLoggerFromConfig} from '../logger';
 
-export default async <ResolverT extends (...args: any[]) => any>(
+export default async <ResolverT extends (...args: any[]) => Promise<any>>(
     args: Parameters<ResolverT>,
     extractors: IVersionRecorderExtractors<ResolverT>,
     eventInfoBase: IEventInfoBase,
@@ -22,14 +22,10 @@ export default async <ResolverT extends (...args: any[]) => any>(
 
     const eventNodeChangeInfoWithoutSnapshot = {...eventInfoBase, revisionData, nodeSchemaVersion};
     const includeSnapshot = await queryShouldTakeNodeSnapshot(eventNodeChangeInfoWithoutSnapshot);
-    logger.debug('Include node snapshot:', includeSnapshot);
+    logger.debug('Include node snapshot:', includeSnapshot, {nodeId: eventInfoBase.nodeId});
 
     const snapshot = includeSnapshot
-        ? JSON.stringify(
-              await extractors.currentNodeSnapshot(eventInfoBase.nodeId, args as Parameters<
-                  ResolverT
-              >)
-          )
+        ? await extractors.currentNodeSnapshot(eventInfoBase.nodeId, args as Parameters<ResolverT>)
         : undefined;
     if (includeSnapshot && snapshot === undefined) {
         logger.error(

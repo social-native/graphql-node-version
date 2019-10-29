@@ -7,13 +7,21 @@ import {
     ILoggerConfig,
     INodeBuilderNodeChangeVersionInfo,
     IAllNodeBuilderVersionInfo,
-    INodeBuilderNodeFragmentChangeVersionInfo
+    INodeBuilderNodeFragmentChangeVersionInfo,
+    IVersionConnection,
+    ExtractNodeFromVersionConnection,
+    UnPromisify
 } from '../../types';
 import {unixSecondsToSqlTimestamp, castDateToUTCSeconds} from '../../lib/time';
 import {getLoggerFromConfig} from '../../logger';
 import {EVENT_IMPLEMENTOR_TYPE_NAMES} from '../../enums';
 
-export default async <ResolverT extends (...args: [any, any, any, any]) => any>(
+export default async <
+    ResolverT extends (...args: [any, any, any, any]) => Promise<IVersionConnection<any>>,
+    RevisionData = any,
+    ChildNode = any,
+    ChildRevisionData = any
+>(
     knex: Knex,
     {
         table_names,
@@ -28,7 +36,17 @@ export default async <ResolverT extends (...args: [any, any, any, any]) => any>(
     >,
     originalNodeInstance: Pick<IVersionConnectionInfo<ResolverT>, 'nodeId' | 'nodeName'>,
     loggerConfig?: ILoggerConfig
-): Promise<Array<IAllNodeBuilderVersionInfo<number>>> => {
+): Promise<
+    Array<
+        IAllNodeBuilderVersionInfo<
+            number,
+            ExtractNodeFromVersionConnection<UnPromisify<ReturnType<ResolverT>>>,
+            RevisionData,
+            ChildNode,
+            ChildRevisionData
+        >
+    >
+> => {
     const parentLogger = getLoggerFromConfig(loggerConfig);
     const logger = parentLogger.child({query: 'Events with snapshots'});
 
@@ -92,8 +110,9 @@ export default async <ResolverT extends (...args: [any, any, any, any]) => any>(
         const rr = castNodeWithRevisionTimeInDateTimeToUnixSecs(r, logger);
         const isFragment =
             rr &&
-            (rr.nodeId !== originalNodeInstance.nodeId ||
+            (rr.nodeId !== originalNodeInstance.nodeId.toString() ||
                 rr.nodeName !== originalNodeInstance.nodeName);
+
         if (isFragment) {
             return {
                 ...rr,
@@ -103,7 +122,8 @@ export default async <ResolverT extends (...args: [any, any, any, any]) => any>(
                 childNodeName: rr.nodeName,
                 childNodeId: rr.nodeId,
                 childRevisionData: rr.revisionData,
-                childNodeSchemaVersion: rr.nodeSchemaVersion
+                childNodeSchemaVersion: rr.nodeSchemaVersion,
+                childSnapshot: rr.snapshot
             } as INodeBuilderNodeFragmentChangeVersionInfo;
         } else {
             return rr;

@@ -147,7 +147,7 @@ export type IGqlVersionNode =
     | IGqlVersionNodeFragmentChangeNode
     | IGqlVersionLinkChangeNode;
 
-export type NodeInConnection = IGqlVersionNode & {snapshot?: string};
+export type NodeInConnection<Snapshot> = IGqlVersionNode & {snapshot?: Snapshot};
 
 export interface IVersionConnection<Node> {
     edges: Array<{
@@ -169,34 +169,71 @@ export interface IVersionConnection<Node> {
  *
  */
 
-export interface IVersionConnectionInfo<Resolver extends (...args: any[]) => Promise<any> | any> {
+export type ExtractNodeFromVersionConnection<P> = P extends IVersionConnection<infer T> ? T : never;
+
+export interface IVersionConnectionInfo<
+    Resolver extends (...args: any[]) => Promise<IVersionConnection<any>>,
+    RevisionData = any,
+    ChildNode = any,
+    ChildRevisionData = any
+> {
     nodeId: string | number;
     nodeName: string;
-    nodeBuilder: <Node = UnPromisify<ReturnType<Resolver>>, FragmentNode extends object = object>(
+    nodeBuilder: <Node = ExtractNodeFromVersionConnection<UnPromisify<ReturnType<Resolver>>>>(
         previousNode: Node,
-        versionInfo: IAllNodeBuilderVersionInfo,
-        fragmentNodes?: INodeBuilderFragmentNodes<FragmentNode>,
+        versionInfo: IAllNodeBuilderVersionInfo<
+            number,
+            Node,
+            RevisionData,
+            ChildNode,
+            ChildRevisionData
+        >,
+        fragmentNodes?: INodeBuilderFragmentNodes<ChildNode>,
         logger?: ILoggerConfig['logger']
     ) => Node;
+    fragmentNodeBuilder?: (
+        previousNode: ChildNode,
+        versionInfo: INodeBuilderNodeFragmentChangeVersionInfo<
+            number,
+            ChildNode,
+            ChildRevisionData
+        >,
+        logger?: ILoggerConfig['logger']
+    ) => ChildNode;
 }
 export interface IVersionConnectionExtractors<
-    Resolver extends (...args: any[]) => Promise<any> | any
+    Resolver extends (...args: any[]) => Promise<IVersionConnection<any>>,
+    RevisionData = any,
+    ChildNode = any,
+    ChildRevisionData = any
 > extends IVersionConnectionInfo<Resolver> {
     knex: Knex;
     nodeId: IVersionConnectionInfo<Resolver>['nodeId'];
     nodeName: IVersionConnectionInfo<Resolver>['nodeName'];
-    nodeBuilder: IVersionConnectionInfo<Resolver>['nodeBuilder'];
+    nodeBuilder: IVersionConnectionInfo<
+        Resolver,
+        RevisionData,
+        ChildNode,
+        ChildRevisionData
+    >['nodeBuilder'];
+    fragmentNodeBuilder?: IVersionConnectionInfo<
+        Resolver,
+        RevisionData,
+        ChildNode,
+        ChildRevisionData
+    >['fragmentNodeBuilder'];
 }
 
 export interface IVersionRecorderExtractors<
-    Resolver extends (...args: any[]) => Promise<any> | any
+    Resolver extends (...args: any[]) => Promise<any>,
+    RevisionData = any
 > {
     userId: (
         parent: Parameters<Resolver>[0],
         args: Parameters<Resolver>[1],
         ctx: Parameters<Resolver>[2],
         info: Parameters<Resolver>[3]
-    ) => string;
+    ) => string | number;
     userRoles: (
         parent: Parameters<Resolver>[0],
         args: Parameters<Resolver>[1],
@@ -208,7 +245,7 @@ export interface IVersionRecorderExtractors<
         args: Parameters<Resolver>[1],
         ctx: Parameters<Resolver>[2],
         info: Parameters<Resolver>[3]
-    ) => string;
+    ) => RevisionData;
     eventTime?: (
         parent: Parameters<Resolver>[0],
         args: Parameters<Resolver>[1],
@@ -238,12 +275,14 @@ export interface IVersionRecorderExtractors<
     ) => Promise<any>; // tslint:disable-line
     currentNodeSnapshotFrequency?: number;
     parentNode?: (
+        node: UnPromisify<ReturnType<Resolver>>,
         parent: Parameters<Resolver>[0],
         args: Parameters<Resolver>[1],
         ctx: Parameters<Resolver>[2],
         info: Parameters<Resolver>[3]
-    ) => INode;
+    ) => INode | undefined;
     edges?: (
+        node: UnPromisify<ReturnType<Resolver>>,
         parent: Parameters<Resolver>[0],
         args: Parameters<Resolver>[1],
         ctx: Parameters<Resolver>[2],
@@ -258,7 +297,7 @@ export interface INode {
 
 export interface IEventInfoBase {
     createdAt: string;
-    userId: string;
+    userId: string | number;
     nodeName: string;
     nodeId: string | number;
     resolverOperation: string;
@@ -268,7 +307,7 @@ export interface IEventInfoBase {
 
 export interface IEventNodeChangeInfo extends IEventInfoBase {
     createdAt: string;
-    userId: string;
+    userId: string | number;
     nodeName: string;
     nodeId: string | number;
     resolverOperation: string;
@@ -294,7 +333,7 @@ export interface IEventNodeFragmentRegisterInfo {
 
 export interface IEventLinkChangeInfo extends IEventInfoBase {
     createdAt: string;
-    userId: string;
+    userId: string | number;
     nodeName: string;
     nodeId: string | number;
     resolverOperation: string;
@@ -324,9 +363,15 @@ export interface IPersistVersionInfo {
 
 export type PersistVersion = (versionInfo: IPersistVersionInfo) => Promise<void>;
 
-export type IAllNodeBuilderVersionInfo<CreatedAt = number> =
-    | INodeBuilderNodeChangeVersionInfo<CreatedAt>
-    | INodeBuilderNodeFragmentChangeVersionInfo<CreatedAt>;
+export type IAllNodeBuilderVersionInfo<
+    CreatedAt = number,
+    Node = any,
+    RevisionData = any,
+    ChildNode = any,
+    ChildRevisionData = any
+> =
+    | INodeBuilderNodeChangeVersionInfo<CreatedAt, Node, RevisionData>
+    | INodeBuilderNodeFragmentChangeVersionInfo<CreatedAt, ChildNode, ChildRevisionData>;
 
 export interface INodeBuilderVersionInfo<CreatedAt = number> {
     type: string;
@@ -339,8 +384,11 @@ export interface INodeBuilderVersionInfo<CreatedAt = number> {
     resolverOperation: string;
 }
 
-export interface INodeBuilderNodeChangeVersionInfo<CreatedAt = number>
-    extends INodeBuilderVersionInfo<CreatedAt> {
+export interface INodeBuilderNodeChangeVersionInfo<
+    CreatedAt = number,
+    Node = any,
+    RevisionData = any
+> extends INodeBuilderVersionInfo<CreatedAt> {
     type: string;
 
     id: number;
@@ -350,14 +398,17 @@ export interface INodeBuilderNodeChangeVersionInfo<CreatedAt = number>
     userId: string;
     resolverOperation: string;
 
-    revisionData: string;
+    revisionData: RevisionData;
     nodeSchemaVersion: string;
 
-    snapshot?: string;
+    snapshot?: Node;
 }
 
-export interface INodeBuilderNodeFragmentChangeVersionInfo<CreatedAt = number>
-    extends INodeBuilderVersionInfo<CreatedAt> {
+export interface INodeBuilderNodeFragmentChangeVersionInfo<
+    CreatedAt = number,
+    ChildNode = any,
+    ChildRevisionData = any
+> extends INodeBuilderVersionInfo<CreatedAt> {
     type: string;
 
     id: number;
@@ -370,10 +421,10 @@ export interface INodeBuilderNodeFragmentChangeVersionInfo<CreatedAt = number>
     childNodeName: string;
     childNodeId: string;
 
-    childRevisionData: string;
+    childRevisionData: ChildRevisionData;
     childNodeSchemaVersion: string;
 
-    snapshot?: string;
+    childSnapshot?: ChildNode;
 }
 
 export type QueryShouldTakeNodeSnapshot = (eventInfo: IEventNodeChangeInfo) => Promise<boolean>;
@@ -407,7 +458,7 @@ export type BaseResolver<Node = any, P = undefined, A = undefined, C = {}, I = {
     args: A,
     ctx: C,
     info?: I
-) => Node | Promise<Node>;
+) => Node;
 
 /**
  *
@@ -415,8 +466,8 @@ export type BaseResolver<Node = any, P = undefined, A = undefined, C = {}, I = {
  *
  */
 
-export interface INodeBuilderFragmentNodes<T = object> {
-    [nodeName: string]: {[nodeId: string]: T};
+export interface INodeBuilderFragmentNodes<ChildNode> {
+    [nodeName: string]: {[nodeId: string]: ChildNode};
 }
 
 /**

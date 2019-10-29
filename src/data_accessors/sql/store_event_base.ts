@@ -42,7 +42,7 @@ export default async (
 
     const info = {
         created_at: eventInfo.createdAt,
-        user_id: eventInfo.userId,
+        user_id: eventInfo.userId as string,
         node_name: eventInfo.nodeName,
         node_id: eventInfo.nodeId as string,
         resolver_operation: eventInfo.resolverOperation,

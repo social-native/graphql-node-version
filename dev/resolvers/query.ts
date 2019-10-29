@@ -10,34 +10,42 @@ import {
     typeGuards,
     nodeBuilder as versionNodeBuilder
 } from '../../src';
+import {
+    ITodoItemUpdateMutationInput,
+    ITodoItemDeleteMutationInput,
+    ITodoItemCreationMutationInput,
+    ITodoListUpdateMutationInput,
+    ITodoListCreationMutationInput,
+    ITodoListDeleteMutationInput
+} from './mutation';
 
-const createRevisionConnection = unconfiguredCreateRevisionConnection({
+const versionConnection = unconfiguredCreateRevisionConnection({
     logOptions: {level: 'debug', prettyPrint: true, base: null}
 });
 
 interface ITeam {
-    id: number;
+    id: string;
     name: string;
 }
 
 type QueryTeamResolver = Resolver<
-    IVersionConnection<ITeam | null>,
+    Promise<IVersionConnection<ITeam | null>>,
     undefined,
     {id: string} & IInputArgs
 >;
 type QueryTodoListResolver = Resolver<
-    IVersionConnection<ITodoList | undefined>,
+    Promise<IVersionConnection<ITodoList | undefined>>,
     undefined,
     {id: string} & IInputArgs
 >;
 type QueryTodoItemResolver = Resolver<
-    IVersionConnection<ITodoItem | undefined>,
+    Promise<IVersionConnection<ITodoItem | undefined>>,
     undefined,
     {id: string} & IInputArgs
 >;
-type QueryUsersResolver = Resolver<IQueryResult<IUserNode | null>, undefined, IInputArgs>;
+type QueryUsersResolver = Resolver<Promise<IQueryResult<IUserNode | null>>, undefined, IInputArgs>;
 type QueryUserResolver = Resolver<
-    IVersionConnection<IUserNode | null>,
+    Promise<IVersionConnection<IUserNode | null>>,
     undefined,
     {id: string} & IInputArgs
 >;
@@ -55,9 +63,9 @@ const query: {
         const currentNode = (await ctx.sqlClient
             .from('team')
             .where({id: args.id})
-            .first()) as {id: number; name: string};
+            .first()) as {id: string; name: string};
 
-        return await createRevisionConnection(currentNode, [parent, args, ctx, info], {
+        return await versionConnection<QueryTeamResolver>(currentNode, [parent, args, ctx, info], {
             knex: ctx.sqlClient,
             nodeBuilder,
             nodeId: args.id,
@@ -70,9 +78,24 @@ const query: {
             .where({'todo_list.id': args.id})
             .first();
 
-        return await createRevisionConnection(currentNode, [parent, args, ctx, info], {
+        return await versionConnection<
+            QueryTodoListResolver,
+            ITodoListCreationMutationInput &
+                ITodoListUpdateMutationInput &
+                ITodoListDeleteMutationInput,
+            ITodoItem,
+            ITodoItemCreationMutationInput &
+                ITodoItemUpdateMutationInput &
+                ITodoItemDeleteMutationInput
+        >(currentNode, [parent, args, ctx, info], {
             knex: ctx.sqlClient,
             nodeBuilder,
+            fragmentNodeBuilder: (previousNode, versionInfo) => {
+                return {
+                    ...previousNode,
+                    ...versionInfo.childRevisionData
+                };
+            },
             nodeId: args.id,
             nodeName: 'todoList'
         });
@@ -83,12 +106,16 @@ const query: {
             .where({id: args.id})
             .first();
 
-        return await createRevisionConnection(currentNode, [parent, args, ctx, info], {
-            knex: ctx.sqlClient,
-            nodeBuilder,
-            nodeId: args.id,
-            nodeName: 'todoItem'
-        });
+        return await versionConnection<QueryTodoItemResolver>(
+            currentNode,
+            [parent, args, ctx, info],
+            {
+                knex: ctx.sqlClient,
+                nodeBuilder,
+                nodeId: args.id,
+                nodeName: 'todoItem'
+            }
+        );
     },
     async user(parent, args, ctx, info) {
         const currentNode = await ctx.sqlClient
@@ -96,7 +123,7 @@ const query: {
             .where({id: args.id})
             .first();
 
-        return await createRevisionConnection(currentNode, [parent, args, ctx, info], {
+        return await versionConnection<QueryUserResolver>(currentNode, [parent, args, ctx, info], {
             knex: ctx.sqlClient,
             nodeBuilder,
             nodeId: args.id,
@@ -130,18 +157,21 @@ const query: {
     }
 };
 
-const nodeBuilder = <Node extends any, FragmentNode extends object>(
+const nodeBuilder = <Node extends any, RevisionData, FragmentNode>(
     previousNode: Node,
-    versionInfo: IAllNodeBuilderVersionInfo,
+    versionInfo: IAllNodeBuilderVersionInfo<number, RevisionData>,
     fragmentNodes?: INodeBuilderFragmentNodes<FragmentNode>,
-    _logger?: ILoggerConfig['logger']
+    logger?: ILoggerConfig['logger']
 ): Node => {
+    logger && logger.child({part: 'nodeBuilder'}); // tslint:disable-line
     if (typeGuards.isNodeBuilderNodeChangeVersionInfo(versionInfo)) {
+        logger && logger.debug('Node Builder: node change info'); // tslint:disable-line
         return versionNodeBuilder.computeNodeFromNodeChange(previousNode, versionInfo);
     } else if (
         typeGuards.isNodeBuilderNodeFragmentChangeVersionInfo(versionInfo) &&
         fragmentNodes
     ) {
+        logger && logger.debug('Node Builder: node fragment change info'); // tslint:disable-line
         const computeNode = (pNode: Node, fragments: FragmentNode[]) => ({
             ...pNode,
             items: fragments || []

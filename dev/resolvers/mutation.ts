@@ -12,57 +12,57 @@ const versionRecorder = unconfiguredVersionRecorder({
     logOptions: {level: 'debug', prettyPrint: true, base: null}
 });
 
-interface ITeamCreationMutationInput {
+export interface ITeamCreationMutationInput {
     name: string;
 }
 
-interface ITeamUpdateMutationInput {
+export interface ITeamUpdateMutationInput {
     id: number;
     name?: string;
 }
 
-interface ITeamDeleteMutationInput {
+export interface ITeamDeleteMutationInput {
     id: number;
 }
 
-interface ITeamUserCreationMutationInput {
+export interface ITeamUserCreationMutationInput {
     userId: number;
     teamId: number;
 }
 
-interface ITeamUserDeleteMutationInput {
+export interface ITeamUserDeleteMutationInput {
     userId: number;
     teamId: number;
 }
 
-interface ITodoListCreationMutationInput {
+export interface ITodoListCreationMutationInput {
     userId: number;
     usage: string;
 }
-interface ITodoListUpdateMutationInput {
+export interface ITodoListUpdateMutationInput {
     id: number;
     usage: string;
 }
-interface ITodoListDeleteMutationInput {
+export interface ITodoListDeleteMutationInput {
     id: number;
 }
-interface ITodoItemCreationMutationInput {
+export interface ITodoItemCreationMutationInput {
     todoListId: number;
     note: string;
     order: number;
 }
 
-interface ITodoItemUpdateMutationInput {
+export interface ITodoItemUpdateMutationInput {
     id: number;
     note: string;
     order: number;
 }
 
-interface ITodoItemDeleteMutationInput {
+export interface ITodoItemDeleteMutationInput {
     id: number;
 }
 
-interface IUserCreationMutationInput {
+export interface IUserCreationMutationInput {
     username: string;
     firstname: string;
     lastname?: string;
@@ -71,7 +71,7 @@ interface IUserCreationMutationInput {
     bio?: string;
 }
 
-interface IUserUpdateMutationInput {
+export interface IUserUpdateMutationInput {
     id: string;
     username?: string;
     firstname?: string;
@@ -81,64 +81,80 @@ interface IUserUpdateMutationInput {
     bio?: string;
 }
 
-interface IUserDeleteMutationInput {
+export interface IUserDeleteMutationInput {
     id: string;
 }
 
-type MutationTeamCreate = Resolver<{id: number | undefined}, undefined, ITeamCreationMutationInput>;
+type MutationTeamCreate = Resolver<
+    Promise<{id: number | undefined}>,
+    undefined,
+    ITeamCreationMutationInput
+>;
 
-type MutationTeamUpdate = Resolver<{id: number | undefined}, undefined, ITeamUpdateMutationInput>;
+type MutationTeamUpdate = Resolver<
+    Promise<{id: number | undefined}>,
+    undefined,
+    ITeamUpdateMutationInput
+>;
 
-type MutationTeamDelete = Resolver<{id: number | undefined}, undefined, ITeamDeleteMutationInput>;
+type MutationTeamDelete = Resolver<
+    Promise<{id: number | undefined}>,
+    undefined,
+    ITeamDeleteMutationInput
+>;
 
 type MutationTeamUserCreate = Resolver<
-    {id: number | undefined},
+    Promise<{id: number | undefined}>,
     undefined,
     ITeamUserCreationMutationInput
 >;
 
 type MutationTeamUserDelete = Resolver<
-    {id: number | undefined},
+    Promise<{id: number | undefined}>,
     undefined,
     ITeamUserDeleteMutationInput
 >;
 
 type MutationTodoListCreate = Resolver<
-    {id: number | undefined},
+    Promise<{id: number | undefined}>,
     undefined,
     ITodoListCreationMutationInput
 >;
 type MutationTodoListUpdate = Resolver<
-    {id: number | undefined},
+    Promise<{id: number | undefined}>,
     undefined,
     ITodoListUpdateMutationInput
 >;
 type MutationTodoListDelete = Resolver<
-    {id: number | undefined},
+    Promise<{id: number | undefined}>,
     undefined,
     ITodoListDeleteMutationInput
 >;
 type MutationTodoItemCreate = Resolver<
-    {id: number | undefined},
+    Promise<{id: number | undefined}>,
     undefined,
     ITodoItemCreationMutationInput
 >;
 type MutationTodoItemUpdate = Resolver<
-    {id: number | undefined},
+    Promise<{id: number | undefined}>,
     undefined,
     ITodoItemUpdateMutationInput
 >;
 type MutationTodoItemDelete = Resolver<
-    {id: number | undefined},
+    Promise<{id: number | undefined}>,
     undefined,
     ITodoItemDeleteMutationInput
 >;
 
-type MutationUserCreateResolver = Resolver<IUserNode, undefined, IUserCreationMutationInput>;
-type MutationUserUpdateResolver = Resolver<IUserNode, undefined, IUserUpdateMutationInput>;
+type MutationUserCreateResolver = Resolver<
+    Promise<IUserNode>,
+    undefined,
+    IUserCreationMutationInput
+>;
+type MutationUserUpdateResolver = Resolver<Promise<IUserNode>, undefined, IUserUpdateMutationInput>;
 
 type MutationUserDeleteResolver = Resolver<
-    {id: number | undefined},
+    Promise<{id: number | undefined}>,
     undefined,
     IUserDeleteMutationInput
 >;
@@ -367,7 +383,7 @@ const commonDecoratorConfig = <T extends Resolver<any, any, any>>() =>
         knex: (_, __, {sqlClient}) => sqlClient,
         userId: () => '1',
         userRoles: () => ['ethan', 'human'],
-        revisionData: (_, args) => JSON.stringify(args),
+        revisionData: (_, args) => args,
         currentNodeSnapshotFrequency: 5
     } as Pick<
         IVersionRecorderExtractors<T>,
@@ -488,7 +504,7 @@ decorate(mutation, {
             );
             return connectionResult.edges[0].node;
         },
-        edges: (_, {teamId}) => [{nodeId: teamId, nodeName: 'team'}]
+        edges: (_node, _parent, {teamId}) => [{nodeId: teamId, nodeName: 'team'}]
     }),
     teamUserDelete: versionRecorder<MutationTeamUserDelete>({
         ...commonDecoratorConfig<MutationTeamUserDelete>(),
@@ -505,7 +521,7 @@ decorate(mutation, {
             );
             return connectionResult.edges[0].node;
         },
-        edges: (_, {teamId}) => [{nodeId: teamId, nodeName: 'team'}]
+        edges: (_node, _parent, {teamId}) => [{nodeId: teamId, nodeName: 'team'}]
     }),
     todoListCreate: versionRecorder<MutationTodoListCreate>({
         ...commonDecoratorConfig<MutationTodoListCreate>(),
@@ -522,7 +538,7 @@ decorate(mutation, {
             );
             return connectionResult.edges[0].node;
         },
-        edges: (_, {userId}) => [{nodeId: userId, nodeName: 'user'}]
+        edges: (_node, _parent, {userId}) => [{nodeId: userId, nodeName: 'user'}]
     }),
     todoListUpdate: versionRecorder<MutationTodoListUpdate>({
         ...commonDecoratorConfig<MutationTodoListUpdate>(),
@@ -571,7 +587,7 @@ decorate(mutation, {
             );
             return connectionResult.edges[0].node;
         },
-        parentNode: (_, {todoListId}) => ({nodeName: 'todoList', nodeId: todoListId})
+        parentNode: (_, __, {todoListId}) => ({nodeName: 'todoList', nodeId: todoListId})
     }),
     todoItemUpdate: versionRecorder<MutationTodoItemUpdate>({
         ...commonDecoratorConfig<MutationTodoItemUpdate>(),

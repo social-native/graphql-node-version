@@ -1,6 +1,6 @@
 import {IUserNode, Resolver} from '../types';
 
-type TeamUsersResolver = Resolver<IUserNode[], {id: string}>;
+type TeamUsersResolver = Resolver<Promise<IUserNode[] | undefined>, {id: string}>;
 
 const team: {
     users: TeamUsersResolver;

@@ -1,4 +1,11 @@
-import {UnPromisify, IVersionConnectionExtractors, IGqlVersionNode, IConfig} from '../types';
+import {
+    UnPromisify,
+    IVersionConnectionExtractors,
+    IGqlVersionNode,
+    IConfig,
+    IVersionConnection,
+    ExtractNodeFromVersionConnection
+} from '../types';
 import {ConnectionManager} from '@social-native/snpkg-snapi-connections';
 
 import queryVersionConnection from '../data_accessors/sql/query_version_connection';
@@ -24,14 +31,33 @@ export default (config?: IConfig) => {
     const parentLogger = getLoggerFromConfig(config);
     const logger = parentLogger.child({api: 'Version Connection'});
 
-    return async <ResolverT extends (...args: [any, any, any, any]) => any>(
-        currentVersionNode: UnPromisify<ReturnType<ResolverT>>,
+    return async <
+        ResolverT extends (...args: any[]) => Promise<IVersionConnection<any>>,
+        RevisionData = any,
+        ChildNode = any,
+        ChildRevisionData = any,
+        Node = ExtractNodeFromVersionConnection<UnPromisify<ReturnType<ResolverT>>>
+    >(
+        currentVersionNode: Node,
         resolverArgs: Parameters<ResolverT>,
-        extractors: IVersionConnectionExtractors<ResolverT>
+        extractors: IVersionConnectionExtractors<
+            ResolverT,
+            RevisionData,
+            ChildNode,
+            ChildRevisionData
+        >
     ) => {
         // tslint:disable-next-line
         logger.debug('Current node', currentVersionNode);
         const {knex, nodeId, nodeName} = extractors;
+
+        // Get all revisions in range from the newest revision of interest to the
+        //   oldest revision with a snapshot
+        const isUsingConnectionCursor = !!(
+            resolverArgs[1] &&
+            (resolverArgs[1].before || resolverArgs[1].after)
+        );
+        logger.debug('Is using connection cursor', isUsingConnectionCursor);
 
         logger.debug('Querying for node instances in connection');
         const nodeInstancesInConnection = await queryNodeInstancesInConnection(
@@ -43,7 +69,7 @@ export default (config?: IConfig) => {
         logger.debug('Node instances in connection', nodeInstancesInConnection);
 
         logger.debug('Querying for version connection');
-        const versionNodeConnection = await queryVersionConnection(
+        const versionNodeConnection = await queryVersionConnection<ResolverT>(
             resolverArgs[1],
             knex,
             tableAndColumnNames,
@@ -69,7 +95,7 @@ export default (config?: IConfig) => {
         const timeRangeOfVersionConnection = await queryTimeRangeOfVersionConnection(
             knex,
             tableAndColumnNames,
-            resolverArgs,
+            isUsingConnectionCursor,
             versionNodeConnection.edges.map(e => e.node),
             nodeInstancesInConnection,
             {logger}
@@ -77,7 +103,12 @@ export default (config?: IConfig) => {
         logger.debug('Time range of version connection', timeRangeOfVersionConnection);
 
         logger.debug('Querying for snapshots in time range');
-        const minSetOfEventsInConnectionThatStartWithASnapshot = await queryEventsWithSnapshots(
+        const allEventsInConnectionAndBeyondExtendToFirstSnapshot = await queryEventsWithSnapshots<
+            ResolverT,
+            RevisionData,
+            ChildNode,
+            ChildRevisionData
+        >(
             knex,
             tableAndColumnNames,
             timeRangeOfVersionConnection,
@@ -87,19 +118,25 @@ export default (config?: IConfig) => {
         );
         logger.debug(
             'Number of node builder versions found',
-            minSetOfEventsInConnectionThatStartWithASnapshot.length
+            allEventsInConnectionAndBeyondExtendToFirstSnapshot.length
         );
-        logger.debug('Nodes for node builder:', minSetOfEventsInConnectionThatStartWithASnapshot);
+        logger.debug(
+            'Nodes for node builder:'
+            // allEventsInConnectionAndBeyondExtendToFirstSnapshot
+        );
 
         logger.debug('Building nodes for connection....');
-        const nodesOfConnectionByEventId = buildConnectionNodesAndSortByEventId(
-            minSetOfEventsInConnectionThatStartWithASnapshot,
-            extractors,
-            {logger}
-        );
+        const nodesOfConnectionByEventId = buildConnectionNodesAndSortByEventId<
+            ResolverT,
+            RevisionData,
+            ChildNode,
+            ChildRevisionData
+        >(allEventsInConnectionAndBeyondExtendToFirstSnapshot, extractors, {logger});
 
         logger.debug('Building final version connection');
-        return buildConnection(
+        return buildConnection<ResolverT, Node>(
+            isUsingConnectionCursor,
+            currentVersionNode,
             versionNodeConnection,
             nodesOfConnectionByEventId,
             {
