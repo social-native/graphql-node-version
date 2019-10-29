@@ -5,14 +5,13 @@ save-cache: &save-cache
     save_cache:
         paths:
             - node_modules
-        key: v1-dependencies-{{ checksum "package.json" }}
+        key: v1-dependencies-{{ checksum "package.json" }}-v1
 
 restore-cache: &restore-cache
     restore_cache:
         keys:
-            - v1-dependencies-{{ checksum "package.json" }}
+            - v1-dependencies-{{ checksum "package.json" }}-v1
             # fallback to using the latest cache if no exact match is found
-            - v1-dependencies-
 npm-config: &npm-config
     run:
         name: Authenticate with registry
