@@ -27,24 +27,21 @@ export default <ResolverT extends (...args: any[]) => Promise<any>>(
 
     // Events need to be in terms of both the edge and the link
     // So one edge revision will lead to two events (one for each node)
-    return edgesToRecord.reduce(
-        (acc, edge) => {
-            const eventOne = {
-                ...eventInfoBase,
-                linkNodeId: edge.nodeId.toString(),
-                linkNodeName: edge.nodeName
-            };
-            const eventTwo = {
-                ...eventInfoBase,
-                nodeId: edge.nodeId.toString(),
-                nodeName: edge.nodeName,
-                linkNodeId: eventInfoBase.nodeName,
-                linkNodeName: eventInfoBase.nodeId.toString()
-            };
-            acc.push(eventOne);
-            acc.push(eventTwo);
-            return acc;
-        },
-        [] as IEventLinkChangeInfo[]
-    );
+    return edgesToRecord.reduce((acc, edge) => {
+        const eventOne = {
+            ...eventInfoBase,
+            linkNodeId: edge.nodeId.toString(),
+            linkNodeName: edge.nodeName
+        };
+        const eventTwo = {
+            ...eventInfoBase,
+            nodeId: edge.nodeId.toString(),
+            nodeName: edge.nodeName,
+            linkNodeId: eventInfoBase.nodeName,
+            linkNodeName: eventInfoBase.nodeId.toString()
+        };
+        acc.push(eventOne);
+        acc.push(eventTwo);
+        return acc;
+    }, [] as IEventLinkChangeInfo[]);
 };
