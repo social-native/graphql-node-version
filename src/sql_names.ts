@@ -66,6 +66,7 @@ export const DEFAULT_COLUMN_NAMES_EVENT_NODE_CHANGE_TABLE: StringValueWithKey<IS
     node_schema_version: 'schema_version'
 };
 
+// tslint:disable-next-line
 export const DEFAULT_COLUMN_NAMES_EVENT_NODE_FRAGMENT_REGISTER_TABLE: StringValueWithKey<ISqlEventNodeFragmentChangeTable> = {
     id: 'id',
     parent_node_id: 'parent_node_id',
