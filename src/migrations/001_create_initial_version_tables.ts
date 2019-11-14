@@ -158,7 +158,7 @@ ${upMigrationDeclaration(extension)}
             .references('${role.id}')
             .inTable('${table_names.role}');
     });
-};
+}
 
 ${downMigrationDeclaration(extension)}
     await knex.schema.dropTable('${table_names.user_role}');
@@ -169,7 +169,7 @@ ${downMigrationDeclaration(extension)}
     await knex.schema.dropTable('${table_names.node_snapshot}');
     await knex.schema.dropTable('${table_names.event}');
     return await knex.schema.dropTable('${table_names.event_implementor_type}');
-};
+}
 `;
 
         return migration;
