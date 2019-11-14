@@ -47,34 +47,26 @@ export const DEFAULT_COLUMN_NAMES_EVENT_TABLE: StringValueWithKey<ISqlEventTable
     implementor_type_id: 'implementor_type_id'
 };
 
-export const DEFAULT_COLUMN_NAMES_EVENT_IMPLEMENTOR_TYPE_TABLE: StringValueWithKey<
-    ISqlEventImplementorTypeTable
-> = {
+export const DEFAULT_COLUMN_NAMES_EVENT_IMPLEMENTOR_TYPE_TABLE: StringValueWithKey<ISqlEventImplementorTypeTable> = {
     id: 'id',
     type: 'type'
 };
 
-export const DEFAULT_COLUMN_NAMES_EVENT_LINK_CHANGE_TABLE: StringValueWithKey<
-    ISqlEventLinkChangeTable
-> = {
+export const DEFAULT_COLUMN_NAMES_EVENT_LINK_CHANGE_TABLE: StringValueWithKey<ISqlEventLinkChangeTable> = {
     id: 'id',
     event_id: 'event_id',
     node_name: 'node_name',
     node_id: 'node_id'
 };
 
-export const DEFAULT_COLUMN_NAMES_EVENT_NODE_CHANGE_TABLE: StringValueWithKey<
-    ISqlEventNodeChangeTable
-> = {
+export const DEFAULT_COLUMN_NAMES_EVENT_NODE_CHANGE_TABLE: StringValueWithKey<ISqlEventNodeChangeTable> = {
     id: 'id',
     event_id: 'event_id',
     revision_data: 'revision_data',
     node_schema_version: 'schema_version'
 };
 
-export const DEFAULT_COLUMN_NAMES_EVENT_NODE_FRAGMENT_REGISTER_TABLE: StringValueWithKey<
-    ISqlEventNodeFragmentChangeTable
-> = {
+export const DEFAULT_COLUMN_NAMES_EVENT_NODE_FRAGMENT_REGISTER_TABLE: StringValueWithKey<ISqlEventNodeFragmentChangeTable> = {
     id: 'id',
     parent_node_id: 'parent_node_id',
     parent_node_name: 'parent_node_name',
