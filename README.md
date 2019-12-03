@@ -32,7 +32,7 @@ npm install --save @social-native/snpkg-snapi-graphql-node-version
 
 ## 2. Peer Dependencies
 
-In order for this library to work you will need to install the following peer dependencies:
+In order for this library to work, you will need to install the following peer dependencies:
 
 ```json
 {
@@ -69,7 +69,7 @@ This package installs knex migrations into the dependent service. A binary is pu
 
 ## 1. Set the configuration
 
-In the `src` folder create a `src/version.ts` file. This file is used to keep track of `NODE_NAME` and `RESOLVER_OPERATION` enums and the instantialized `versionRecorder` and `versionConnection` class.
+In the `src` folder create a `src/version.ts` file. This file is used to keep track of `NODE_NAME` and `RESOLVER_OPERATION` enums and the instantiatied `versionRecorder` and `versionConnection` functions.
 
 #### NODE_NAMES
 
@@ -180,9 +180,9 @@ export const commonVersionRecorderDecoratorConfig = <T extends Resolver<any, any
 
 ## 2. Version recording
 
-Capturing version information works by decorating mutation nodes and intercepting the mutation inputs and result.
+Capturing version information works by decorating mutation resolvers and intercepting the resolvers inputs and result.
 
-You will need to provide the decorate with mapping functions or fields for each node. At a minimum, you need to provide:
+You will need to provide mapping functions or fields for each node. At a minimum, you need to provide:
 
 -   `revisionData`
 -   `nodeName`
