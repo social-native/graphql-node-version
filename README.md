@@ -59,7 +59,7 @@ This package installs knex migrations into the dependent service. A binary is pu
     scripts: {
         "add-version-migrations": "ts-node --project tsconfig.json node_modules/.bin/snpkg-snapi-graphql-node-version --knexfile knexfile.js",
         ...
-        "post-install": "npm run add-version-migrations"
+        "postinstall": "npm run add-version-migrations"
     },
 ```
 
