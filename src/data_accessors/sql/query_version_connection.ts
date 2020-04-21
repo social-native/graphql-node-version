@@ -192,7 +192,8 @@ export default async <
         .orderBy(`${table_names.event}.${event.created_at}`, 'desc')
         .orderBy(`${table_names.event}.${event.id}`, 'desc');
 
-    nodeConnection.createQuery(queryBuilder);
+    // TODO fix this when the connection lib bumps version
+    nodeConnection.createQuery(queryBuilder as any);
 
     logger.debug('Raw SQL:', logger.level === 'debug' && queryBuilder.toQuery());
     const nodeResult = (await queryBuilder) as NodesInConnectionUnprocessed<Snapshot>;

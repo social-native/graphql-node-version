@@ -44,8 +44,9 @@ export default <
             logger.debug('Building node for type: ', event.type);
 
             if (index === 0 && !isNodeBuilderNodeVersionInfoWithSnapshot(event)) {
-                logger.error('Missing initial snapshot for connection', event);
-                throw new Error('Missing initial snapshot');
+                logger.warn('Missing initial snapshot for connection', event);
+                return acc;
+                // throw new Error('Missing initial snapshot');
             } else if (isNodeBuilderNodeVersionInfoWithSnapshot(event)) {
                 if (isNodeBuilderNodeFragmentChangeVersionInfo(event)) {
                     const childSnapshot = event.childSnapshot;
