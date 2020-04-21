@@ -37,8 +37,8 @@ export default <ResolverT extends (...args: any[]) => Promise<any>>(
             ...eventInfoBase,
             nodeId: edge.nodeId.toString(),
             nodeName: edge.nodeName,
-            linkNodeId: eventInfoBase.nodeName,
-            linkNodeName: eventInfoBase.nodeId.toString()
+            linkNodeId: eventInfoBase.nodeId.toString(),
+            linkNodeName: eventInfoBase.nodeName
         };
         acc.push(eventOne);
         acc.push(eventTwo);

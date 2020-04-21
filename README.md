@@ -1,6 +1,12 @@
 # snpkg-snapi-graphql-node-version :twisted_rightwards_arrows:
 
+# Important Notes:
+
+-   Knex is locked at `0.20.13`. Knex doesn't follow semver correctly. To avoid conflicts between packages and services we will use this version going forward. If you change this version, you may have to update every package.
+
+
 - [snpkg-snapi-graphql-node-version :twisted_rightwards_arrows:](#snpkg-snapi-graphql-node-version-twistedrightwardsarrows)
+- [Important Notes:](#important-notes)
 - [Install](#install)
   - [1. Download](#1-download)
   - [2. Peer Dependencies](#2-peer-dependencies)
