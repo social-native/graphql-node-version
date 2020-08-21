@@ -6,7 +6,7 @@ import {
     IVersionConnection,
     ExtractNodeFromVersionConnection
 } from '../types';
-import {ConnectionManager} from '@social-native/snpkg-snapi-connections';
+import {ConnectionManager} from 'graphql-connections';
 
 import queryVersionConnection from '../data_accessors/sql/query_version_connection';
 import queryNodeInstancesInConnection from '../data_accessors/sql/query_node_instances_in_connection';

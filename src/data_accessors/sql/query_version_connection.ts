@@ -1,10 +1,5 @@
 import Knex from 'knex';
-import {
-    ConnectionManager,
-    IQueryResult,
-    IInputArgs,
-    IFilter
-} from '@social-native/snpkg-snapi-connections';
+import {ConnectionManager, IQueryResult, IInputArgs, IFilter} from 'graphql-connections';
 
 import {
     ITableAndColumnNames,

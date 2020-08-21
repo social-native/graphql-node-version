@@ -2,8 +2,8 @@ import {ApolloServer, gql} from 'apollo-server-koa';
 import Koa from 'koa';
 import Knex from 'knex';
 
-import {typeDefs as connectionTypeDefs} from '@social-native/snpkg-snapi-connections';
-import unixTimeSec from '@social-native/snpkg-graphql-scalar-unix-time-sec';
+import {typeDefs as connectionTypeDefs} from 'graphql-connections';
+import unixTimeSec from 'graphql-scalar-unix-time-sec';
 
 import appTypeDefs from './type_defs';
 import resolvers from './resolvers';

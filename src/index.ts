@@ -8,3 +8,5 @@ import * as nodeBuilder from './node_builder_utils';
 export {typeGuards, nodeBuilder};
 export * from './types';
 export * from './enums';
+
+export * from './lib/sql_dialect_translator';

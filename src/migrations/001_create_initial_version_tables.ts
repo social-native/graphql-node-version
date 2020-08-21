@@ -1,10 +1,7 @@
 import {ITableAndColumnNames} from '../types';
 import {generateTableAndColumnNames} from '../sql_names';
 import {EVENT_IMPLEMENTOR_TYPE_IDS, EVENT_IMPLEMENTOR_TYPE_NAMES} from '../enums';
-import {
-    templateFragments,
-    MigrationFileExtension
-} from '@social-native/snpkg-knex-migration-generator';
+import {templateFragments, MigrationFileExtension} from 'knex-migration-generator';
 
 const {importStatements, upMigrationDeclaration, downMigrationDeclaration} = templateFragments;
 /**

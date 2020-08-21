@@ -1,4 +1,4 @@
-import unixTimeSec from '@social-native/snpkg-graphql-scalar-unix-time-sec';
+import unixTimeSec from 'graphql-scalar-unix-time-sec';
 import {EVENT_IMPLEMENTOR_TYPE_IDS} from './enums';
 
 const contentFormatToGraphqlTypeName: {[K in keyof typeof EVENT_IMPLEMENTOR_TYPE_IDS]: string} = {

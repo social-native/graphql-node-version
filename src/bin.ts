@@ -1,7 +1,7 @@
 #! /usr/bin/env node
 
 import yargs from 'yargs';
-import {generator} from '@social-native/snpkg-knex-migration-generator';
+import {generator} from 'knex-migration-generator';
 import path from 'path';
 
 const p = path.resolve(__dirname, './migrations');

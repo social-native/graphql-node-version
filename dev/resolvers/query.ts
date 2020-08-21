@@ -1,4 +1,4 @@
-import {ConnectionManager, IInputArgs, IQueryResult} from '@social-native/snpkg-snapi-connections';
+import {ConnectionManager, IInputArgs, IQueryResult} from 'graphql-connections';
 import {Resolver, IUserNode, ITodoItem, ITodoList} from '../types';
 
 import {
