@@ -1,12 +1,12 @@
 {
-    "name": "@social-native/snpkg-snapi-graphql-node-version",
-    "version": "1.0.0",
-    "description": "Handle versioning of graphql nodes",
+    "name": "graphql-node-version",
+    "version": "1.1.0",
+    "description": "Handle versioning of GraphQL nodes. Easily capture node changes caused from mutations by wrapping resolvers in decorators. Use Relay-like connections to query versions of a node through time.",
     "main": "dist/index.cjs.js",
     "module": "dist/index.es.js",
     "types": "dist/index.d.ts",
     "bin": {
-        "snpkg-snapi-graphql-node-version": "./dist/bin.js"
+        "graphql-node-version": "./dist/bin.js"
     },
     "files": [
         "dist"
@@ -45,32 +45,28 @@
     },
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/social-native/snpkg-snapi-graphql-node-version.git"
+        "url": "git+https://github.com/social-native/graphql-node-version.git"
     },
     "keywords": [
-        "SNAPI",
-        "SNPKG",
         "Graphql",
         "Node",
         "Version",
-        "Revision"
+        "Revision",
+        "Event Sourcing",
+        "Capture data"
     ],
-    "author": "",
-    "license": "ISC",
+    "author": "Ethan Hathaway <erhathaway@gmail.com>",
+    "license": "Apache-2.0",
     "bugs": {
-        "url": "https://github.com/social-native/snpkg-snapi-graphql-node-version/issues"
+        "url": "https://github.com/social-native/graphql-node-version/issues"
     },
-    "homepage": "https://github.com/social-native/snpkg-snapi-graphql-node-version#readme",
+    "homepage": "https://github.com/social-native/graphql-node-version#readme",
     "dependencies": {
-        "@social-native/snpkg-dependency-check": "^0.1.0",
-        "@social-native/snpkg-generate-config-ci": "^0.2.0",
-        "@social-native/snpkg-graphql-scalar-unix-time-sec": "^0.1.0",
-        "@social-native/snpkg-knex-migration-generator": "^0.1.3",
-        "@social-native/snpkg-package-version-validation": "^3.3.1",
-        "@social-native/snpkg-snapi-connections": "^5.0.1",
-        "@social-native/snpkg-snapi-ndm": "^2.0.0",
         "bluebird": "^3.7.0",
+        "graphql-connections": "^7.0.3",
+        "graphql-scalar-unix-time-sec": "^0.2.0",
         "knex": "0.20.13",
+        "knex-migration-generator": "^0.2.0",
         "luxon": "^1.19.3",
         "pino": "^6.2.0",
         "yargs": "^13.2.4"

@@ -1,11 +1,8 @@
 # snpkg-snapi-graphql-node-version :twisted_rightwards_arrows:
 
-# Important Notes:
+Handle versioning of GraphQL nodes. Easily capture node changes caused from mutations by wrapping resolvers in decorators. Use Relay-like connections to query versions of a node through time.
 
--   Knex is locked at `0.20.13`. Knex doesn't follow semver correctly. To avoid conflicts between packages and services we will use this version going forward. If you change this version, you may have to update every package.
-
-
-- [snpkg-snapi-graphql-node-version :twisted_rightwards_arrows:](#snpkg-snapi-graphql-node-version-twistedrightwardsarrows)
+- [snpkg-snapi-graphql-node-version :twisted_rightwards_arrows:](#snpkg-snapi-graphql-node-version-twisted_rightwards_arrows)
 - [Important Notes:](#important-notes)
 - [Install](#install)
   - [1. Download](#1-download)
@@ -13,8 +10,8 @@
   - [3. Migrations](#3-migrations)
 - [How to version a node](#how-to-version-a-node)
   - [1. Set the configuration](#1-set-the-configuration)
-      - [NODE_NAMES](#nodenames)
-      - [RESOLVER_OPERATION](#resolveroperation)
+      - [NODE_NAMES](#node_names)
+      - [RESOLVER_OPERATION](#resolver_operation)
       - [versionRecorder and versionConnection instances](#versionrecorder-and-versionconnection-instances)
       - [Common versionRecorder configuration](#common-versionrecorder-configuration)
   - [2. Version recording](#2-version-recording)
@@ -27,6 +24,10 @@
   - [2. VersionRecorder](#2-versionrecorder)
   - [3. VersionConnection](#3-versionconnection)
 - [GQL Example Usage](#gql-example-usage)
+
+# Important Notes:
+
+-   Knex is locked at `0.20.13`. Knex doesn't follow semver correctly. To avoid conflicts between packages and services we will use this version going forward. If you change this version, you may have to update every package.
 
 # Install
 
@@ -345,7 +346,7 @@ versionRecorder and versionConnection are both imported from the lib directly:
 ```typescript
 import {
     versionRecorderDecorator as versionRecorderBuilder,
-    versionConnection as versionConnectionBuilder,
+    versionConnection as versionConnectionBuilder
 } from '@social-native/snpkg-snapi-graphql-node-version';
 ```
 
@@ -361,11 +362,11 @@ export interface IConfig extends ILoggerConfig {
 
 Config Object:
 
-|field|description|type|
-|-|-|-|
-|logOptions| Any logger options. Useful if you want to set the logger to debug mode | `pino.LoggerOptions` |
-|logger | The pino logger to use instead of making a new one | `ReturnType<typeof pino>`
-|names | The table and column names used in sql. If you set custom names in the migration, you should also supply them here. | `ITableAndColumnNames` |
+| field      | description                                                                                                         | type                      |
+| ---------- | ------------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| logOptions | Any logger options. Useful if you want to set the logger to debug mode                                              | `pino.LoggerOptions`      |
+| logger     | The pino logger to use instead of making a new one                                                                  | `ReturnType<typeof pino>` |
+| names      | The table and column names used in sql. If you set custom names in the migration, you should also supply them here. | `ITableAndColumnNames`    |
 
 ```typescript
 export interface ISqlColumnNames {
@@ -387,35 +388,35 @@ export interface ITableAndColumnNames extends ISqlColumnNames {
 
 When you use the versionRecorder you need to supply extractors to map the resolver inputs and outputs to the versionRecorder:
 
-|field|description|type|
-|-|-|-|
-|userId| The id of the user who made the GQL request | `(parent, args, ctx, info) => string | number` |
-|userRoles | The permission roles of the user who made the GQL request | `(parent, args, ctx, info) => string[]` 
-|revisionData | The data that should be stored as the diff for this resolver operation | `(parent, args, ctx, info) => any` |
-|eventTime | OPTIONAL - The UTC ISO time of the recording. If not supplied, it will default to the current UTC ISO time | `(parent, args, ctx, info) => string` |
-|knex | The knex client used for storing revision information | `(parent, args, ctx, info) => Knex` |
-|nodeId | The id of the node who is being versioned | `(node, parent, args, ctx, info) => Knex` |
-|nodeSchemaVersion | The schema version of the node who is being versioned | `number | string` |
-|nodeName | The name of the node who is being versioned | `string` |
-|resolverOperation | OPTIONAL - The name of the resolver operating on the node who is being versioned. If not supplied the decorator will use the property name of the decorated resolver | `string` |
-|currentNodeSnapshot | A function to call that will return the current node. This is called after the mutation has been persisted to the database. This should likely be a query resolver. | `(node, parent, args, ctx, info) => Promise<Node>` |
-|currentNodeSnapshotFrequency | OPTIONAL - The frequency at which full node snapshots will be taken. If not supplied, it will default to `1` which means every time there is a recording a snapshot will be taken.| `number` |
-|parentNode | OPTIONAL - If this node is a fragment or child of a node (it doesnt have a true independent representation in the graph but has resolvers that act on it directly), this function provides a mapping to the parentNode's identifying info.|`(node, parent, args, ctx, info) => {nodeName: string, nodeId: string | number}` |
-|edges | OPTIONAL - Edges to other nodes that are created by the resolver.|`(node, parent, args, ctx, info) => Array<{nodeName: string, nodeId: string | number}>` |
+| field                        | description                                                                                                                                                                                                                                | type                                                                                    |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------- |
+| userId                       | The id of the user who made the GQL request                                                                                                                                                                                                | `(parent, args, ctx, info) => string | number`                                          |
+| userRoles                    | The permission roles of the user who made the GQL request                                                                                                                                                                                  | `(parent, args, ctx, info) => string[]`                                                 |
+| revisionData                 | The data that should be stored as the diff for this resolver operation                                                                                                                                                                     | `(parent, args, ctx, info) => any`                                                      |
+| eventTime                    | OPTIONAL - The UTC ISO time of the recording. If not supplied, it will default to the current UTC ISO time                                                                                                                                 | `(parent, args, ctx, info) => string`                                                   |
+| knex                         | The knex client used for storing revision information                                                                                                                                                                                      | `(parent, args, ctx, info) => Knex`                                                     |
+| nodeId                       | The id of the node who is being versioned                                                                                                                                                                                                  | `(node, parent, args, ctx, info) => Knex`                                               |
+| nodeSchemaVersion            | The schema version of the node who is being versioned                                                                                                                                                                                      | `number | string`                                                                       |
+| nodeName                     | The name of the node who is being versioned                                                                                                                                                                                                | `string`                                                                                |
+| resolverOperation            | OPTIONAL - The name of the resolver operating on the node who is being versioned. If not supplied the decorator will use the property name of the decorated resolver                                                                       | `string`                                                                                |
+| currentNodeSnapshot          | A function to call that will return the current node. This is called after the mutation has been persisted to the database. This should likely be a query resolver.                                                                        | `(node, parent, args, ctx, info) => Promise<Node>`                                      |
+| currentNodeSnapshotFrequency | OPTIONAL - The frequency at which full node snapshots will be taken. If not supplied, it will default to `1` which means every time there is a recording a snapshot will be taken.                                                         | `number`                                                                                |
+| parentNode                   | OPTIONAL - If this node is a fragment or child of a node (it doesnt have a true independent representation in the graph but has resolvers that act on it directly), this function provides a mapping to the parentNode's identifying info. | `(node, parent, args, ctx, info) => {nodeName: string, nodeId: string | number}`        |
+| edges                        | OPTIONAL - Edges to other nodes that are created by the resolver.                                                                                                                                                                          | `(node, parent, args, ctx, info) => Array<{nodeName: string, nodeId: string | number}>` |
 
 ## 3. VersionConnection
 
 When you use the versionConnection you need to supply extractors to tell the versionConnection how to construct historical versions from recorded diffs and intermittent snapshots:
 
-|field|description|type|
-|-|-|-|
-|nodeId| The id of the node | `string | number` |
-|nodeName | The name of the node | `string`
-|nodeBuilder | A function that applies node diffs (from the versionInfo or fragmentNodes) to the previous node snapshot in order to calculate the new node | see below for type |
-|fragmentNodeBuilder | A function that applies node diffs (from the versionInfo) to the previous fragment node snapshot in order to calculate the new fragment node (childNode) | see below for type |
+| field               | description                                                                                                                                              | type               |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
+| nodeId              | The id of the node                                                                                                                                       | `string | number`  |
+| nodeName            | The name of the node                                                                                                                                     | `string`           |
+| nodeBuilder         | A function that applies node diffs (from the versionInfo or fragmentNodes) to the previous node snapshot in order to calculate the new node              | see below for type |
+| fragmentNodeBuilder | A function that applies node diffs (from the versionInfo) to the previous fragment node snapshot in order to calculate the new fragment node (childNode) | see below for type |
 
 ```typescript
-const nodeBuilder<Node> = 
+const nodeBuilder<Node> =
    (previousNode: Node,
     versionInfo: IAllNodeBuilderVersionInfo,
     fragmentNodes?: INodeBuilderFragmentNodes,
@@ -425,7 +426,7 @@ const nodeBuilder<Node> =
 ```
 
 ```typescript
-const fragmentNodeBuilder<ChildNode> = 
+const fragmentNodeBuilder<ChildNode> =
    (previousNode: ChildNode,
     versionInfo: IAllNodeBuilderVersionInfo,
     logger?: ILoggerConfig['logger']

@@ -1,5 +1,5 @@
 import Knex from 'knex';
-import {getSqlDialectTranslator} from '@social-native/snpkg-snapi-ndm';
+import {getSqlDialectTranslator} from 'lib/sql_dialect_translator';
 
 export const getTxInsertId = async (knex: Knex, tx: Knex.Transaction) => {
     const sqlTranslator = getSqlDialectTranslator(knex);

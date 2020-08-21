@@ -2,7 +2,6 @@ import {GraphQLResolveInfo, GraphQLScalarType} from 'graphql';
 import {MergeInfo} from 'graphql-tools';
 import Koa from 'koa';
 import Knex from 'knex';
-import {IAuthorizationContextService} from '@social-native/snpkg-snapi-authorization';
 
 // reusable - shared by all services
 
@@ -34,7 +33,7 @@ export interface IFragmentResolver<Node, P = undefined, A = undefined> {
 export interface ISqlClient {
     sqlClient: Knex;
 }
-export type ResolverContext = {} & IAuthorizationContextService & ISqlClient;
+export type ResolverContext = {} & ISqlClient;
 
 export type Resolver<Node, P = undefined, A = undefined> = BaseResolver<
     Node,

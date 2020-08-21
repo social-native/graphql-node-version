@@ -1,6 +1,6 @@
 import {IResolvers} from 'apollo-server-koa';
-import unixTimeSec from '@social-native/snpkg-graphql-scalar-unix-time-sec';
-import {resolvers as connectionResolvers} from '@social-native/snpkg-snapi-connections';
+import unixTimeSec from 'graphql-scalar-unix-time-sec';
+import {resolvers as connectionResolvers} from 'graphql-connections';
 import {resolvers as versionResolvers} from '../../src';
 
 import Mutation from './mutation';

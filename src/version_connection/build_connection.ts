@@ -8,7 +8,7 @@ import {
     IVersionConnection,
     ExtractNodeFromVersionConnection
 } from 'types';
-import {IQueryResult} from '@social-native/snpkg-snapi-connections';
+import {IQueryResult} from 'graphql-connections';
 
 export default <
     ResolverT extends (...args: [any, any, any, any]) => Promise<IVersionConnection<any>>,
