@@ -37,11 +37,7 @@
         "migrate:mysql:make": "npm run knex:mysql migrate:make",
         "migrate:mysql:latest": "npm run knex:mysql migrate:latest",
         "migrate:mysql:rollback": "npm run knex:mysql migrate:rollback",
-        "add-version-migrations": "ts-node --project tsconfig.dev.json ./dist/bin.js --knexfile knexfile.mysql.ts",
-        "dep-check": "snpkg-dependency-check",
-        "package-version-validation": "snpkg-package-version-validation package-version-validation",
-        "tag-version-validation": "snpkg-package-version-validation tag-version-validation",
-        "postinstall": "snpkg-generate-config-ci snpkg -i=bin"
+        "add-version-migrations": "ts-node --project tsconfig.dev.json ./dist/bin.js --knexfile knexfile.mysql.ts"
     },
     "repository": {
         "type": "git",
