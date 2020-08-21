@@ -1,13 +1,77 @@
-# snpkg-snapi-graphql-node-version :twisted_rightwards_arrows:
+# graphql-node-version 🌗 🌑 🌓
 
 Handle versioning of GraphQL nodes. Easily capture node changes caused from mutations by wrapping resolvers in decorators. Use Relay-like connections to query versions of a node through time.
 
-- [snpkg-snapi-graphql-node-version :twisted_rightwards_arrows:](#snpkg-snapi-graphql-node-version-twisted_rightwards_arrows)
+For example, with this library, you can create GraphQL nodes that allow you to query like this:
+
+
+```graphql
+query {
+    campaign(
+        campaignId: 8021
+        first: 50
+        filter: {
+            and: [
+                {field: "id", operator: "=", value: "2"}
+                {field: "userId", operator: "=", value: "105208"}
+                {field: "userRole", operator: "=", value: "users"}
+                {field: "nodeId", operator: "=", value: "145"}
+                {field: "nodeName", operator: "=", value: "CAMPAIGN"}
+                {field: "createdAt", operator: "=", value: "1572048220"}
+                {field: "type", operator: "=", value: "LINK_CHANGE"}
+                {field: "resolverOperation", operator: "=", value: "CREATE_CAMPAIGN"}
+            ]
+        }
+    ) {
+        pageInfo {
+            endCursor
+            startCursor
+            hasPreviousPage
+            hasNextPage
+        }
+        edges {
+            cursor
+            version {
+                id
+                userId
+                userRoles
+                nodeId
+                nodeName
+                createdAt
+                type
+                resolverOperation
+
+                ... on VersionNodeChange {
+                    revisionData
+                    nodeSchemaVersion
+                }
+
+                ... on VersionNodeLinkChange {
+                    linkNodeId
+                    linkNodeName
+                }
+
+                ... on VersionNodeFragmentChange {
+                    childNodeId
+                    childNodeName
+                    childRevisionData
+                    childNodeSchemaVersion
+                }
+            }
+            node {
+                ...InfoSpecificToEachNode
+            }
+        }
+    }
+}
+```
+
+
+- [graphql-node-version 🌗 🌑 🌓](#graphql-node-version---)
 - [Important Notes:](#important-notes)
 - [Install](#install)
   - [1. Download](#1-download)
-  - [2. Peer Dependencies](#2-peer-dependencies)
-  - [3. Migrations](#3-migrations)
+  - [2. Migrations](#2-migrations)
 - [How to version a node](#how-to-version-a-node)
   - [1. Set the configuration](#1-set-the-configuration)
       - [NODE_NAMES](#node_names)
@@ -34,43 +98,22 @@ Handle versioning of GraphQL nodes. Easily capture node changes caused from muta
 ## 1. Download
 
 ```typescript
-npm install --save @social-native/snpkg-snapi-graphql-node-version
+npm install --save @social-native/graphql-node-version
 ```
 
-## 2. Peer Dependencies
-
-In order for this library to work, you will need to install the following peer dependencies:
-
-```json
-{
-    "@social-native/snpkg-dependency-check": "^0.1.0",
-    "@social-native/snpkg-generate-config-ci": "^0.2.0",
-    "@social-native/snpkg-graphql-scalar-unix-time-sec": "^0.1.0",
-    "@social-native/snpkg-knex-migration-generator": "^0.1.3",
-    "@social-native/snpkg-package-version-validation": "^3.3.1",
-    "@social-native/snpkg-snapi-connections": "^5.0.1",
-    "@social-native/snpkg-snapi-ndm": "^1.3.3",
-    "bluebird": "^3.7.0",
-    "knex": "^0.19.4",
-    "luxon": "^1.19.3",
-    "pino": "^5.13.4",
-    "yargs": "^13.2.4"
-}
-```
-
-## 3. Migrations
+## 2. Migrations
 
 This package installs knex migrations into the dependent service. A binary is published that you can call to add the migrations. For example, you can add this to your npm scripts:
 
 ```typescript
     scripts: {
-        "add-version-migrations": "ts-node --project tsconfig.json node_modules/.bin/snpkg-snapi-graphql-node-version --knexfile knexfile.js",
+        "add-version-migrations": "ts-node --project tsconfig.json node_modules/.bin/graphql-node-version --knexfile knexfile.js",
         ...
         "postinstall": "npm run add-version-migrations"
     },
 ```
 
-> Note: In order for this to work, you need to have a `knexfile.js` in the root of the repo. If you are using a `snapi` service, you can generate a knex file use [snpkg-snapi-clients](https://github.com/social-native/snpkg-snapi-clients) to generate a kenx file.
+> Note: In order for this to work, you need to have a `knexfile.js` in the root of the repo.
 
 # How to version a node
 
@@ -112,7 +155,7 @@ export enum DIRECTION_TREE_RESOLVER_OPERATION {
 
 You will use these instances in decorators or directly in resolvers to version a node.
 
-A common setup is to just pass the microservices logger to the class constructor, for example:
+This package uses the [Pino](https://github.com/pinojs/pino) logger. A common setup is to pass the instantiated Pino logger to the class constructor, for example:
 
 ```typescript
 import logger from 'logger';
@@ -138,7 +181,7 @@ If you wanted more specific logging you could enable debug logging, in which cas
 import {
     versionRecorderDecorator as VersionRecorder,
     versionConnection as VersionConnection
-} from '@social-native/snpkg-snapi-graphql-node-version';
+} from 'graphql-node-version';
 
 export const versionRecorder = VersionRecorder({
     logOptions: {
@@ -347,7 +390,7 @@ versionRecorder and versionConnection are both imported from the lib directly:
 import {
     versionRecorderDecorator as versionRecorderBuilder,
     versionConnection as versionConnectionBuilder
-} from '@social-native/snpkg-snapi-graphql-node-version';
+} from 'graphql-node-version';
 ```
 
 Both of these functions are actually builder functions that takes a config object with the type:
@@ -436,11 +479,11 @@ const fragmentNodeBuilder<ChildNode> =
 
 # GQL Example Usage
 
-Versioned nodes are represented as connections. If you are unfamilar with the Relay connection spec you can read about it [here](https://github.com/social-native/snpkg-snapi-connections#about). This library extends the connection type by adding a `version` field to the `edges` field. The `version` field has three unique implementors `VersionNodeChange`, `VersionNodeLinkChange`, and `VersionNodeFragmentChange`. For the most part, unless you are doing something special you will just use `VersionNodeChange` and `VersionNodeLinkChange` to get version information about node and node links (aka edges to other nodes) changes.
+Versioned nodes are represented as connections. If you are unfamilar with the Relay connection spec you can read about it [here](https://github.com/social-native/graphql-connections#about). This library extends the connection type by adding a `version` field to the `edges` field. The `version` field has three unique implementors `VersionNodeChange`, `VersionNodeLinkChange`, and `VersionNodeFragmentChange`. For the most part, unless you are doing something special you will just use `VersionNodeChange` and `VersionNodeLinkChange` to get version information about node and node links (aka edges to other nodes) changes.
 
 Each edge in a versioned connection represents a version of the node. By default, the nodes are sorted youngest to oldest. Thus, calling a version connection for the first node will give you the current node
 
-You can also use `snpkg-snapi-connection` filters in a version connection query.
+You can also use `graphql-connection` filters in a version connection query.
 
 The fields available to filter on are:
 
