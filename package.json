@@ -61,7 +61,7 @@
         "bluebird": "^3.7.0",
         "graphql-connections": "^7.0.3",
         "graphql-scalar-unix-time-sec": "^0.2.0",
-        "knex": "0.20.13",
+        "knex": "0.21.12",
         "knex-migration-generator": "^0.2.0",
         "luxon": "^1.19.3",
         "pino": "^6.2.0",
